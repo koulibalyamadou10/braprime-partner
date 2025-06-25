@@ -1,20 +1,59 @@
 import { supabase } from '@/lib/supabase'
-import type { Tables, Inserts, Updates } from '@/lib/supabase'
+import type { Inserts } from '@/lib/supabase'
 
-export type Order = Tables<'orders'>
+export interface Order {
+  id: string
+  user_id: string
+  business_id: number
+  business_name: string
+  items: any[]
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled'
+  total: number
+  delivery_fee: number
+  tax: number
+  grand_total: number
+  delivery_method: string
+  delivery_address: string
+  delivery_instructions?: string
+  payment_method: string
+  payment_status: string
+  estimated_delivery: string
+  actual_delivery?: string
+  driver_id?: string
+  driver_name?: string
+  driver_phone?: string
+  driver_location?: any
+  customer_rating?: number
+  customer_review?: string
+  created_at: string
+  updated_at: string
+}
 
-export interface OrderItem {
-  id: number
-  name: string
-  price: number
-  quantity: number
-  image?: string
+// Type pour la création de commande
+export interface CreateOrderData {
+  id: string
+  user_id: string
+  business_id: number
+  business_name: string
+  items: any[]
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled'
+  total: number
+  delivery_fee: number
+  tax: number
+  grand_total: number
+  delivery_address: string
+  delivery_method: string
+  estimated_delivery: string
+  payment_method?: string
+  payment_status?: string
 }
 
 export class OrderService {
   // Créer une nouvelle commande
-  static async createOrder(orderData: Inserts<'orders'>): Promise<{ order: Order | null; error: string | null }> {
+  static async createOrder(orderData: CreateOrderData): Promise<{ order: Order | null; error: string | null }> {
     try {
+      console.log('Création de commande:', orderData)
+      
       const { data, error } = await supabase
         .from('orders')
         .insert(orderData)
@@ -22,11 +61,14 @@ export class OrderService {
         .single()
 
       if (error) {
+        console.error('Erreur création commande:', error)
         return { order: null, error: error.message }
       }
 
+      console.log('Commande créée avec succès:', data)
       return { order: data, error: null }
     } catch (error) {
+      console.error('Erreur lors de la création de la commande:', error)
       return { order: null, error: 'Erreur lors de la création de la commande' }
     }
   }
@@ -69,13 +111,13 @@ export class OrderService {
     }
   }
 
-  // Récupérer les commandes d'un restaurant (pour les partenaires)
-  static async getRestaurantOrders(restaurantId: number): Promise<{ orders: Order[]; error: string | null }> {
+  // Récupérer les commandes d'un commerce (pour les partenaires)
+  static async getBusinessOrders(businessId: number): Promise<{ orders: Order[]; error: string | null }> {
     try {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('restaurant_id', restaurantId)
+        .eq('business_id', businessId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -84,7 +126,7 @@ export class OrderService {
 
       return { orders: data || [], error: null }
     } catch (error) {
-      return { orders: [], error: 'Erreur lors de la récupération des commandes du restaurant' }
+      return { orders: [], error: 'Erreur lors de la récupération des commandes du commerce' }
     }
   }
 
@@ -93,7 +135,10 @@ export class OrderService {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update({ 
+          status, 
+          updated_at: new Date().toISOString() 
+        })
         .eq('id', orderId)
         .select()
         .single()
@@ -129,30 +174,69 @@ export class OrderService {
     }
   }
 
-  // Mettre à jour les informations du livreur
-  static async updateDriverInfo(orderId: string, driverInfo: {
-    driver_name?: string
-    driver_phone?: string
-    driver_location?: { lat: number; lng: number }
-  }): Promise<{ order: Order | null; error: string | null }> {
+  // Assigner un livreur à une commande
+  static async assignDriver(orderId: string, driverId: string, driverName: string, driverPhone: string): Promise<{ error: string | null }> {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('orders')
         .update({ 
-          ...driverInfo,
+          driver_id: driverId,
+          driver_name: driverName,
+          driver_phone: driverPhone,
           updated_at: new Date().toISOString() 
         })
         .eq('id', orderId)
-        .select()
-        .single()
 
       if (error) {
-        return { order: null, error: error.message }
+        return { error: error.message }
       }
 
-      return { order: data, error: null }
+      return { error: null }
     } catch (error) {
-      return { order: null, error: 'Erreur lors de la mise à jour des informations du livreur' }
+      return { error: 'Erreur lors de l\'assignation du livreur' }
+    }
+  }
+
+  // Mettre à jour la position du livreur
+  static async updateDriverLocation(orderId: string, location: { lat: number; lng: number }): Promise<{ error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          driver_location: location,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', orderId)
+
+      if (error) {
+        return { error: error.message }
+      }
+
+      return { error: null }
+    } catch (error) {
+      return { error: 'Erreur lors de la mise à jour de la position' }
+    }
+  }
+
+  // Ajouter une note et avis client
+  static async addCustomerReview(orderId: string, rating: number, review: string): Promise<{ error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          customer_rating: rating,
+          customer_review: review,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', orderId)
+
+      if (error) {
+        return { error: error.message }
+      }
+
+      return { error: null }
+    } catch (error) {
+      return { error: 'Erreur lors de l\'ajout de l\'avis' }
     }
   }
 
@@ -175,91 +259,60 @@ export class OrderService {
     }
   }
 
-  // Récupérer les commandes récentes (dernières 24h)
-  static async getRecentOrders(): Promise<{ orders: Order[]; error: string | null }> {
-    try {
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .gte('created_at', yesterday.toISOString())
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        return { orders: [], error: error.message }
-      }
-
-      return { orders: data || [], error: null }
-    } catch (error) {
-      return { orders: [], error: 'Erreur lors de la récupération des commandes récentes' }
-    }
-  }
-
-  // Calculer les statistiques des commandes pour un restaurant
-  static async getRestaurantOrderStats(restaurantId: number): Promise<{
-    totalOrders: number
-    totalRevenue: number
-    averageOrderValue: number
-    pendingOrders: number
-    error: string | null
-  }> {
-    try {
-      // Total des commandes
-      const { count: totalOrders, error: countError } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', restaurantId)
-
-      if (countError) {
-        return { totalOrders: 0, totalRevenue: 0, averageOrderValue: 0, pendingOrders: 0, error: countError.message }
-      }
-
-      // Revenus totaux
-      const { data: revenueData, error: revenueError } = await supabase
-        .from('orders')
-        .select('grand_total')
-        .eq('restaurant_id', restaurantId)
-        .eq('status', 'delivered')
-
-      if (revenueError) {
-        return { totalOrders: 0, totalRevenue: 0, averageOrderValue: 0, pendingOrders: 0, error: revenueError.message }
-      }
-
-      const totalRevenue = revenueData?.reduce((sum, order) => sum + order.grand_total, 0) || 0
-      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
-
-      // Commandes en attente
-      const { count: pendingOrders, error: pendingError } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', restaurantId)
-        .in('status', ['pending', 'confirmed', 'preparing'])
-
-      if (pendingError) {
-        return { totalOrders: 0, totalRevenue: 0, averageOrderValue: 0, pendingOrders: 0, error: pendingError.message }
-      }
-
-      return {
-        totalOrders: totalOrders || 0,
-        totalRevenue,
-        averageOrderValue,
-        pendingOrders: pendingOrders || 0,
-        error: null
-      }
-    } catch (error) {
-      return { totalOrders: 0, totalRevenue: 0, averageOrderValue: 0, pendingOrders: 0, error: 'Erreur lors du calcul des statistiques' }
-    }
-  }
-
   // Écouter les changements de commandes en temps réel
-  static onOrderChange(callback: (order: Order) => void) {
+  static subscribeToOrderChanges(orderId: string, callback: (order: Order) => void) {
     return supabase
-      .channel('orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-        callback(payload.new as Order)
-      })
+      .channel(`order-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`
+        },
+        (payload) => {
+          callback(payload.new as Order)
+        }
+      )
+      .subscribe()
+  }
+
+  // Écouter les nouvelles commandes d'un commerce
+  static subscribeToBusinessOrders(businessId: number, callback: (order: Order) => void) {
+    return supabase
+      .channel(`business-orders-${businessId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `business_id=eq.${businessId}`
+        },
+        (payload) => {
+          callback(payload.new as Order)
+        }
+      )
+      .subscribe()
+  }
+
+  // Écouter les changements de statut des commandes d'un utilisateur
+  static subscribeToUserOrderStatus(userId: string, callback: (order: Order) => void) {
+    return supabase
+      .channel(`user-orders-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          callback(payload.new as Order)
+        }
+      )
       .subscribe()
   }
 } 

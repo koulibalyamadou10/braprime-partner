@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Clock, Star, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -94,7 +93,7 @@ const RestaurantList = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {restaurants.map((restaurant) => (
             <div key={restaurant.id} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
-              <Link to={`/restaurant/${restaurant.id}`}>
+              <Link to={`/services/${restaurant.id}`}>
                 <div className="relative h-48 w-full">
                   <img 
                     src={restaurant.image} 

@@ -1,16 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { HomepageService } from '@/lib/services/homepage'
-import { useAuth } from '@/contexts/AuthContext'
 
 // Hook pour les statistiques de la page d'accueil
 export const useHomepageStats = () => {
-  const { currentUser } = useAuth()
-  
   return useQuery({
     queryKey: ['homepage-stats'],
     queryFn: () => HomepageService.getHomepageStats(),
-    enabled: !!currentUser,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 2 * 60 * 1000, // 2 minutes
     retry: (failureCount, error: any) => {
       // Ne pas relancer si l'erreur est 401 (non autorisé)
       if (error?.code === 'PGRST116' || error?.status === 401) {
@@ -23,12 +20,9 @@ export const useHomepageStats = () => {
 
 // Hook pour les catégories populaires
 export const usePopularCategories = () => {
-  const { currentUser } = useAuth()
-  
   return useQuery({
     queryKey: ['popular-categories'],
     queryFn: () => HomepageService.getPopularCategories(),
-    enabled: !!currentUser,
     staleTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error: any) => {
       // Ne pas relancer si l'erreur est 401 (non autorisé)
@@ -40,15 +34,12 @@ export const usePopularCategories = () => {
   })
 }
 
-// Hook pour les services populaires
-export const usePopularServices = (limit: number = 6) => {
-  const { currentUser } = useAuth()
-  
+// Hook pour les types de commerce
+export const useBusinessTypes = () => {
   return useQuery({
-    queryKey: ['popular-services', limit],
-    queryFn: () => HomepageService.getPopularServices(limit),
-    enabled: !!currentUser,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: ['business-types'],
+    queryFn: () => HomepageService.getBusinessTypes(),
+    staleTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error: any) => {
       // Ne pas relancer si l'erreur est 401 (non autorisé)
       if (error?.code === 'PGRST116' || error?.status === 401) {
@@ -60,71 +51,11 @@ export const usePopularServices = (limit: number = 6) => {
 }
 
 // Hook pour les articles en vedette
-export const useFeaturedProducts = (limit: number = 8) => {
-  const { currentUser } = useAuth()
-  
+export const useFeaturedItems = (limit: number = 8) => {
   return useQuery({
-    queryKey: ['featured-products', limit],
+    queryKey: ['featured-items', limit],
     queryFn: () => HomepageService.getFeaturedProducts(limit),
-    enabled: !!currentUser,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: any) => {
-      // Ne pas relancer si l'erreur est 401 (non autorisé)
-      if (error?.code === 'PGRST116' || error?.status === 401) {
-        return false
-      }
-      return failureCount < 3
-    }
-  })
-}
-
-// Hook pour récupérer un service spécifique
-export const useServiceById = (id: string) => {
-  const { currentUser } = useAuth()
-  
-  return useQuery({
-    queryKey: ['service', id],
-    queryFn: () => HomepageService.getServiceById(id),
-    enabled: !!id && !!currentUser,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: any) => {
-      // Ne pas relancer si l'erreur est 401 (non autorisé)
-      if (error?.code === 'PGRST116' || error?.status === 401) {
-        return false
-      }
-      return failureCount < 3
-    }
-  })
-}
-
-// Hook pour récupérer les catégories de produits
-export const useProductCategories = () => {
-  const { currentUser } = useAuth()
-  
-  return useQuery({
-    queryKey: ['product-categories'],
-    queryFn: () => HomepageService.getProductCategories(),
-    enabled: !!currentUser,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    retry: (failureCount, error: any) => {
-      // Ne pas relancer si l'erreur est 401 (non autorisé)
-      if (error?.code === 'PGRST116' || error?.status === 401) {
-        return false
-      }
-      return failureCount < 3
-    }
-  })
-}
-
-// Hook pour récupérer les types de services
-export const useServiceTypes = () => {
-  const { currentUser } = useAuth()
-  
-  return useQuery({
-    queryKey: ['service-types'],
-    queryFn: () => HomepageService.getServiceTypes(),
-    enabled: !!currentUser,
-    staleTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error: any) => {
       // Ne pas relancer si l'erreur est 401 (non autorisé)
       if (error?.code === 'PGRST116' || error?.status === 401) {
@@ -180,7 +111,7 @@ export const useHomepage = () => {
   const stats = useHomepageStats()
   const popularRestaurants = usePopularRestaurants(8)
   const categories = useCategoriesWithCounts()
-  const featuredItems = useFeaturedProducts(8)
+  const featuredItems = useFeaturedItems(8)
 
   return {
     stats,

@@ -1,127 +1,102 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { useOrder } from '@/contexts/OrderContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useForm } from 'react-hook-form';
+import { useToast } from '@/hooks/use-toast';
 import { 
-  ChevronLeft, MapPin, CreditCard, Landmark, Phone, 
-  User, ShoppingBag, Clock, AlertCircle, Truck, Store
+  ArrowLeft, 
+  MapPin, 
+  CreditCard, 
+  Truck, 
+  Clock, 
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
-import { 
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface CheckoutFormValues {
-  fullName: string;
-  phone: string;
-  address: string;
-  neighborhood: string;
-  landmark: string;
-  instructions: string;
-  paymentMethod: 'cash' | 'orange_money' | 'mtn_money';
-}
 
 const CheckoutPage = () => {
-  const { cart, currentRestaurantName, getCartTotal, getCartCount, placeOrder, deliveryMethod, setDeliveryMethod } = useOrder();
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const { cart, currentRestaurantName, getCartTotal, placeOrder, clearCart } = useOrder();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const form = useForm<CheckoutFormValues>({
-    defaultValues: {
-      fullName: currentUser?.name || '',
-      phone: currentUser?.phoneNumber || '',
-      address: currentUser?.address || '',
-      neighborhood: '',
-      landmark: '',
-      instructions: '',
-      paymentMethod: 'cash',
-    },
-  });
-  
-  useEffect(() => {
-    // Update form with user info when user data is available
-    if (currentUser) {
-      form.setValue('fullName', currentUser.name);
-      if (currentUser.phoneNumber) {
-        form.setValue('phone', currentUser.phoneNumber);
-      }
-      if (currentUser.address) {
-        form.setValue('address', currentUser.address);
-      }
-    }
-  }, [currentUser, form]);
-  
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState(currentUser?.address || '');
+  const [deliveryInstructions, setDeliveryInstructions] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [contactPhone, setContactPhone] = useState(currentUser?.phoneNumber || '');
+
   const subtotal = getCartTotal();
-  const tax = subtotal * 0.18; // 18% VAT in Guinea
-  const deliveryFee = deliveryMethod === 'delivery' ? 15000 : 0; // No delivery fee for pickup
+  const tax = subtotal * 0.18; // 18% TVA
+  const deliveryFee = 15000; // 15,000 GNF
   const grandTotal = subtotal + tax + deliveryFee;
-  
-  // Redirect if cart is empty
+
+  // Rediriger si le panier est vide
   if (cart.length === 0) {
     navigate('/');
-    toast({
-      title: "Panier vide",
-      description: "Votre panier est vide. Explorez nos restaurants pour commander.",
-    });
     return null;
   }
-  
-  // Redirect if not logged in as customer
-  if (!currentUser || currentUser.role !== 'customer') {
-    navigate('/');
-    toast({
-      title: "Connexion requise",
-      description: "Vous devez être connecté en tant que client pour passer une commande.",
-    });
-    return null;
-  }
-  
-  const onSubmit = (data: CheckoutFormValues) => {
-    setIsSubmitting(true);
-    const fullAddress = `${data.address}, ${data.neighborhood}, Conakry`;
-    
+
+  const handlePlaceOrder = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter pour passer une commande.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!deliveryAddress.trim()) {
+      toast({
+        title: "Adresse requise",
+        description: "Veuillez saisir votre adresse de livraison.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!contactPhone.trim()) {
+      toast({
+        title: "Téléphone requis",
+        description: "Veuillez saisir votre numéro de téléphone.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
     try {
-      // Place the order and get the order ID
-      const orderId = placeOrder(fullAddress);
+      const orderId = await placeOrder(deliveryAddress);
       
       if (orderId) {
         toast({
-          title: "Commande effectuée avec succès",
-          description: "Votre commande a été créée et est en cours de traitement.",
+          title: "Commande confirmée !",
+          description: `Votre commande #${orderId} a été passée avec succès.`,
         });
         
-        // Simulate payment processing for demo
-        setTimeout(() => {
-          // Redirect to order confirmation page
-          navigate(`/order-confirmation/${orderId}`);
-        }, 2000);
+        // Rediriger vers la page de confirmation
+        navigate(`/order-confirmation/${orderId}`);
       }
     } catch (error) {
       toast({
         title: "Erreur",
-        description: "Une erreur s'est produite lors de la création de votre commande.",
+        description: "Une erreur est survenue lors de la création de la commande.",
         variant: "destructive",
       });
-      setIsSubmitting(false);
+    } finally {
+      setIsProcessing(false);
     }
   };
-  
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -130,371 +105,203 @@ const CheckoutPage = () => {
             variant="ghost" 
             size="sm" 
             className="mr-2"
-            asChild
+            onClick={() => navigate('/cart')}
           >
-            <Link to="/cart">
-              <ChevronLeft className="h-5 w-5" />
-              <span className="sr-only">Retour au panier</span>
-            </Link>
+            <ArrowLeft className="h-5 w-5" />
+            <span className="sr-only">Retour au panier</span>
           </Button>
           <h1 className="text-2xl font-bold">Finaliser la commande</h1>
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            {/* Delivery Method Selection */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <h2 className="font-bold text-lg mb-4">Mode de livraison</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card 
-                  className={`cursor-pointer border-2 transition-all ${
-                    deliveryMethod === 'delivery' ? 'border-guinea-red' : 'border-transparent'
-                  }`}
-                  onClick={() => setDeliveryMethod('delivery')}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-base flex items-center">
-                        <Truck className="h-5 w-5 mr-2 text-guinea-red" />
-                        Livraison
-                      </CardTitle>
-                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
-                        deliveryMethod === 'delivery' ? 'border-guinea-red' : 'border-gray-300'
-                      }`}>
-                        {deliveryMethod === 'delivery' && (
-                          <div className="h-3 w-3 rounded-full bg-guinea-red"></div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <CardDescription>
-                      {deliveryFee > 0 ? 
-                        `Frais: ${deliveryFee.toLocaleString()} GNF` : 
-                        'Frais de livraison inclus'
-                      }
-                    </CardDescription>
-                    <p className="text-sm mt-1 text-gray-500">Livraison à domicile</p>
-                  </CardContent>
-                </Card>
 
-                <Card 
-                  className={`cursor-pointer border-2 transition-all ${
-                    deliveryMethod === 'pickup' ? 'border-guinea-red' : 'border-transparent'
-                  }`}
-                  onClick={() => setDeliveryMethod('pickup')}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-base flex items-center">
-                        <Store className="h-5 w-5 mr-2 text-guinea-red" />
-                        À emporter
-                      </CardTitle>
-                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
-                        deliveryMethod === 'pickup' ? 'border-guinea-red' : 'border-gray-300'
-                      }`}>
-                        {deliveryMethod === 'pickup' && (
-                          <div className="h-3 w-3 rounded-full bg-guinea-red"></div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <CardDescription>
-                      Aucun frais supplémentaire
-                    </CardDescription>
-                    <p className="text-sm mt-1 text-gray-500">Récupérez votre commande sur place</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-            
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Delivery Information */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="font-bold text-lg mb-4 flex items-center">
-                    <User className="h-5 w-5 mr-2 text-guinea-red" />
-                    Informations personnelles
-                  </h2>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="fullName"
-                      rules={{ required: "Le nom complet est requis" }}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nom complet</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Votre nom complet" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      rules={{ 
-                        required: "Le numéro de téléphone est requis",
-                        pattern: {
-                          value: /^\+?[0-9]{9,15}$/,
-                          message: "Entrez un numéro de téléphone valide"
-                        }
-                      }}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Téléphone</FormLabel>
-                          <FormControl>
-                            <Input placeholder="+224 XXX XX XX XX" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-                
-                {/* Delivery Address - Only show if delivery method is selected */}
-                {deliveryMethod === 'delivery' && (
-                  <div className="bg-white rounded-lg shadow-sm p-6">
-                    <h2 className="font-bold text-lg mb-4 flex items-center">
-                      <MapPin className="h-5 w-5 mr-2 text-guinea-red" />
-                      Adresse de livraison
-                    </h2>
-                    
-                    <div className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="address"
-                        rules={{ required: "L'adresse est requise" }}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Adresse</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Rue / Avenue / Boulevard" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="neighborhood"
-                          rules={{ required: "Le quartier est requis" }}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Quartier</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Votre quartier" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="landmark"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Point de repère (optionnel)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Ex: Près de la station Total" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <FormField
-                        control={form.control}
-                        name="instructions"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Instructions de livraison (optionnel)</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Instructions spéciales pour le livreur"
-                                className="resize-none"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                {/* Payment Method */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="font-bold text-lg mb-4 flex items-center">
-                    <CreditCard className="h-5 w-5 mr-2 text-guinea-red" />
-                    Mode de paiement
-                  </h2>
-                  
-                  <FormField
-                    control={form.control}
-                    name="paymentMethod"
-                    rules={{ required: "Le mode de paiement est requis" }}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <RadioGroup 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                            className="space-y-3"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="cash" id="cash" />
-                              <Label htmlFor="cash" className="flex items-center">
-                                <span className="mr-3">💵</span>
-                                Paiement à la livraison
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="orange_money" id="orange_money" />
-                              <Label htmlFor="orange_money" className="flex items-center">
-                                <span className="mr-3">🟠</span>
-                                Orange Money
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="mtn_money" id="mtn_money" />
-                              <Label htmlFor="mtn_money" className="flex items-center">
-                                <span className="mr-3">🟡</span>
-                                MTN Money
-                              </Label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Formulaire de commande */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Informations de livraison */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-guinea-green" />
+                  Adresse de livraison
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="address">Adresse complète *</Label>
+                  <Textarea
+                    id="address"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Ex: 123 Rue de la Paix, Kaloum, Conakry"
+                    className="mt-1"
+                    rows={3}
                   />
                 </div>
                 
-                <div className="hidden lg:block">
-                  <Button 
-                    type="submit"
-                    className="w-full bg-guinea-red hover:bg-guinea-red/90"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <span className="flex items-center">
-                        <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                        Traitement...
-                      </span>
-                    ) : (
-                      <span className="flex items-center">
-                        <ShoppingBag className="mr-2 h-4 w-4" />
-                        Passer la commande
-                      </span>
-                    )}
-                  </Button>
+                <div>
+                  <Label htmlFor="phone">Numéro de téléphone *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="+224 621 000 000"
+                    className="mt-1"
+                  />
                 </div>
-              </form>
-            </Form>
+
+                <div>
+                  <Label htmlFor="instructions">Instructions de livraison (optionnel)</Label>
+                  <Textarea
+                    id="instructions"
+                    value={deliveryInstructions}
+                    onChange={(e) => setDeliveryInstructions(e.target.value)}
+                    placeholder="Ex: Appelez-moi à l'arrivée, code d'accès 1234..."
+                    className="mt-1"
+                    rows={2}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Méthode de paiement */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-guinea-green" />
+                  Méthode de paiement
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <div className="flex items-center space-x-2 mb-3">
+                    <RadioGroupItem value="cash" id="cash" />
+                    <Label htmlFor="cash" className="flex items-center gap-2">
+                      <span>Paiement à la livraison</span>
+                      <span className="text-sm text-gray-500">(Espèces)</span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="mobile_money" id="mobile_money" />
+                    <Label htmlFor="mobile_money" className="flex items-center gap-2">
+                      <span>Mobile Money</span>
+                      <span className="text-sm text-gray-500">(Orange Money, MTN Money)</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </CardContent>
+            </Card>
+
+            {/* Résumé de la commande */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-guinea-green" />
+                  Résumé de votre commande
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {cart.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        {item.image && (
+                          <img 
+                            src={item.image} 
+                            alt={item.name}
+                            className="w-12 h-12 rounded-md object-cover"
+                          />
+                        )}
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-gray-500">Quantité: {item.quantity}</p>
+                        </div>
+                      </div>
+                      <p className="font-medium">{(item.price * item.quantity).toLocaleString()} GNF</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          
-          {/* Order Summary */}
+
+          {/* Résumé et paiement */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-              <h2 className="font-bold text-lg mb-4">Résumé de la commande</h2>
-              
-              {currentRestaurantName && (
-                <div className="mb-4 pb-4 border-b border-gray-100">
-                  <div className="flex items-center">
-                    <Store className="h-4 w-4 text-guinea-green mr-2" />
-                    <span className="text-sm text-gray-700">{currentRestaurantName}</span>
+            <Card className="sticky top-24">
+              <CardHeader>
+                <CardTitle>Résumé de la commande</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Restaurant */}
+                {currentRestaurantName && (
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                    <Truck className="h-4 w-4 text-guinea-green" />
+                    <div>
+                      <p className="font-medium">{currentRestaurantName}</p>
+                      <p className="text-sm text-gray-500">Livraison estimée: 30-45 min</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Calculs */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Sous-total</span>
+                    <span>{subtotal.toLocaleString()} GNF</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">TVA (18%)</span>
+                    <span>{tax.toLocaleString()} GNF</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Frais de livraison</span>
+                    <span>{deliveryFee.toLocaleString()} GNF</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span className="text-guinea-red">{grandTotal.toLocaleString()} GNF</span>
                   </div>
                 </div>
-              )}
-              
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Sous-total</span>
-                  <span>{subtotal.toLocaleString()} GNF</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">TVA (18%)</span>
-                  <span>{tax.toLocaleString()} GNF</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">
-                    {deliveryMethod === 'delivery' ? 'Frais de livraison' : 'Frais de préparation'}
-                  </span>
-                  <span>{deliveryFee.toLocaleString()} GNF</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>{grandTotal.toLocaleString()} GNF</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                {/* Delivery method info */}
-                <div className="text-sm p-3 rounded-lg bg-gray-50">
-                  <div className="flex items-center text-gray-700">
-                    {deliveryMethod === 'delivery' ? (
-                      <>
-                        <Truck className="h-4 w-4 mr-2 text-guinea-red" />
-                        <span>Livraison à domicile</span>
-                      </>
-                    ) : (
-                      <>
-                        <Store className="h-4 w-4 mr-2 text-guinea-red" />
-                        <span>À récupérer sur place</span>
-                      </>
-                    )}
+
+                {/* Informations importantes */}
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium">Informations importantes:</p>
+                      <ul className="mt-1 space-y-1">
+                        <li>• Livraison estimée: 30-45 minutes</li>
+                        <li>• Paiement à la livraison</li>
+                        <li>• Vérifiez votre adresse avant confirmation</li>
+                      </ul>
+                    </div>
                   </div>
-                  <p className="mt-1 text-gray-500">
-                    {deliveryMethod === 'delivery' 
-                      ? 'Livraison estimée: 30-60 minutes' 
-                      : 'Préparation estimée: 20-30 minutes'}
-                  </p>
                 </div>
-                
-                <Button 
-                  type="submit"
-                  form="checkout-form"
-                  className="w-full bg-guinea-red hover:bg-guinea-red/90"
-                  disabled={isSubmitting}
-                  onClick={() => form.handleSubmit(onSubmit)()}
+
+                {/* Bouton de commande */}
+                <Button
+                  onClick={handlePlaceOrder}
+                  disabled={isProcessing || !deliveryAddress.trim() || !contactPhone.trim()}
+                  className="w-full bg-guinea-red hover:bg-guinea-red/90 text-white py-3"
                 >
-                  {isSubmitting ? (
-                    <span className="flex items-center">
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      Traitement...
-                    </span>
+                  {isProcessing ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      Traitement en cours...
+                    </div>
                   ) : (
-                    <span className="flex items-center">
-                      <ShoppingBag className="mr-2 h-4 w-4" />
-                      Passer la commande
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      Confirmer la commande
+                    </div>
                   )}
                 </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  asChild
-                >
-                  <Link to="/cart">
-                    Modifier le panier
-                  </Link>
-                </Button>
-              </div>
-            </div>
+
+                <p className="text-xs text-gray-500 text-center">
+                  En confirmant votre commande, vous acceptez nos conditions générales de vente.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

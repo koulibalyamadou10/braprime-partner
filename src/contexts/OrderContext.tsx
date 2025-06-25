@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
-import { OrderService, type Order } from '@/lib/services/orders';
+import { OrderService, type Order, CreateOrderData } from '@/lib/services/orders';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
 export type DeliveryMethod = 'delivery' | 'pickup';
@@ -120,8 +120,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       // Convertir les commandes Supabase vers le format local
       const convertedOrders: LocalOrder[] = userOrders.map(order => ({
         id: order.id,
-        restaurantId: order.restaurant_id,
-        restaurantName: order.restaurant_name,
+        restaurantId: order.business_id,
+        restaurantName: order.business_name,
         items: order.items as OrderItem[],
         status: order.status,
         total: order.total,
@@ -131,7 +131,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         createdAt: order.created_at,
         estimatedDelivery: order.estimated_delivery,
         deliveryAddress: order.delivery_address,
-        deliveryMethod: order.delivery_method,
+        deliveryMethod: order.delivery_method as DeliveryMethod,
         driverName: order.driver_name,
         driverPhone: order.driver_phone,
         driverLocation: order.driver_location as { lat: number; lng: number } | undefined
@@ -224,7 +224,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const generateOrderId = () => {
-    return `ORDER-${Math.floor(Math.random() * 10000)}-${Date.now().toString().slice(-4)}`;
+    // Générer un UUID valide
+    return crypto.randomUUID();
   };
 
   const placeOrder = async (deliveryAddress: string): Promise<string> => {
@@ -255,13 +256,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const now = new Date();
     const estimatedDelivery = new Date(now.getTime() + (30 + Math.random() * 15) * 60000);
 
-    const orderData = {
+    const orderData: CreateOrderData = {
       id: generateOrderId(),
       user_id: currentUser.id,
-      restaurant_id: currentRestaurantId,
-      restaurant_name: currentRestaurantName,
+      business_id: currentRestaurantId,
+      business_name: currentRestaurantName,
       items: cart,
-      status: 'pending' as OrderStatus,
+      status: 'pending',
       total: subtotal,
       delivery_fee: deliveryFee,
       tax: tax,
@@ -269,6 +270,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       delivery_address: deliveryAddress,
       delivery_method: deliveryMethod,
       estimated_delivery: estimatedDelivery.toISOString(),
+      payment_method: 'cash',
+      payment_status: 'pending'
     };
 
     try {
@@ -287,8 +290,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         // Convertir la commande Supabase vers le format local
         const localOrder: LocalOrder = {
           id: order.id,
-          restaurantId: order.restaurant_id,
-          restaurantName: order.restaurant_name,
+          restaurantId: order.business_id,
+          restaurantName: order.business_name,
           items: order.items as OrderItem[],
           status: order.status,
           total: order.total,
@@ -298,7 +301,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           createdAt: order.created_at,
           estimatedDelivery: order.estimated_delivery,
           deliveryAddress: order.delivery_address,
-          deliveryMethod: order.delivery_method,
+          deliveryMethod: order.delivery_method as DeliveryMethod,
           driverName: order.driver_name,
           driverPhone: order.driver_phone,
           driverLocation: order.driver_location as { lat: number; lng: number } | undefined

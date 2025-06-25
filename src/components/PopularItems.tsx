@@ -103,7 +103,7 @@ const PopularItems = () => {
           {displayRestaurants.map((restaurant) => (
             <Link 
               key={restaurant.id} 
-              to={`/restaurant/${restaurant.id}`}
+              to={`/services/${restaurant.id}`}
               className="group bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 hover:scale-105"
             >
               <div className="relative">

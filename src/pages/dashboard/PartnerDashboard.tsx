@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
 import { 
   ShoppingBag, 
   Clock, 
@@ -22,16 +23,24 @@ import {
   RefreshCw,
   TrendingUp,
   Users,
-  Package
+  Package,
+  Home,
+  MapPin,
+  Phone,
+  Mail,
+  AlertCircle,
+  Power,
+  PowerOff
 } from 'lucide-react';
 import { format, subDays, isToday, isYesterday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
-import { usePartnerDashboard } from '@/hooks/use-dashboard';
+import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardService } from '@/lib/services/dashboard'
+import { toast } from 'sonner';
 
 // Composant de chargement
 const DashboardSkeleton = () => (
@@ -160,19 +169,20 @@ const PartnerDashboard = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year'>('month');
 
-  // Utiliser les hooks pour les données dynamiques
+  // Utiliser le hook pour les données dynamiques
   const { 
-    stats, 
-    recentOrders, 
-    topItems, 
-    notifications, 
-    revenueData, 
-    refresh, 
-    isLoading, 
+    business,
+    stats,
+    recentOrders,
+    menu,
+    isLoading,
     error,
     isAuthenticated,
-    currentUser: partnerCurrentUser
-  } = usePartnerDashboard(period);
+    currentUser: partnerCurrentUser,
+    updateOrderStatus,
+    toggleBusinessStatus,
+    refresh
+  } = usePartnerDashboard();
 
   // Données du restaurant (à remplacer par des données dynamiques)
   const restaurantData = {
@@ -193,16 +203,51 @@ const PartnerDashboard = () => {
     return `${amount} GNF`;
   };
 
+  // Formater la date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Gérer le changement de statut du business
+  const handleToggleStatus = async () => {
+    const newStatus = !business?.is_open;
+    const success = await toggleBusinessStatus(newStatus);
+    
+    if (success) {
+      toast.success(`Business ${newStatus ? 'ouvert' : 'fermé'} avec succès`);
+    } else {
+      toast.error('Erreur lors du changement de statut');
+    }
+  };
+
+  // Gérer le changement de statut d'une commande
+  const handleOrderStatusChange = async (orderId: string, newStatus: string) => {
+    const success = await updateOrderStatus(orderId, newStatus);
+    
+    if (success) {
+      toast.success('Statut de la commande mis à jour');
+    } else {
+      toast.error('Erreur lors de la mise à jour du statut');
+    }
+  };
+
   // Fonction de diagnostic temporaire
   const runDiagnostic = async () => {
     console.log('=== LANCEMENT DU DIAGNOSTIC ===')
-    const result = await DashboardService.diagnoseAuthAndData()
+    const { PartnerDashboardService } = await import('@/lib/services/partner-dashboard')
+    const result = await PartnerDashboardService.diagnoseAuthAndData()
     console.log('Résultat du diagnostic:', result)
     
     if (result.success) {
-      alert('✅ Diagnostic réussi! Vérifiez la console pour les détails.')
+      toast.success('✅ Diagnostic réussi! Vérifiez la console pour les détails.')
     } else {
-      alert(`❌ Diagnostic échoué: ${result.error}`)
+      toast.error(`❌ Diagnostic échoué: ${result.error}`)
     }
   }
 
@@ -251,7 +296,17 @@ const PartnerDashboard = () => {
   if (isLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
-        <DashboardSkeleton />
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
+              <p className="text-gray-500">Chargement de vos données...</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-guinea-red"></div>
+          </div>
+        </div>
       </DashboardLayout>
     );
   }
@@ -259,15 +314,44 @@ const PartnerDashboard = () => {
   if (error) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
+              <p className="text-gray-500">Erreur lors du chargement des données.</p>
+            </div>
+            <Button onClick={runDiagnostic} variant="outline" size="sm">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Diagnostic
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+              <p className="text-red-500 mb-4">{error}</p>
+              <Button onClick={refresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Réessayer
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!business) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Erreur de chargement</h3>
+            <h3 className="text-lg font-semibold mb-2">Aucun Business Trouvé</h3>
             <p className="text-muted-foreground mb-4">
-              Impossible de charger les données du dashboard
+              Aucun business n'est associé à votre compte partenaire.
             </p>
-            <Button onClick={() => refresh.mutate()}>
+            <Button onClick={refresh}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Réessayer
+              Actualiser
             </Button>
           </div>
         </div>
@@ -278,207 +362,255 @@ const PartnerDashboard = () => {
   return (
     <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Header avec informations du business */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">
-              Bienvenue, {partnerCurrentUser?.name || restaurantData.name}
-            </h2>
-            <p className="text-muted-foreground">
-              Gérez votre restaurant et suivez vos commandes et revenus.
+            <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
+            <p className="text-gray-500">
+              Bienvenue, {partnerCurrentUser?.name} - {business.name}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              variant={isOpen ? "default" : "outline"}
-              className={isOpen ? "bg-green-600 hover:bg-green-700" : ""}
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              {isOpen ? "Restaurant Ouvert" : "Restaurant Fermé"}
+            <Button onClick={refresh} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualiser
             </Button>
             <Button 
-              variant="outline" 
-              size="icon"
-              onClick={() => refresh.mutate()}
-              disabled={refresh.isPending}
-            >
-              <RefreshCw className={`h-4 w-4 ${refresh.isPending ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button 
-              variant="outline" 
+              onClick={handleToggleStatus}
+              variant={business.is_open ? "destructive" : "default"}
               size="sm"
-              onClick={runDiagnostic}
-              className="text-orange-600 border-orange-200 hover:bg-orange-50"
             >
-              🔧 Diagnostic
+              {business.is_open ? (
+                <>
+                  <PowerOff className="h-4 w-4 mr-2" />
+                  Fermer
+                </>
+              ) : (
+                <>
+                  <Power className="h-4 w-4 mr-2" />
+                  Ouvrir
+                </>
+              )}
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Aperçu</TabsTrigger>
-            <TabsTrigger value="orders">Commandes</TabsTrigger>
-            <TabsTrigger value="analytics">Analyses</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="overview" className="space-y-4">
-            {/* Restaurant Basic Info */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row gap-6">
-                  <Avatar className="w-24 h-24 rounded-md">
-                    <AvatarImage src={restaurantData.image} alt={restaurantData.name} />
-                    <AvatarFallback className="rounded-md text-xl">LC</AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-bold">{restaurantData.name}</h3>
-                    <div className="flex items-center text-muted-foreground">
-                      <Utensils className="h-4 w-4 mr-1" />
-                      <span>{restaurantData.cuisine}</span>
-                    </div>
-                    <div className="flex items-center text-muted-foreground">
-                      <Star className="h-4 w-4 mr-1 fill-amber-500 stroke-amber-500" />
-                      <span>{restaurantData.rating} (245 avis)</span>
-                    </div>
-                    <p className="text-sm">{restaurantData.address}</p>
-                  </div>
+        {/* Informations du business */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Informations du Business
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex items-center gap-3">
+                <MapPin className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Adresse</p>
+                  <p className="text-sm text-gray-500">{business.address}</p>
                 </div>
-              </CardContent>
-            </Card>
-            
-            {/* Stats Cards */}
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-              <StatsCard
-                title="Commandes du Jour"
-                value={stats.data?.totalOrders || 0}
-                icon={ShoppingBag}
-                trend="up"
-                trendValue="+15% par rapport à hier"
-              />
-              
-              <StatsCard
-                title="Revenus du Jour"
-                value={formatCurrency(stats.data?.totalRevenue || 0)}
-                icon={DollarSign}
-                subtitle={`${formatCurrency(stats.data?.averageOrderValue || 0)} en moyenne`}
-              />
-              
-              <StatsCard
-                title="Commandes en Attente"
-                value={stats.data?.pendingOrders || 0}
-                icon={Clock}
-                trend="neutral"
-              />
-              
-              <StatsCard
-                title="Commandes Livrées"
-                value={stats.data?.completedOrders || 0}
-                icon={Check}
-                trend="up"
-                trendValue="+8% cette semaine"
-              />
+              </div>
+              <div className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Téléphone</p>
+                  <p className="text-sm text-gray-500">{business.phone}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm text-gray-500">{business.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Horaires</p>
+                  <p className="text-sm text-gray-500">{business.opening_hours}</p>
+                </div>
+              </div>
             </div>
+            <div className="mt-4 flex items-center gap-4">
+              <Badge variant={business.is_open ? "default" : "secondary"}>
+                {business.is_open ? "Ouvert" : "Fermé"}
+              </Badge>
+              <Badge variant="outline">{business.business_type}</Badge>
+              {business.cuisine_type && (
+                <Badge variant="outline">{business.cuisine_type}</Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-            {/* Commandes Récentes */}
+        {/* Statistiques */}
+        {stats && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Activité Récente</CardTitle>
-                <CardDescription>
-                  Vos dernières commandes et activités
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Commandes Totales</CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                {recentOrders.data && recentOrders.data.length > 0 ? (
-                  <RecentOrdersTable orders={recentOrders.data} />
-                ) : (
-                  <div className="text-center py-8">
-                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Aucune commande récente</h3>
-                    <p className="text-muted-foreground">
-                      Les nouvelles commandes apparaîtront ici
-                    </p>
-                  </div>
-                )}
+                <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                <p className="text-xs text-muted-foreground">
+                  +{stats.completedOrders} livrées
+                </p>
               </CardContent>
             </Card>
-          </TabsContent>
-          
-          <TabsContent value="orders" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Gestion des Commandes</CardTitle>
-                <CardDescription>
-                  Consultez l'aperçu complet de la page des commandes
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center py-10">
-                <Button asChild>
-                  <Link to="/partner-dashboard/orders">
-                    Aller à la page des commandes
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="analytics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analyses et Rapports</CardTitle>
-                <CardDescription>
-                  Consultez l'aperçu complet de la page des revenus
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center py-10">
-                <Button asChild>
-                  <Link to="/partner-dashboard/revenue">
-                    Aller à la page des revenus
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>
-                  Restez informé des mises à jour importantes
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Revenus Totaux</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                {notifications.data && notifications.data.length > 0 ? (
-                  <div className="space-y-4">
-                    {notifications.data.map((notification) => (
-                      <div key={notification.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                        <Bell className="h-5 w-5 text-muted-foreground mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm">{notification.message}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {format(new Date(notification.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
-                          </p>
-                        </div>
-                        {!notification.read && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+                <p className="text-xs text-muted-foreground">
+                  Moyenne: {formatCurrency(stats.averageOrderValue)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Clients</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalCustomers}</div>
+                <p className="text-xs text-muted-foreground">
+                  Clients uniques
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Note</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.rating.toFixed(1)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.reviewCount} avis
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Commandes récentes */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Commandes Récentes</CardTitle>
+            <CardDescription>
+              Les dernières commandes de votre business
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recentOrders.length > 0 ? (
+              <div className="space-y-4">
+                {recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="font-medium">{order.customer_name}</p>
+                        <p className="text-sm text-gray-500">{order.customer_phone}</p>
+                        <p className="text-sm text-gray-500">{formatDate(order.created_at)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(order.grand_total)}</p>
+                        <p className="text-sm text-gray-500">{order.items.length} articles</p>
+                      </div>
+                      <Badge 
+                        variant={
+                          order.status === 'delivered' ? 'default' :
+                          order.status === 'pending' ? 'secondary' :
+                          order.status === 'cancelled' ? 'destructive' : 'outline'
+                        }
+                      >
+                        {order.status}
+                      </Badge>
+                      <div className="flex gap-1">
+                        {order.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleOrderStatusChange(order.id, 'confirmed')}
+                          >
+                            Confirmer
+                          </Button>
+                        )}
+                        {order.status === 'confirmed' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleOrderStatusChange(order.id, 'preparing')}
+                          >
+                            Préparer
+                          </Button>
+                        )}
+                        {order.status === 'preparing' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleOrderStatusChange(order.id, 'ready')}
+                          >
+                            Prêt
+                          </Button>
                         )}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Aucune notification</h3>
-                    <p className="text-muted-foreground">
-                      Vous êtes à jour !
-                    </p>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Aucune commande récente</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Menu */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Menu ({menu.length} articles)</CardTitle>
+            <CardDescription>
+              Articles de votre menu
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {menu.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {menu.slice(0, 6).map((item) => (
+                  <div key={item.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">{item.name}</h4>
+                      <Badge variant={item.is_available ? "default" : "secondary"}>
+                        {item.is_available ? "Disponible" : "Indisponible"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-2">{item.description}</p>
+                    <p className="font-medium">{formatCurrency(item.price)}</p>
+                    <p className="text-xs text-gray-500">{item.category_name}</p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Aucun article dans le menu</p>
+                <Button asChild className="mt-2">
+                  <Link to="/partner-dashboard/menu">
+                    Ajouter des articles
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

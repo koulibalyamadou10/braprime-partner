@@ -1,246 +1,598 @@
--- Schéma de base de données pour BraPrime
--- À exécuter dans l'éditeur SQL de Supabase
+-- ============================================================================
+-- SCRIPT SQL POUR INITIALISATION DE LA BASE DE DONNÉES BRAPRIME
+-- ============================================================================
+-- Ce script crée toutes les tables nécessaires pour la plateforme BraPrime
+-- Exécutez ce script dans l'éditeur SQL de Supabase
 
--- Enable necessary extensions
+-- ============================================================================
+-- EXTENSIONS
+-- ============================================================================
+
+-- Activer les extensions nécessaires
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Create users table
-CREATE TABLE IF NOT EXISTS users (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  role TEXT CHECK (role IN ('customer', 'partner')) NOT NULL DEFAULT 'customer',
-  phone_number TEXT,
-  address TEXT,
-  profile_image TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- ============================================================================
+-- TABLES D'AUTHENTIFICATION ET UTILISATEURS
+-- ============================================================================
+
+-- Table des rôles utilisateur
+CREATE TABLE IF NOT EXISTS user_roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create categories table
-CREATE TABLE IF NOT EXISTS categories (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  icon TEXT NOT NULL,
-  color TEXT NOT NULL,
-  link TEXT NOT NULL,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Table des utilisateurs (extension de auth.users)
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role_id INTEGER REFERENCES user_roles(id) DEFAULT 1,
+    phone_number VARCHAR(20),
+    address TEXT,
+    profile_image VARCHAR(500),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create restaurants table
-CREATE TABLE IF NOT EXISTS restaurants (
-  id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT NOT NULL,
-  cuisine_type TEXT NOT NULL,
-  cover_image TEXT NOT NULL,
-  logo TEXT NOT NULL,
-  rating DECIMAL(3,2) DEFAULT 0.0,
-  review_count INTEGER DEFAULT 0,
-  delivery_time TEXT NOT NULL,
-  delivery_fee INTEGER NOT NULL,
-  address TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  opening_hours TEXT NOT NULL,
-  is_active BOOLEAN DEFAULT TRUE,
-  partner_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- ============================================================================
+-- TABLES DE GÉOLOCALISATION
+-- ============================================================================
+
+-- Table des zones de livraison
+CREATE TABLE IF NOT EXISTS delivery_zones (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    delivery_fee INTEGER NOT NULL DEFAULT 5000,
+    delivery_time VARCHAR(50) NOT NULL DEFAULT '30-45 min',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create menu_items table
-CREATE TABLE IF NOT EXISTS menu_items (
-  id SERIAL PRIMARY KEY,
-  restaurant_id INTEGER REFERENCES restaurants(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT NOT NULL,
-  price INTEGER NOT NULL,
-  image TEXT,
-  category_id INTEGER NOT NULL,
-  is_popular BOOLEAN DEFAULT FALSE,
-  is_available BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create orders table
-CREATE TABLE IF NOT EXISTS orders (
-  id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  restaurant_id INTEGER REFERENCES restaurants(id) ON DELETE CASCADE,
-  restaurant_name TEXT NOT NULL,
-  items JSONB NOT NULL,
-  status TEXT CHECK (status IN ('pending', 'confirmed', 'preparing', 'ready', 'picked_up', 'delivered', 'cancelled')) DEFAULT 'pending',
-  total INTEGER NOT NULL,
-  delivery_fee INTEGER NOT NULL,
-  tax INTEGER NOT NULL,
-  grand_total INTEGER NOT NULL,
-  delivery_address TEXT NOT NULL,
-  delivery_method TEXT CHECK (delivery_method IN ('delivery', 'pickup')) NOT NULL,
-  driver_name TEXT,
-  driver_phone TEXT,
-  driver_location JSONB,
-  estimated_delivery TIMESTAMP WITH TIME ZONE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create user_addresses table
+-- Table des adresses utilisateur
 CREATE TABLE IF NOT EXISTS user_addresses (
-  id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  address TEXT NOT NULL,
-  is_default BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    label VARCHAR(100) NOT NULL,
+    street VARCHAR(255) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    postal_code VARCHAR(20),
+    country VARCHAR(100) DEFAULT 'Guinée',
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create reservations table
+-- ============================================================================
+-- TABLES DES CATÉGORIES ET COMMERCES
+-- ============================================================================
+
+-- Table des catégories
+CREATE TABLE IF NOT EXISTS categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    icon VARCHAR(50) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    link VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    image VARCHAR(500),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des types de commerce
+CREATE TABLE IF NOT EXISTS business_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    icon VARCHAR(50) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    description TEXT,
+    features JSONB DEFAULT '[]',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des commerces
+CREATE TABLE IF NOT EXISTS businesses (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    business_type_id INTEGER REFERENCES business_types(id),
+    category_id INTEGER REFERENCES categories(id),
+    cover_image VARCHAR(500),
+    logo VARCHAR(500),
+    rating DECIMAL(3, 2) DEFAULT 0.0,
+    review_count INTEGER DEFAULT 0,
+    delivery_time VARCHAR(50) DEFAULT '30-45 min',
+    delivery_fee INTEGER DEFAULT 5000,
+    address TEXT NOT NULL,
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    opening_hours VARCHAR(100),
+    cuisine_type VARCHAR(100),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    is_active BOOLEAN DEFAULT true,
+    is_open BOOLEAN DEFAULT true,
+    owner_id UUID,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- TABLES DES MENUS ET ARTICLES
+-- ============================================================================
+
+-- Table des catégories de menu
+CREATE TABLE IF NOT EXISTS menu_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des articles de menu
+CREATE TABLE IF NOT EXISTS menu_items (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    price INTEGER NOT NULL,
+    image VARCHAR(500),
+    category_id INTEGER REFERENCES menu_categories(id) ON DELETE CASCADE,
+    business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE,
+    is_popular BOOLEAN DEFAULT false,
+    is_available BOOLEAN DEFAULT true,
+    allergens JSONB DEFAULT '[]',
+    nutritional_info JSONB DEFAULT '{}',
+    preparation_time INTEGER,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- TABLES DES COMMANDES
+-- ============================================================================
+
+-- Table des statuts de commande
+CREATE TABLE IF NOT EXISTS order_statuses (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    label VARCHAR(100) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    icon VARCHAR(50) NOT NULL,
+    description TEXT,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des méthodes de paiement
+CREATE TABLE IF NOT EXISTS payment_methods (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    icon VARCHAR(50) NOT NULL,
+    description TEXT,
+    is_available BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des commandes
+CREATE TABLE IF NOT EXISTS orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    business_id INTEGER REFERENCES businesses(id),
+    business_name VARCHAR(200) NOT NULL,
+    items JSONB NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    total INTEGER NOT NULL,
+    delivery_fee INTEGER DEFAULT 0,
+    tax INTEGER DEFAULT 0,
+    grand_total INTEGER NOT NULL,
+    delivery_method VARCHAR(20) DEFAULT 'delivery',
+    delivery_address TEXT,
+    delivery_instructions TEXT,
+    payment_method VARCHAR(50) DEFAULT 'cash',
+    payment_status VARCHAR(20) DEFAULT 'pending',
+    estimated_delivery TIMESTAMP WITH TIME ZONE,
+    actual_delivery TIMESTAMP WITH TIME ZONE,
+    driver_id UUID,
+    driver_name VARCHAR(100),
+    driver_phone VARCHAR(20),
+    driver_location JSONB,
+    customer_rating INTEGER CHECK (customer_rating >= 1 AND customer_rating <= 5),
+    customer_review TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- TABLES DES RÉSERVATIONS
+-- ============================================================================
+
+-- Table des statuts de réservation
+CREATE TABLE IF NOT EXISTS reservation_statuses (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    label VARCHAR(100) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des réservations
 CREATE TABLE IF NOT EXISTS reservations (
-  id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  restaurant_id INTEGER REFERENCES restaurants(id) ON DELETE CASCADE,
-  restaurant_name TEXT NOT NULL,
-  date DATE NOT NULL,
-  time TIME NOT NULL,
-  party_size INTEGER NOT NULL,
-  status TEXT CHECK (status IN ('pending', 'confirmed', 'cancelled', 'completed')) DEFAULT 'pending',
-  special_requests TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    business_id INTEGER REFERENCES businesses(id),
+    business_name VARCHAR(200) NOT NULL,
+    date DATE NOT NULL,
+    time TIME NOT NULL,
+    guests INTEGER NOT NULL DEFAULT 1,
+    status VARCHAR(50) DEFAULT 'pending',
+    special_requests TEXT,
+    table_number INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-CREATE INDEX IF NOT EXISTS idx_restaurants_partner_id ON restaurants(partner_id);
-CREATE INDEX IF NOT EXISTS idx_restaurants_cuisine_type ON restaurants(cuisine_type);
-CREATE INDEX IF NOT EXISTS idx_restaurants_is_active ON restaurants(is_active);
-CREATE INDEX IF NOT EXISTS idx_menu_items_restaurant_id ON menu_items(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_menu_items_is_available ON menu_items(is_available);
-CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
-CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id ON orders(restaurant_id);
+-- ============================================================================
+-- TABLES DES LIVREURS
+-- ============================================================================
+
+-- Table des livreurs
+CREATE TABLE IF NOT EXISTS drivers (
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    email VARCHAR(255),
+    is_active BOOLEAN DEFAULT true,
+    current_location JSONB,
+    current_order_id UUID,
+    rating DECIMAL(3, 2) DEFAULT 0.0,
+    total_deliveries INTEGER DEFAULT 0,
+    vehicle_type VARCHAR(50),
+    vehicle_plate VARCHAR(20),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- TABLES DES AVIS ET NOTES
+-- ============================================================================
+
+-- Table des avis
+CREATE TABLE IF NOT EXISTS reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    user_name VARCHAR(100) NOT NULL,
+    business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE,
+    order_id UUID,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    images JSONB DEFAULT '[]',
+    is_verified BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- TABLES DES NOTIFICATIONS
+-- ============================================================================
+
+-- Table des types de notification
+CREATE TABLE IF NOT EXISTS notification_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    icon VARCHAR(50) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table des notifications
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    priority VARCHAR(20) DEFAULT 'medium',
+    is_read BOOLEAN DEFAULT false,
+    data JSONB DEFAULT '{}',
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- TABLES DES PAIEMENTS
+-- ============================================================================
+
+-- Table des paiements
+CREATE TABLE IF NOT EXISTS payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID,
+    amount INTEGER NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    transaction_id VARCHAR(255),
+    gateway_response JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- TABLES DE CONFIGURATION
+-- ============================================================================
+
+-- Table des paramètres de l'application
+CREATE TABLE IF NOT EXISTS app_settings (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(100) UNIQUE NOT NULL,
+    value JSONB NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================================================
+-- INDEX POUR LES PERFORMANCES
+-- ============================================================================
+
+-- Index pour les recherches de commerces
+CREATE INDEX IF NOT EXISTS idx_businesses_type ON businesses(business_type_id);
+CREATE INDEX IF NOT EXISTS idx_businesses_category ON businesses(category_id);
+CREATE INDEX IF NOT EXISTS idx_businesses_location ON businesses(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_businesses_active ON businesses(is_active, is_open);
+CREATE INDEX IF NOT EXISTS idx_businesses_owner ON businesses(owner_id);
+
+-- Index pour les adresses utilisateur
+CREATE INDEX IF NOT EXISTS idx_user_addresses_user ON user_addresses(user_id);
+
+-- Index pour les commandes
+CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_business ON orders(business_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
-CREATE INDEX IF NOT EXISTS idx_user_addresses_user_id ON user_addresses(user_id);
-CREATE INDEX IF NOT EXISTS idx_reservations_user_id ON reservations(user_id);
-CREATE INDEX IF NOT EXISTS idx_reservations_restaurant_id ON reservations(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_orders_driver ON orders(driver_id);
+
+-- Index pour les réservations
+CREATE INDEX IF NOT EXISTS idx_reservations_user ON reservations(user_id);
+CREATE INDEX IF NOT EXISTS idx_reservations_business ON reservations(business_id);
 CREATE INDEX IF NOT EXISTS idx_reservations_date ON reservations(date);
 
--- Create updated_at trigger function
+-- Index pour les avis
+CREATE INDEX IF NOT EXISTS idx_reviews_business ON reviews(business_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating);
+CREATE INDEX IF NOT EXISTS idx_reviews_order ON reviews(order_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews(user_id);
+
+-- Index pour les notifications
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
+
+-- Index pour les livreurs
+CREATE INDEX IF NOT EXISTS idx_drivers_current_order ON drivers(current_order_id);
+
+-- Index pour les paiements
+CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
+
+-- ============================================================================
+-- DONNÉES INITIALES
+-- ============================================================================
+
+-- Insérer les rôles utilisateur
+INSERT INTO user_roles (name, description) VALUES
+('customer', 'Client - Peut passer des commandes et gérer son profil'),
+('partner', 'Partenaire - Gère un commerce et ses commandes'),
+('admin', 'Administrateur - Accès complet à la plateforme'),
+('driver', 'Livreur - Livre les commandes');
+
+-- Insérer les statuts de commande
+INSERT INTO order_statuses (name, label, color, icon, description, sort_order) VALUES
+('pending', 'En attente', 'text-yellow-600', 'Clock', 'Votre commande est en attente de confirmation', 1),
+('confirmed', 'Confirmée', 'text-blue-600', 'CheckCircle', 'Votre commande a été confirmée', 2),
+('preparing', 'En préparation', 'text-orange-600', 'ChefHat', 'Votre commande est en cours de préparation', 3),
+('ready', 'Prête', 'text-green-600', 'Package', 'Votre commande est prête pour la livraison', 4),
+('picked_up', 'En livraison', 'text-purple-600', 'Truck', 'Votre commande est en cours de livraison', 5),
+('delivered', 'Livrée', 'text-green-700', 'Home', 'Votre commande a été livrée', 6),
+('cancelled', 'Annulée', 'text-red-600', 'XCircle', 'Votre commande a été annulée', 7);
+
+-- Insérer les méthodes de paiement
+INSERT INTO payment_methods (name, icon, description, is_available) VALUES
+('cash', 'Banknote', 'Paiement en espèces à la livraison', true),
+('card', 'CreditCard', 'Paiement par carte bancaire', false),
+('mobile_money', 'Smartphone', 'Paiement par Mobile Money', false),
+('bank_transfer', 'Building2', 'Virement bancaire', false);
+
+-- Insérer les statuts de réservation
+INSERT INTO reservation_statuses (name, label, color) VALUES
+('pending', 'En attente', 'text-yellow-600'),
+('confirmed', 'Confirmée', 'text-green-600'),
+('cancelled', 'Annulée', 'text-red-600'),
+('completed', 'Terminée', 'text-blue-600');
+
+-- Insérer les types de notification
+INSERT INTO notification_types (name, title, icon, color) VALUES
+('order_status', 'Mise à jour de commande', 'Package', 'text-blue-600'),
+('delivery_update', 'Mise à jour de livraison', 'Truck', 'text-green-600'),
+('promotion', 'Offre spéciale', 'Gift', 'text-purple-600'),
+('system', 'Notification système', 'Bell', 'text-gray-600'),
+('payment', 'Paiement', 'CreditCard', 'text-orange-600');
+
+-- Insérer les types de commerce
+INSERT INTO business_types (name, icon, color, description, features) VALUES
+('restaurant', 'Utensils', 'bg-guinea-red', 'Découvrez les meilleurs restaurants de Guinée', '["Livraison rapide", "Menus variés", "Qualité garantie"]'),
+('cafe', 'Coffee', 'bg-guinea-yellow', 'Cafés et pâtisseries de qualité', '["Café frais", "Pâtisseries", "Ambiance conviviale"]'),
+('market', 'ShoppingBasket', 'bg-guinea-green', 'Produits frais des marchés locaux', '["Produits frais", "Prix compétitifs", "Produits locaux"]'),
+('supermarket', 'ShoppingCart', 'bg-blue-500', 'Supermarchés et hypermarchés', '["Large sélection", "Produits importés", "Qualité premium"]'),
+('pharmacy', 'Pill', 'bg-green-500', 'Médicaments et produits de santé', '["Médicaments", "Produits de santé", "Conseils pharmaceutiques"]'),
+('electronics', 'Tv', 'bg-indigo-500', 'Équipements électroniques et informatiques', '["Équipements neufs", "Garantie", "Service technique"]'),
+('beauty', 'Sparkles', 'bg-pink-400', 'Produits de beauté et cosmétiques', '["Cosmétiques", "Soins", "Parfums"]'),
+('hairdressing', 'Scissors', 'bg-slate-500', 'Salons de coiffure et instituts de beauté', '["Coiffures", "Soins", "Rendez-vous"]'),
+('hardware', 'Hammer', 'bg-zinc-600', 'Outils et matériaux de construction', '["Outils", "Matériaux", "Conseils"]'),
+('bookstore', 'BookOpen', 'bg-amber-500', 'Livres et fournitures scolaires', '["Livres", "Fournitures", "Cadeaux"]'),
+('document_service', 'FileText', 'bg-sky-500', 'Services administratifs et documents', '["Photocopies", "Impression", "Services administratifs"]');
+
+-- Insérer les catégories
+INSERT INTO categories (name, icon, color, link, description) VALUES
+('Restaurants', 'Utensils', 'bg-guinea-red', '/restaurants', 'Découvrez les meilleurs restaurants de Guinée'),
+('Cafés', 'Coffee', 'bg-guinea-yellow', '/cafes', 'Cafés et pâtisseries de qualité'),
+('Marchés', 'ShoppingBasket', 'bg-guinea-green', '/markets', 'Produits frais des marchés locaux'),
+('Supermarchés', 'ShoppingCart', 'bg-blue-500', '/supermarkets', 'Supermarchés et hypermarchés'),
+('Colis', 'Package', 'bg-purple-500', '/packages', 'Services de colis et livraison'),
+('Cadeaux', 'Gift', 'bg-pink-500', '/gifts', 'Cadeaux et articles de fête'),
+('Pharmacie', 'Pill', 'bg-green-500', '/pharmacy', 'Médicaments et produits de santé'),
+('Électronique', 'Tv', 'bg-indigo-500', '/electronic-stores', 'Équipements électroniques'),
+('Fournitures', 'Briefcase', 'bg-amber-500', '/supplies', 'Fournitures de bureau'),
+('Documents', 'FileText', 'bg-sky-500', '/documents', 'Services de documents'),
+('Beauté', 'Sparkles', 'bg-pink-400', '/beauty', 'Produits de beauté'),
+('Bricolage', 'Hammer', 'bg-zinc-600', '/hardware', 'Outils et matériaux'),
+('Coiffure', 'Scissors', 'bg-slate-500', '/hairdressing', 'Salons de coiffure');
+
+-- Insérer les zones de livraison
+INSERT INTO delivery_zones (name, delivery_fee, delivery_time) VALUES
+('Kaloum', 3000, '15-25 min'),
+('Dixinn', 4000, '20-30 min'),
+('Ratoma', 5000, '25-35 min'),
+('Matam', 6000, '30-40 min'),
+('Matoto', 7000, '35-45 min'),
+('Coyah', 10000, '45-60 min'),
+('Dubréka', 12000, '50-70 min');
+
+-- Insérer les paramètres de l'application
+INSERT INTO app_settings (key, value, description) VALUES
+('delivery_config', '{"max_distance": 50, "default_fee": 5000, "free_threshold": 50000, "tax_rate": 0.18}', 'Configuration de la livraison'),
+('payment_config', '{"methods": ["cash"], "gateway": "stripe"}', 'Configuration des paiements'),
+('notification_config', '{"display_duration": 5000, "max_displayed": 5}', 'Configuration des notifications'),
+('business_config', '{"max_rating": 5, "min_reviews": 1}', 'Configuration des commerces');
+
+-- ============================================================================
+-- FONCTIONS ET TRIGGERS
+-- ============================================================================
+
+-- Fonction pour mettre à jour updated_at automatiquement
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
+    NEW.updated_at = NOW();
+    RETURN NEW;
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_restaurants_updated_at BEFORE UPDATE ON restaurants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Triggers pour mettre à jour updated_at
+CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_businesses_updated_at BEFORE UPDATE ON businesses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_menu_items_updated_at BEFORE UPDATE ON menu_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_reservations_updated_at BEFORE UPDATE ON reservations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_app_settings_updated_at BEFORE UPDATE ON app_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default categories
-INSERT INTO categories (name, icon, color, link) VALUES
-('Restaurants', 'Utensils', 'bg-guinea-red', '/restaurants'),
-('Cafés', 'Coffee', 'bg-guinea-yellow', '/cafes'),
-('Marchés', 'ShoppingBasket', 'bg-guinea-green', '/markets'),
-('Supermarchés', 'ShoppingCart', 'bg-blue-500', '/supermarkets'),
-('Colis', 'Package', 'bg-purple-500', '/packages'),
-('Cadeaux', 'Gift', 'bg-pink-500', '/gifts'),
-('Pharmacie', 'Pill', 'bg-green-500', '/pharmacy'),
-('Électronique', 'Tv', 'bg-indigo-500', '/electronic-stores'),
-('Fournitures', 'Briefcase', 'bg-amber-500', '/supplies'),
-('Documents', 'FileText', 'bg-sky-500', '/documents'),
-('Beauté', 'Sparkles', 'bg-pink-400', '/beauty'),
-('Bricolage', 'Hammer', 'bg-zinc-600', '/hardware'),
-('Coiffure', 'Scissors', 'bg-slate-500', '/hairdressing')
-ON CONFLICT DO NOTHING;
+-- ============================================================================
+-- POLITIQUES RLS (ROW LEVEL SECURITY)
+-- ============================================================================
 
--- Insert sample restaurants
-INSERT INTO restaurants (name, description, cuisine_type, cover_image, logo, rating, review_count, delivery_time, delivery_fee, address, phone, opening_hours, partner_id) VALUES
-('Le Petit Baoulé', 'Découvrez les saveurs authentiques de la cuisine guinéenne traditionnelle au Petit Baoulé. Nos plats sont préparés avec des ingrédients frais et locaux par nos chefs expérimentés.', 'Cuisine Guinéenne', 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80', 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80', 4.8, 124, '25-35 min', 15000, 'Rue KA-003, Quartier Almamya, Kaloum, Conakry', '+224 621 23 45 67', '10:00 - 22:00', NULL),
-('Conakry Grill House', 'Restaurant spécialisé dans les grillades et barbecues avec une ambiance conviviale et des saveurs internationales.', 'Grillades', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80', 4.7, 89, '30-45 min', 20000, 'Boulevard du Commerce, Ratoma, Conakry', '+224 628 34 56 78', '11:00 - 23:00', NULL),
-('Fruits de Mer Conakry', 'Spécialiste des fruits de mer frais et des plats de poisson traditionnels guinéens.', 'Fruits de Mer', 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80', 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80', 4.6, 67, '35-50 min', 18000, 'Corniche Nord, Dixinn, Conakry', '+224 666 45 67 89', '12:00 - 22:00', NULL)
-ON CONFLICT DO NOTHING;
-
--- Insert sample menu items
-INSERT INTO menu_items (restaurant_id, name, description, price, image, category_id, is_popular, is_available) VALUES
-(1, 'Poulet Yassa', 'Poulet mariné avec oignons, citron et épices, servi avec du riz', 60000, 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 3, TRUE, TRUE),
-(1, 'Sauce Arachide', 'Ragoût traditionnel à base de pâte d''arachide avec viande et légumes', 55000, 'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 3, TRUE, TRUE),
-(1, 'Salade d''Avocat', 'Avocat frais avec tomates, oignons et vinaigrette', 25000, 'https://images.unsplash.com/photo-1551326844-4df70f78d0e9?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 2, FALSE, TRUE),
-(1, 'Alloco', 'Bananes plantains frites servies avec une sauce épicée', 20000, 'https://images.unsplash.com/photo-1599955085847-adb6d06de96b?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 4, TRUE, TRUE),
-(1, 'Jus de Gingembre', 'Boisson rafraîchissante à base de gingembre frais', 15000, 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 5, TRUE, TRUE),
-(1, 'Riz au Gras', 'Riz cuit avec tomates, oignons et épices', 30000, 'https://images.unsplash.com/photo-1512058564366-18510be2db19?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 4, FALSE, TRUE),
-(2, 'Poisson Braisé', 'Poisson frais braisé avec épices et herbes aromatiques', 75000, 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 3, TRUE, TRUE),
-(2, 'Poulet Grillé', 'Poulet grillé au charbon avec marinade spéciale', 65000, 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 3, TRUE, TRUE),
-(2, 'Jus de Bissap', 'Boisson traditionnelle à base d''hibiscus', 12000, 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 5, TRUE, TRUE),
-(3, 'Thiof Braisé', 'Thiof frais braisé avec légumes et riz', 85000, 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 3, TRUE, TRUE),
-(3, 'Crevettes Grillées', 'Crevettes fraîches grillées avec sauce cocktail', 95000, 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 3, TRUE, TRUE),
-(3, 'Soupe de Poisson', 'Soupe traditionnelle de poisson avec légumes', 45000, 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80', 2, FALSE, TRUE)
-ON CONFLICT DO NOTHING;
-
--- Row Level Security (RLS) policies
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE restaurants ENABLE ROW LEVEL SECURITY;
+-- Activer RLS sur toutes les tables
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE businesses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 
--- Users policies
-CREATE POLICY "Users can view their own profile" ON users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update their own profile" ON users FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can insert their own profile" ON users FOR INSERT WITH CHECK (auth.uid() = id);
+-- Politiques pour user_profiles
+CREATE POLICY "Users can view their own profile" ON user_profiles
+    FOR SELECT USING (auth.uid() = id);
 
--- Restaurants policies
-CREATE POLICY "Anyone can view active restaurants" ON restaurants FOR SELECT USING (is_active = true);
-CREATE POLICY "Partners can manage their own restaurants" ON restaurants FOR ALL USING (partner_id = auth.uid());
+CREATE POLICY "Users can update their own profile" ON user_profiles
+    FOR UPDATE USING (auth.uid() = id);
 
--- Menu items policies
-CREATE POLICY "Anyone can view available menu items" ON menu_items FOR SELECT USING (is_available = true);
-CREATE POLICY "Partners can manage menu items for their restaurants" ON menu_items FOR ALL USING (
-  restaurant_id IN (SELECT id FROM restaurants WHERE partner_id = auth.uid())
-);
+-- Politiques pour businesses (lecture publique)
+CREATE POLICY "Anyone can view active businesses" ON businesses
+    FOR SELECT USING (is_active = true);
 
--- Orders policies
-CREATE POLICY "Users can view their own orders" ON orders FOR SELECT USING (user_id = auth.uid());
-CREATE POLICY "Users can create their own orders" ON orders FOR INSERT WITH CHECK (user_id = auth.uid());
-CREATE POLICY "Partners can view orders for their restaurants" ON orders FOR SELECT USING (
-  restaurant_id IN (SELECT id FROM restaurants WHERE partner_id = auth.uid())
-);
-CREATE POLICY "Partners can update orders for their restaurants" ON orders FOR UPDATE USING (
-  restaurant_id IN (SELECT id FROM restaurants WHERE partner_id = auth.uid())
-);
+-- Politiques pour orders
+CREATE POLICY "Users can view their own orders" ON orders
+    FOR SELECT USING (auth.uid() = user_id);
 
--- User addresses policies
-CREATE POLICY "Users can manage their own addresses" ON user_addresses FOR ALL USING (user_id = auth.uid());
+CREATE POLICY "Users can create their own orders" ON orders
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Reservations policies
-CREATE POLICY "Users can view their own reservations" ON reservations FOR SELECT USING (user_id = auth.uid());
-CREATE POLICY "Users can create their own reservations" ON reservations FOR INSERT WITH CHECK (user_id = auth.uid());
-CREATE POLICY "Partners can view reservations for their restaurants" ON reservations FOR SELECT USING (
-  restaurant_id IN (SELECT id FROM restaurants WHERE partner_id = auth.uid())
-);
-CREATE POLICY "Partners can update reservations for their restaurants" ON reservations FOR UPDATE USING (
-  restaurant_id IN (SELECT id FROM restaurants WHERE partner_id = auth.uid())
-);
+CREATE POLICY "Users can update their own orders" ON orders
+    FOR UPDATE USING (auth.uid() = user_id);
 
--- Functions for automatic user profile creation
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+-- Politiques pour reviews
+CREATE POLICY "Anyone can view reviews" ON reviews
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can create reviews" ON reviews
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================================
+-- VUES UTILES
+-- ============================================================================
+
+-- Supprimer les vues existantes si elles existent
+DROP VIEW IF EXISTS business_stats;
+DROP VIEW IF EXISTS order_details;
+
+-- Vue pour les statistiques des commerces
+CREATE VIEW business_stats AS
+SELECT 
+    b.id,
+    b.name,
+    b.business_type_id,
+    bt.name as business_type,
+    b.rating,
+    b.review_count,
+    COUNT(o.id) as total_orders,
+    AVG(o.grand_total) as avg_order_value,
+    SUM(CASE WHEN o.status = 'delivered' THEN 1 ELSE 0 END) as completed_orders
+FROM businesses b
+LEFT JOIN business_types bt ON b.business_type_id = bt.id
+LEFT JOIN orders o ON b.id = o.business_id
+WHERE b.is_active = true
+GROUP BY b.id, b.name, b.business_type_id, bt.name, b.rating, b.review_count;
+
+-- Vue pour les commandes avec détails
+CREATE VIEW order_details AS
+SELECT 
+    o.*,
+    up.name as customer_name,
+    up.email as customer_email,
+    up.phone_number as customer_phone,
+    b.name as business_display_name,
+    b.address as business_address,
+    b.phone as business_phone
+FROM orders o
+LEFT JOIN user_profiles up ON o.user_id = up.id
+LEFT JOIN businesses b ON o.business_id = b.id;
+
+-- ============================================================================
+-- FIN DU SCRIPT
+-- ============================================================================
+
+-- Message de confirmation
+DO $$
 BEGIN
-  INSERT INTO public.users (id, email, name, role)
-  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'name', 'Nouvel Utilisateur'), 'customer');
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Trigger to automatically create user profile
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user(); 
+    RAISE NOTICE 'Script d''initialisation BraPrime exécuté avec succès!';
+    RAISE NOTICE 'Tables créées: user_profiles, businesses, orders, reservations, etc.';
+    RAISE NOTICE 'Données initiales insérées: rôles, statuts, catégories, etc.';
+    RAISE NOTICE 'Index et politiques de sécurité configurés.';
+END $$; 

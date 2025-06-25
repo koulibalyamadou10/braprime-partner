@@ -167,7 +167,7 @@ const RestaurantsPage = () => {
           {filteredRestaurants.length > 0 ? (
             filteredRestaurants.map((restaurant) => (
               <div key={restaurant.id} className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
-                <Link to={`/restaurant/${restaurant.id}`}>
+                <Link to={`/services/${restaurant.id}`}>
                   <div className="relative h-48 w-full">
                     <img 
                       src={restaurant.cover_image} 

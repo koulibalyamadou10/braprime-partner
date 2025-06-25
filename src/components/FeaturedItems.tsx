@@ -127,7 +127,7 @@ const FeaturedItems = () => {
                   asChild 
                   className="w-full bg-guinea-red hover:bg-guinea-red/90 text-white"
                 >
-                  <Link to={`/restaurant/${item.restaurants?.name}`}>
+                  <Link to={`/services/${item.restaurants?.name}`}>
                     <ShoppingCart className="h-4 w-4 mr-2" />
                     Commander
                   </Link>

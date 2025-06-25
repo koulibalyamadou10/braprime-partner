@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -110,7 +109,7 @@ const OrderConfirmationPage = () => {
                     size="sm"
                     asChild
                   >
-                    <Link to={`/restaurant/${order.restaurantId}`}>
+                    <Link to={`/services/${order.restaurantId}`}>
                       Voir le restaurant
                     </Link>
                   </Button>
