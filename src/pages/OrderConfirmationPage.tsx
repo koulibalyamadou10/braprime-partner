@@ -1,33 +1,91 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { useOrder } from '@/contexts/OrderContext';
+import { OrderService, type Order } from '@/lib/services/orders';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { 
   CheckCircle, Home, Clock, MapPin, 
-  Truck, Receipt, ChevronRight
+  Truck, Receipt, ChevronRight, Loader2
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from '@/lib/utils';
 
 const OrderConfirmationPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { getOrderById } = useOrder();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const order = getOrderById(id || '');
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    if (!order) {
-      toast({
-        title: "Commande introuvable",
-        description: "La commande que vous recherchez n'existe pas.",
-        variant: "destructive",
-      });
-      navigate('/');
-    }
-  }, [order, navigate, toast]);
+    const fetchOrder = async () => {
+      if (!id) {
+        toast({
+          title: "Erreur",
+          description: "ID de commande manquant.",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
+
+      try {
+        const { order: fetchedOrder, error } = await OrderService.getOrderById(id);
+        
+        if (error) {
+          toast({
+            title: "Erreur",
+            description: error,
+            variant: "destructive",
+          });
+          navigate('/');
+          return;
+        }
+
+        if (!fetchedOrder) {
+          toast({
+            title: "Commande introuvable",
+            description: "La commande que vous recherchez n'existe pas.",
+            variant: "destructive",
+          });
+          navigate('/');
+          return;
+        }
+
+        setOrder(fetchedOrder);
+      } catch (error) {
+        console.error('Erreur lors de la récupération de la commande:', error);
+        toast({
+          title: "Erreur",
+          description: "Une erreur est survenue lors de la récupération de la commande.",
+          variant: "destructive",
+        });
+        navigate('/');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [id, navigate, toast]);
+  
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-white rounded-lg shadow-sm p-8">
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-guinea-red" />
+                <span className="ml-2">Chargement de la commande...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
   
   if (!order) {
     return null; // Will redirect in useEffect
@@ -94,7 +152,7 @@ const OrderConfirmationPage = () => {
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
-                    Placée le {formatDate(order.createdAt)} à {formatTime(order.createdAt)}
+                    Placée le {formatDate(order.created_at)} à {formatTime(order.created_at)}
                   </p>
                 </div>
                 
@@ -102,14 +160,14 @@ const OrderConfirmationPage = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="font-medium">Restaurant</h3>
-                    <p className="text-gray-600">{order.restaurantName}</p>
+                    <p className="text-gray-600">{order.business_name}</p>
                   </div>
                   <Button 
                     variant="outline" 
                     size="sm"
                     asChild
                   >
-                    <Link to={`/services/${order.restaurantId}`}>
+                    <Link to={`/services/${order.business_id}`}>
                       Voir le restaurant
                     </Link>
                   </Button>
@@ -121,13 +179,13 @@ const OrderConfirmationPage = () => {
                 <div>
                   <h3 className="font-medium mb-3">Articles commandés</h3>
                   <ul className="space-y-2">
-                    {order.items.map((item) => (
+                    {order.items.map((item: any) => (
                       <li key={item.id} className="flex justify-between">
                         <span>
                           <span className="font-medium">{item.quantity}x</span> {item.name}
                         </span>
                         <span className="text-gray-600">
-                          {(item.price * item.quantity).toLocaleString()} GNF
+                          {formatCurrency(item.price * item.quantity)}
                         </span>
                       </li>
                     ))}
@@ -142,19 +200,19 @@ const OrderConfirmationPage = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Sous-total</span>
-                      <span>{order.total.toLocaleString()} GNF</span>
+                      <span>{formatCurrency(order.total)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">TVA (18%)</span>
-                      <span>{order.tax.toLocaleString()} GNF</span>
+                      <span className="text-gray-600">TVA (15%)</span>
+                      <span>{formatCurrency(order.tax)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Frais de livraison</span>
-                      <span>{order.deliveryFee.toLocaleString()} GNF</span>
+                      <span>{formatCurrency(order.delivery_fee)}</span>
                     </div>
                     <div className="flex justify-between font-bold pt-2">
                       <span>Total</span>
-                      <span>{order.grandTotal.toLocaleString()} GNF</span>
+                      <span>{formatCurrency(order.grand_total)}</span>
                     </div>
                   </div>
                 </div>
@@ -169,14 +227,14 @@ const OrderConfirmationPage = () => {
                       <MapPin className="h-5 w-5 text-guinea-red mr-2 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-medium">Adresse</p>
-                        <p className="text-gray-600">{order.deliveryAddress}</p>
+                        <p className="text-gray-600">{order.delivery_address}</p>
                       </div>
                     </div>
                     <div className="flex">
                       <Clock className="h-5 w-5 text-guinea-red mr-2 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-medium">Livraison estimée</p>
-                        <p className="text-gray-600">{formatTime(order.estimatedDelivery)}</p>
+                        <p className="text-gray-600">{formatTime(order.estimated_delivery)}</p>
                       </div>
                     </div>
                   </div>

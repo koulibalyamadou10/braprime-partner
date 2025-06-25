@@ -437,4 +437,108 @@ export class PartnerDashboardService {
       }
     }
   }
+
+  // Récupérer les livreurs d'un business
+  static async getPartnerDrivers(businessId: number): Promise<{ drivers: any[] | null; error: string | null }> {
+    try {
+      const { data: drivers, error } = await supabase
+        .from('drivers')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Erreur récupération livreurs:', error)
+        return { drivers: null, error: error.message }
+      }
+
+      return { drivers: drivers || [], error: null }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des livreurs:', error)
+      return { drivers: null, error: 'Erreur lors de la récupération des livreurs' }
+    }
+  }
+
+  // Ajouter un livreur
+  static async addDriver(driverData: {
+    name: string
+    phone: string
+    email?: string
+    business_id: number
+    vehicle_type?: string
+    vehicle_plate?: string
+  }): Promise<{ driver: any | null; error: string | null }> {
+    try {
+      const { data: driver, error } = await supabase
+        .from('drivers')
+        .insert([{
+          id: crypto.randomUUID(),
+          ...driverData,
+          is_active: true,
+          rating: 0,
+          total_deliveries: 0
+        }])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Erreur ajout livreur:', error)
+        return { driver: null, error: error.message }
+      }
+
+      return { driver, error: null }
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du livreur:', error)
+      return { driver: null, error: 'Erreur lors de l\'ajout du livreur' }
+    }
+  }
+
+  // Mettre à jour un livreur
+  static async updateDriver(driverId: string, updates: {
+    name?: string
+    phone?: string
+    email?: string
+    vehicle_type?: string
+    vehicle_plate?: string
+    is_active?: boolean
+  }): Promise<{ driver: any | null; error: string | null }> {
+    try {
+      const { data: driver, error } = await supabase
+        .from('drivers')
+        .update(updates)
+        .eq('id', driverId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Erreur mise à jour livreur:', error)
+        return { driver: null, error: error.message }
+      }
+
+      return { driver, error: null }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du livreur:', error)
+      return { driver: null, error: 'Erreur lors de la mise à jour du livreur' }
+    }
+  }
+
+  // Supprimer un livreur
+  static async deleteDriver(driverId: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('drivers')
+        .delete()
+        .eq('id', driverId)
+
+      if (error) {
+        console.error('Erreur suppression livreur:', error)
+        return { success: false, error: error.message }
+      }
+
+      return { success: true, error: null }
+    } catch (error) {
+      console.error('Erreur lors de la suppression du livreur:', error)
+      return { success: false, error: 'Erreur lors de la suppression du livreur' }
+    }
+  }
 } 

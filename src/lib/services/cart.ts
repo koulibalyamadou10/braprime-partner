@@ -39,9 +39,9 @@ export class CartService {
    */
   static async getCart(userId: string): Promise<{ cart: Cart | null; error: string | null }> {
     try {
-      // Récupérer le panier principal
+      // Récupérer le panier principal avec les détails calculés
       const { data: cartData, error: cartError } = await supabase
-        .from('cart')
+        .from('cart_details')
         .select('*')
         .eq('user_id', userId)
         .single()
@@ -58,21 +58,20 @@ export class CartService {
         return { cart: null, error: null }
       }
 
-      // Récupérer les articles du panier
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('cart_items')
-        .select('*')
-        .eq('cart_id', cartData.id)
-        .order('created_at', { ascending: true })
-
-      if (itemsError) {
-        return { cart: null, error: itemsError.message }
-      }
-
       // Construire l'objet cart complet
       const cart: Cart = {
-        ...cartData,
-        items: itemsData || []
+        id: cartData.cart_id,
+        user_id: cartData.user_id,
+        business_id: cartData.business_id,
+        business_name: cartData.business_name,
+        delivery_method: cartData.delivery_method,
+        delivery_address: cartData.delivery_address,
+        delivery_instructions: cartData.delivery_instructions,
+        created_at: cartData.created_at,
+        updated_at: cartData.updated_at,
+        items: cartData.items || [],
+        total: cartData.total,
+        item_count: cartData.item_count
       }
 
       return { cart, error: null }
@@ -92,9 +91,7 @@ export class CartService {
         .insert({
           user_id: userId,
           business_id: businessId,
-          business_name: businessName,
-          total: 0,
-          item_count: 0
+          business_name: businessName
         })
         .select('id')
         .single()

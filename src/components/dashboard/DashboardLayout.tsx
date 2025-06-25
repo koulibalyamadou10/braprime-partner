@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Menu, X, LogOut, Home, ChevronRight, 
-  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar
+  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -193,6 +193,11 @@ export const partnerNavItems = [
     href: '/partner-dashboard/reservations',
     label: 'Réservations',
     icon: <Bell className="h-5 w-5" />,
+  },
+  {
+    href: '/partner-dashboard/drivers',
+    label: 'Livreurs',
+    icon: <Truck className="h-5 w-5" />,
   },
   {
     href: '/partner-dashboard/revenue',

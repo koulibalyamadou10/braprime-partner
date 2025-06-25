@@ -253,10 +253,11 @@ CREATE TABLE IF NOT EXISTS reservations (
 
 -- Table des livreurs
 CREATE TABLE IF NOT EXISTS drivers (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     email VARCHAR(255),
+    business_id INTEGER REFERENCES businesses(id) ON DELETE CASCADE,
     is_active BOOLEAN DEFAULT true,
     current_location JSONB,
     current_order_id UUID,
@@ -383,7 +384,9 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
 
 -- Index pour les livreurs
+CREATE INDEX IF NOT EXISTS idx_drivers_business ON drivers(business_id);
 CREATE INDEX IF NOT EXISTS idx_drivers_current_order ON drivers(current_order_id);
+CREATE INDEX IF NOT EXISTS idx_drivers_active ON drivers(is_active);
 
 -- Index pour les paiements
 CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
@@ -500,6 +503,7 @@ CREATE TRIGGER update_reservations_updated_at BEFORE UPDATE ON reservations FOR 
 CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_app_settings_updated_at BEFORE UPDATE ON app_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON drivers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
 -- POLITIQUES RLS (ROW LEVEL SECURITY)
@@ -515,6 +519,7 @@ ALTER TABLE reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
 
 -- Politiques pour user_profiles
 CREATE POLICY "Users can view their own profile" ON user_profiles
@@ -543,6 +548,35 @@ CREATE POLICY "Anyone can view reviews" ON reviews
 
 CREATE POLICY "Users can create reviews" ON reviews
     FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Politiques pour drivers
+CREATE POLICY "Partners can view their own drivers" ON drivers
+    FOR SELECT USING (
+        business_id IN (
+            SELECT id FROM businesses WHERE owner_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Partners can create drivers for their business" ON drivers
+    FOR INSERT WITH CHECK (
+        business_id IN (
+            SELECT id FROM businesses WHERE owner_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Partners can update their own drivers" ON drivers
+    FOR UPDATE USING (
+        business_id IN (
+            SELECT id FROM businesses WHERE owner_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Partners can delete their own drivers" ON drivers
+    FOR DELETE USING (
+        business_id IN (
+            SELECT id FROM businesses WHERE owner_id = auth.uid()
+        )
+    );
 
 -- ============================================================================
 -- VUES UTILES

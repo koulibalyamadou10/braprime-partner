@@ -11,6 +11,11 @@ export const usePartnerDashboard = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Gestion des livreurs
+  const [drivers, setDrivers] = useState<any[]>([])
+  const [driversLoading, setDriversLoading] = useState(false)
+  const [driversError, setDriversError] = useState<string | null>(null)
+
   // Charger les données du business
   const loadBusinessData = useCallback(async () => {
     if (!isAuthenticated || currentUser?.role !== 'partner') {
@@ -136,16 +141,123 @@ export const usePartnerDashboard = () => {
     loadBusinessData()
   }, [loadBusinessData])
 
+  const loadDrivers = useCallback(async () => {
+    if (!business?.id) return
+
+    try {
+      setDriversLoading(true)
+      setDriversError(null)
+
+      const { drivers: partnerDrivers, error } = await PartnerDashboardService.getPartnerDrivers(business.id)
+      
+      if (error) {
+        setDriversError(error)
+      } else if (partnerDrivers) {
+        setDrivers(partnerDrivers)
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des livreurs:', err)
+      setDriversError('Erreur lors du chargement des livreurs')
+    } finally {
+      setDriversLoading(false)
+    }
+  }, [business?.id])
+
+  const addDriver = async (driverData: {
+    name: string
+    phone: string
+    email?: string
+    vehicle_type?: string
+    vehicle_plate?: string
+  }) => {
+    if (!business?.id) return { success: false, error: 'Business non trouvé' }
+
+    try {
+      const { driver, error } = await PartnerDashboardService.addDriver({
+        ...driverData,
+        business_id: business.id
+      })
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      if (driver) {
+        setDrivers(prev => [driver, ...prev])
+      }
+
+      return { success: true, error: null }
+    } catch (err) {
+      console.error('Erreur lors de l\'ajout du livreur:', err)
+      return { success: false, error: 'Erreur lors de l\'ajout du livreur' }
+    }
+  }
+
+  const updateDriver = async (driverId: string, updates: {
+    name?: string
+    phone?: string
+    email?: string
+    vehicle_type?: string
+    vehicle_plate?: string
+    is_active?: boolean
+  }) => {
+    try {
+      const { driver, error } = await PartnerDashboardService.updateDriver(driverId, updates)
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      if (driver) {
+        setDrivers(prev => prev.map(d => d.id === driverId ? driver : d))
+      }
+
+      return { success: true, error: null }
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du livreur:', err)
+      return { success: false, error: 'Erreur lors de la mise à jour du livreur' }
+    }
+  }
+
+  const deleteDriver = async (driverId: string) => {
+    try {
+      const { success, error } = await PartnerDashboardService.deleteDriver(driverId)
+
+      if (error) {
+        return { success: false, error }
+      }
+
+      if (success) {
+        setDrivers(prev => prev.filter(d => d.id !== driverId))
+      }
+
+      return { success, error: null }
+    } catch (err) {
+      console.error('Erreur lors de la suppression du livreur:', err)
+      return { success: false, error: 'Erreur lors de la suppression du livreur' }
+    }
+  }
+
+  // Charger les livreurs quand le business est chargé
+  useEffect(() => {
+    if (business?.id) {
+      loadDrivers()
+    }
+  }, [business?.id, loadDrivers])
+
   return {
     // Données
     business,
     stats,
     recentOrders,
     menu,
+    drivers,
     
     // État
     isLoading,
     error,
+    driversLoading,
+    driversError,
     isAuthenticated,
     currentUser,
     
@@ -154,6 +266,10 @@ export const usePartnerDashboard = () => {
     toggleBusinessStatus,
     updateBusinessInfo,
     refresh,
-    loadBusinessData
+    loadBusinessData,
+    addDriver,
+    updateDriver,
+    deleteDriver,
+    loadDrivers
   }
 } 

@@ -1,61 +1,102 @@
-import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Plus, Minus, ShoppingBag, ChevronLeft, Store, ArrowRight, Loader2 } from 'lucide-react';
+import { 
+  ShoppingCart, 
+  Trash2, 
+  Plus, 
+  Minus, 
+  ArrowLeft,
+  Package,
+  Store
+} from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import Layout from '@/components/Layout';
 
 const CartPage = () => {
+  const { cart, loading, error, removeFromCart, updateQuantity, clearCart } = useCart();
   const { currentUser } = useAuth();
-  const { 
-    cart, 
-    loading, 
-    error,
-    removeFromCart, 
-    updateQuantity, 
-    clearCart, 
-    refreshCart
-  } = useCart();
   const navigate = useNavigate();
-  
-  // Formater la monnaie
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'GNF',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+
+  // Calculer le total du panier
+  const cartTotal = cart?.total || 0;
+  const totalItems = cart?.item_count || 0;
+
+  // Gérer la mise à jour de la quantité
+  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      await removeFromCart(itemId);
+    } else {
+      await updateQuantity(itemId, newQuantity);
+    }
   };
-  
-  useEffect(() => {
-    // Si l'utilisateur n'est pas connecté, rediriger vers la connexion
+
+  // Gérer la suppression d'un article
+  const handleRemoveItem = async (itemId: string) => {
+    await removeFromCart(itemId);
+  };
+
+  // Gérer le vidage du panier
+  const handleClearCart = async () => {
+    await clearCart();
+  };
+
+  // Gérer le passage au checkout
+  const handleCheckout = () => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
 
-    // Si le panier est vide, rediriger vers la page d'accueil
-    if (!loading && (!cart || cart.items.length === 0)) {
-      navigate('/');
+    if (!cart || cart.items.length === 0) {
+      return;
     }
-  }, [currentUser, cart, loading, navigate]);
-  
-  const handleClearCart = async () => {
-    await clearCart();
+
+    navigate('/checkout');
   };
 
-  // Afficher le chargement
+  // Rediriger vers les catégories si le panier est vide
+  if (!loading && (!cart || cart.items.length === 0)) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 py-12">
+          <div className="container mx-auto px-4">
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <ShoppingCart className="h-16 w-16 text-muted-foreground mb-4" />
+                <h2 className="text-2xl font-bold mb-2">Votre panier est vide</h2>
+                <p className="text-muted-foreground text-center mb-6">
+                  Ajoutez des articles à votre panier pour commencer vos achats.
+                </p>
+                <Button onClick={() => navigate('/categories')} className="gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  Continuer les achats
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   if (loading) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center py-12">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span>Chargement du panier...</span>
+        <div className="min-h-screen bg-gray-50 py-12">
+          <div className="container mx-auto px-4">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-24 bg-gray-200 rounded"></div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -63,200 +104,171 @@ const CartPage = () => {
     );
   }
 
-  // Afficher l'erreur
-  if (error) {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col items-center justify-center py-12">
-            <p className="text-red-500 mb-4">{error}</p>
-            <Button onClick={refreshCart}>
-              Réessayer
-            </Button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Si pas de panier ou panier vide
-  if (!cart || cart.items.length === 0) {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col items-center justify-center py-12">
-            <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Votre panier est vide</h3>
-            <p className="text-center text-muted-foreground mb-4">
-              Explorez nos restaurants pour ajouter des articles à votre panier.
-            </p>
-            <Button asChild>
-              <Link to="/categories">Commander maintenant</Link>
-            </Button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-  
-  const subtotal = cart.total;
-  const tax = subtotal * 0.18; // 18% VAT in Guinea
-  const deliveryFee = 15000; // Fixed fee in GNF
-  const grandTotal = subtotal + tax + deliveryFee;
-  
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="mr-2"
-            asChild
-          >
-            <Link to="/">
-              <ChevronLeft className="h-5 w-5" />
-              <span className="sr-only">Retour</span>
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">Votre Panier</h1>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            {/* Restaurant Info */}
-            {cart.business_name && (
-              <div className="bg-white rounded-lg shadow-sm p-4 mb-6 flex items-center">
-                <Store className="h-5 w-5 text-guinea-green mr-3" />
-                <div>
-                  <span className="text-sm text-gray-500">Commander de</span>
-                  <h3 className="font-semibold">{cart.business_name}</h3>
-                </div>
-              </div>
-            )}
-            
-            {/* Cart Items */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-                <h2 className="font-semibold">Articles ({cart.item_count})</h2>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-red-500 hover:text-red-700"
-                  onClick={handleClearCart}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Vider le panier
-                </Button>
-              </div>
-              
-              <ul className="divide-y divide-gray-100">
-                {cart.items.map((item) => (
-                  <li key={item.id} className="p-4 flex items-center">
-                    {item.image && (
-                      <div className="h-16 w-16 rounded-md overflow-hidden mr-4 flex-shrink-0">
-                        <img 
-                          src={item.image} 
-                          alt={item.name}
-                          className="h-full w-full object-cover"
-                        />
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="container mx-auto px-4">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold">Mon Panier</h1>
+              <p className="text-muted-foreground">
+                {totalItems} {totalItems === 1 ? 'article' : 'articles'} dans votre panier
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/categories')}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Continuer les achats
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Articles du panier */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Restaurant Info */}
+              {cart?.business_name && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center">
+                      <Store className="h-5 w-5 text-guinea-red mr-3" />
+                      <div>
+                        <span className="text-sm text-gray-500">Commander de</span>
+                        <h3 className="font-semibold">{cart.business_name}</h3>
                       </div>
-                    )}
-                    
-                    <div className="flex-grow">
-                      <h3 className="font-medium">{item.name}</h3>
-                      <p className="text-gray-500 text-sm mt-1">
-                        {formatCurrency(item.price)}
-                      </p>
-                      {item.special_instructions && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Note: {item.special_instructions}
-                        </p>
-                      )}
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
-                        <button
-                          className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Articles */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="h-5 w-5" />
+                      Articles ({totalItems})
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-red-500 hover:text-red-700"
+                      onClick={handleClearCart}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Vider le panier
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {cart?.items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                      {/* Image de l'article */}
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
+                        {item.image && (
+                          <img 
+                            src={item.image} 
+                            alt={item.name}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Détails de l'article */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium truncate">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {formatCurrency(item.price)} chacun
+                        </p>
+                        {item.special_instructions && (
+                          <p className="text-sm text-blue-600 mt-1">
+                            Note: {item.special_instructions}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Contrôles de quantité */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                          disabled={loading}
                         >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <span className="px-4 py-2 font-medium min-w-[3rem] text-center">
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-8 text-center font-medium">
                           {item.quantity}
                         </span>
-                        <button
-                          className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                          disabled={loading}
                         >
-                          <Plus className="h-4 w-4" />
-                        </button>
+                          <Plus className="h-3 w-3" />
+                        </Button>
                       </div>
                       
-                      <div className="text-right">
-                        <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
+                      {/* Prix total de l'article */}
+                      <div className="text-right min-w-0">
+                        <p className="font-medium">
+                          {formatCurrency(item.price * item.quantity)}
+                        </p>
                       </div>
                       
-                      <Button 
-                        variant="ghost" 
+                      {/* Bouton supprimer */}
+                      <Button
+                        variant="ghost"
                         size="sm"
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => handleRemoveItem(item.id)}
+                        disabled={loading}
                         className="text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </CardContent>
+              </Card>
             </div>
-          </div>
-          
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-24">
-              <h2 className="font-bold text-lg mb-4">Résumé de la commande</h2>
-              
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Sous-total</span>
-                  <span>{formatCurrency(subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">TVA (18%)</span>
-                  <span>{formatCurrency(tax)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Frais de livraison</span>
-                  <span>{formatCurrency(deliveryFee)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>{formatCurrency(grandTotal)}</span>
-                </div>
-              </div>
-              
-              <Button 
-                className="w-full bg-guinea-red hover:bg-guinea-red/90"
-                asChild
-              >
-                <Link to="/checkout" className="flex items-center justify-center">
-                  <ShoppingBag className="mr-2 h-4 w-4" />
-                  Passer à la caisse
-                </Link>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full mt-3"
-                asChild
-              >
-                <Link to="/" className="flex items-center justify-center">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Ajouter d'autres articles
-                </Link>
-              </Button>
+
+            {/* Résumé et checkout */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Résumé de la commande</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Sous-total */}
+                  <div className="flex justify-between">
+                    <span>Sous-total ({totalItems} articles)</span>
+                    <span>{formatCurrency(cartTotal)}</span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Total */}
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>{formatCurrency(cartTotal)}</span>
+                  </div>
+
+                  {/* Bouton checkout */}
+                  <Button 
+                    onClick={handleCheckout}
+                    disabled={loading || !cart || cart.items.length === 0}
+                    className="w-full gap-2"
+                    size="lg"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    Passer à la caisse
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

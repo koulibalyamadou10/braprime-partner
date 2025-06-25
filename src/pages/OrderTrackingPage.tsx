@@ -1,58 +1,185 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { useOrder } from '@/contexts/OrderContext';
+import { OrderService, type Order } from '@/lib/services/orders';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import DeliveryMap from '@/components/DeliveryMap';
 import { 
   ChevronLeft, MapPin, Store, Utensils, 
   Package, Truck, CheckCircle, PhoneCall, Clock, 
-  List, Receipt, Home
+  List, Receipt, Home, Loader2
 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 const OrderTrackingPage = () => {
   const { id } = useParams<{ id: string }>();
-  const { getOrderById, cancelOrder, orders } = useOrder();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [currentOrder, setCurrentOrder] = useState(getOrderById(id || ''));
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   
-  useEffect(() => {
-    // Update the order when it changes in the context
-    setCurrentOrder(getOrderById(id || ''));
-  }, [orders, id, getOrderById]);
-  
-  useEffect(() => {
-    if (!currentOrder) {
+  // Fonction pour récupérer la commande
+  const fetchOrder = async () => {
+    if (!id) {
       toast({
-        title: "Commande introuvable",
-        description: "La commande que vous recherchez n'existe pas.",
+        title: "Erreur",
+        description: "ID de commande manquant.",
         variant: "destructive",
       });
       navigate('/');
+      return;
     }
-  }, [currentOrder, navigate, toast]);
-  
+
+    try {
+      const { order, error } = await OrderService.getOrderById(id);
+      
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error,
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
+
+      if (!order) {
+        toast({
+          title: "Commande introuvable",
+          description: "La commande que vous recherchez n'existe pas.",
+          variant: "destructive",
+        });
+        navigate('/');
+        return;
+      }
+
+      setCurrentOrder(order);
+    } catch (error) {
+      console.error('Erreur lors de la récupération de la commande:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la récupération de la commande.",
+        variant: "destructive",
+      });
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Charger la commande au montage
+  useEffect(() => {
+    fetchOrder();
+  }, [id]);
+
+  // Subscription en temps réel pour les mises à jour de commande
+  useEffect(() => {
+    if (!id) return;
+
+    // Subscription aux changements de la commande spécifique
+    const subscription = supabase
+      .channel(`order-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${id}`
+        },
+        (payload) => {
+          console.log('Mise à jour de commande reçue:', payload);
+          setCurrentOrder(payload.new as Order);
+          
+          // Notification de mise à jour
+          const newStatus = payload.new.status;
+          const statusMessages = {
+            'confirmed': 'Votre commande a été confirmée !',
+            'preparing': 'Votre commande est en cours de préparation',
+            'ready': 'Votre commande est prête !',
+            'picked_up': 'Le livreur est en route vers vous',
+            'delivered': 'Votre commande a été livrée !'
+          };
+          
+          if (statusMessages[newStatus as keyof typeof statusMessages]) {
+            toast({
+              title: "Mise à jour de commande",
+              description: statusMessages[newStatus as keyof typeof statusMessages],
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [id, toast]);
+
+  // Fonction pour annuler la commande
+  const handleCancelOrder = async () => {
+    if (!currentOrder) return;
+
+    setUpdating(true);
+    try {
+      const { error } = await OrderService.cancelOrder(currentOrder.id);
+      
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Commande annulée",
+          description: "Votre commande a été annulée avec succès.",
+        });
+        // La mise à jour sera automatiquement reçue via la subscription
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'annulation.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-guinea-red mx-auto mb-4" />
+              <p className="text-gray-600">Chargement du suivi de commande...</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   if (!currentOrder) {
     return null; // Will redirect in useEffect
   }
   
-  const handleCancelOrder = () => {
-    if (currentOrder) {
-      cancelOrder(currentOrder.id);
-    }
-  };
-  
   // Calculate estimated remaining time
   const calculateRemainingTime = () => {
-    const orderDate = new Date(currentOrder.createdAt);
-    const estimatedDelivery = new Date(currentOrder.estimatedDelivery);
+    const orderDate = new Date(currentOrder.created_at);
+    const estimatedDelivery = new Date(currentOrder.estimated_delivery);
     const now = new Date();
     
     if (now > estimatedDelivery) {
-      return currentOrder.deliveryMethod === 'delivery' 
+      return currentOrder.delivery_method === 'delivery' 
         ? "Livraison imminente"
         : "Prête à être récupérée";
     }
@@ -190,7 +317,7 @@ const OrderTrackingPage = () => {
                             )}
                           </h3>
                           <p className="text-sm text-gray-500 mt-1">
-                            {currentOrder.deliveryMethod === 'delivery' 
+                            {currentOrder.delivery_method === 'delivery' 
                               ? 'Votre commande est prête pour la livraison'
                               : 'Votre commande est prête à être récupérée'}
                           </p>
@@ -198,7 +325,7 @@ const OrderTrackingPage = () => {
                       </div>
                       
                       {/* Step 4: On the way - Only for delivery */}
-                      {currentOrder.deliveryMethod === 'delivery' && (
+                      {currentOrder.delivery_method === 'delivery' && (
                         <div className="flex items-start">
                           <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 mr-4 ${
                             isStepCompleted('picked_up') 
@@ -220,10 +347,10 @@ const OrderTrackingPage = () => {
                               Le livreur est en route vers votre adresse
                             </p>
                             
-                            {isStepCompleted('picked_up') && currentOrder.driverName && (
+                            {isStepCompleted('picked_up') && currentOrder.driver_name && (
                               <div className="mt-3 bg-gray-50 p-3 rounded-lg text-sm">
-                                <p className="font-medium">Livreur: {currentOrder.driverName}</p>
-                                {currentOrder.driverPhone && (
+                                <p className="font-medium">Livreur: {currentOrder.driver_name}</p>
+                                {currentOrder.driver_phone && (
                                   <div className="flex items-center mt-2">
                                     <Button 
                                       size="sm" 
@@ -231,7 +358,7 @@ const OrderTrackingPage = () => {
                                       className="flex items-center text-guinea-green"
                                       asChild
                                     >
-                                      <a href={`tel:${currentOrder.driverPhone}`}>
+                                      <a href={`tel:${currentOrder.driver_phone}`}>
                                         <PhoneCall className="h-3.5 w-3.5 mr-2" />
                                         Appeler le livreur
                                       </a>
@@ -255,7 +382,7 @@ const OrderTrackingPage = () => {
                         </div>
                         <div>
                           <h3 className="font-medium flex items-center">
-                            {currentOrder.deliveryMethod === 'delivery' ? 'Livrée' : 'Récupérée'}
+                            {currentOrder.delivery_method === 'delivery' ? 'Livrée' : 'Récupérée'}
                             {isCurrentStep('delivered') && (
                               <span className="ml-2 text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">
                                 Terminée
@@ -263,7 +390,7 @@ const OrderTrackingPage = () => {
                             )}
                           </h3>
                           <p className="text-sm text-gray-500 mt-1">
-                            {currentOrder.deliveryMethod === 'delivery'
+                            {currentOrder.delivery_method === 'delivery'
                               ? 'Votre commande a été livrée avec succès'
                               : 'Vous avez récupéré votre commande'}
                           </p>
@@ -273,15 +400,15 @@ const OrderTrackingPage = () => {
                   </div>
                   
                   {/* Map - only show for delivery orders in transit */}
-                  {currentOrder.deliveryMethod === 'delivery' && 
+                  {currentOrder.delivery_method === 'delivery' && 
                    currentOrder.status === 'picked_up' && 
-                   currentOrder.driverLocation && (
+                   currentOrder.driver_location && (
                     <div className="mt-6">
                       <h3 className="font-medium mb-3">Suivi de livraison en direct</h3>
                       <div className="h-[250px] rounded-lg overflow-hidden">
                         <DeliveryMap 
-                          driverLocation={currentOrder.driverLocation} 
-                          deliveryAddress={currentOrder.deliveryAddress}
+                          driverLocation={currentOrder.driver_location} 
+                          deliveryAddress={currentOrder.delivery_address}
                         />
                       </div>
                     </div>
@@ -295,11 +422,11 @@ const OrderTrackingPage = () => {
                   <Clock className="h-4 w-4 mr-2" />
                   <span>
                     {currentOrder.status === 'delivered' ? 
-                      (currentOrder.deliveryMethod === 'delivery' ? 'Livrée le' : 'Récupérée le') : 
-                      (currentOrder.deliveryMethod === 'delivery' ? 'Livraison estimée' : 'Prête à')}
+                      (currentOrder.delivery_method === 'delivery' ? 'Livrée le' : 'Récupérée le') : 
+                      (currentOrder.delivery_method === 'delivery' ? 'Livraison estimée' : 'Prête à')}
                     : {" "}
                     {currentOrder.status === 'delivered' ? 
-                      new Date(currentOrder.estimatedDelivery).toLocaleString('fr-FR', {
+                      new Date(currentOrder.estimated_delivery).toLocaleString('fr-FR', {
                         hour: '2-digit',
                         minute: '2-digit',
                         day: '2-digit',
@@ -315,8 +442,16 @@ const OrderTrackingPage = () => {
                     size="sm"
                     className="text-red-500 hover:text-red-700 border-red-200 hover:border-red-300"
                     onClick={handleCancelOrder}
+                    disabled={updating}
                   >
-                    Annuler la commande
+                    {updating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Annulation...
+                      </>
+                    ) : (
+                      'Annuler la commande'
+                    )}
                   </Button>
                 )}
               </div>
@@ -331,18 +466,18 @@ const OrderTrackingPage = () => {
               <div className="p-4">
                 <div className="flex items-center text-sm mb-4">
                   <Store className="h-4 w-4 text-guinea-green mr-2" />
-                  <span>{currentOrder.restaurantName}</span>
+                  <span>{currentOrder.business_name}</span>
                 </div>
                 
                 <div className="mb-4">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Articles</h3>
                   <ul className="space-y-2">
-                    {currentOrder.items.map((item) => (
+                    {currentOrder.items.map((item: any) => (
                       <li key={item.id} className="flex justify-between text-sm">
                         <span>
                           <span className="font-medium">{item.quantity}x</span> {item.name}
                         </span>
-                        <span>{(item.price * item.quantity).toLocaleString()} GNF</span>
+                        <span>{formatCurrency(item.price * item.quantity)}</span>
                       </li>
                     ))}
                   </ul>
@@ -354,21 +489,21 @@ const OrderTrackingPage = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Sous-total</span>
-                    <span>{currentOrder.total.toLocaleString()} GNF</span>
+                    <span>{formatCurrency(currentOrder.total)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">TVA (18%)</span>
-                    <span>{currentOrder.tax.toLocaleString()} GNF</span>
+                    <span className="text-gray-500">TVA (15%)</span>
+                    <span>{formatCurrency(currentOrder.tax)}</span>
                   </div>
-                  {currentOrder.deliveryFee > 0 && (
+                  {currentOrder.delivery_fee > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-500">Frais de livraison</span>
-                      <span>{currentOrder.deliveryFee.toLocaleString()} GNF</span>
+                      <span>{formatCurrency(currentOrder.delivery_fee)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-medium">
                     <span>Total</span>
-                    <span>{currentOrder.grandTotal.toLocaleString()} GNF</span>
+                    <span>{formatCurrency(currentOrder.grand_total)}</span>
                   </div>
                 </div>
                 
@@ -377,21 +512,21 @@ const OrderTrackingPage = () => {
                 {/* Delivery Info */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2">
-                    {currentOrder.deliveryMethod === 'delivery' ? 'Informations de livraison' : 'Informations de retrait'}
+                    {currentOrder.delivery_method === 'delivery' ? 'Informations de livraison' : 'Informations de retrait'}
                   </h3>
                   
                   <div className="text-sm mb-1 flex items-start">
                     <MapPin className="h-4 w-4 text-guinea-red mr-2 mt-0.5 flex-shrink-0" />
                     <div>
-                      {currentOrder.deliveryMethod === 'delivery' ? (
+                      {currentOrder.delivery_method === 'delivery' ? (
                         <>
                           <p className="font-medium">Adresse de livraison</p>
-                          <p className="text-gray-500">{currentOrder.deliveryAddress}</p>
+                          <p className="text-gray-500">{currentOrder.delivery_address}</p>
                         </>
                       ) : (
                         <>
                           <p className="font-medium">Adresse de retrait</p>
-                          <p className="text-gray-500">{currentOrder.restaurantName}</p>
+                          <p className="text-gray-500">{currentOrder.business_name}</p>
                           <p className="text-gray-500 text-xs mt-1">Veuillez présenter l'identifiant de votre commande lors du retrait</p>
                         </>
                       )}
@@ -403,7 +538,7 @@ const OrderTrackingPage = () => {
                     <div>
                       <p className="font-medium">Commande passée le</p>
                       <p className="text-gray-500">
-                        {new Date(currentOrder.createdAt).toLocaleString('fr-FR', {
+                        {new Date(currentOrder.created_at).toLocaleString('fr-FR', {
                           hour: '2-digit',
                           minute: '2-digit',
                           day: '2-digit',
@@ -428,12 +563,12 @@ const OrderTrackingPage = () => {
                   <Receipt className="h-5 w-5 text-guinea-red mr-3" />
                   <div>
                     <p className="font-medium">Total de la commande</p>
-                    <p className="text-lg font-bold">{currentOrder.grandTotal.toLocaleString()} GNF</p>
+                    <p className="text-lg font-bold">{formatCurrency(currentOrder.grand_total)}</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center bg-gray-50 p-3 rounded-lg">
-                  {currentOrder.deliveryMethod === 'delivery' ? (
+                  {currentOrder.delivery_method === 'delivery' ? (
                     <>
                       <Truck className="h-5 w-5 text-guinea-red mr-3" />
                       <div>

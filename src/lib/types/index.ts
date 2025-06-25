@@ -209,17 +209,20 @@ export interface CartItem {
   updated_at: string;
 }
 
-// Panier principal en base de données
+// Panier complet avec articles
 export interface Cart {
   id: string;
   user_id: string;
   business_id: number;
   business_name: string;
-  total: number;
-  item_count: number;
+  delivery_method?: string;
+  delivery_address?: string;
+  delivery_instructions?: string;
   created_at: string;
   updated_at: string;
   items: CartItem[];
+  total?: number;
+  item_count?: number;
 }
 
 // Article pour l'ajout au panier
@@ -270,15 +273,37 @@ export interface Driver {
   id: string;
   name: string;
   phone: string;
-  email: string;
-  isActive: boolean;
-  currentLocation?: {
+  email?: string;
+  business_id: number;
+  is_active: boolean;
+  current_location?: {
     lat: number;
     lng: number;
   };
-  currentOrderId?: string;
+  current_order_id?: string;
   rating: number;
-  totalDeliveries: number;
+  total_deliveries: number;
+  vehicle_type?: 'car' | 'motorcycle' | 'bike';
+  vehicle_plate?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AddDriverData {
+  name: string;
+  phone: string;
+  email?: string;
+  vehicle_type?: 'car' | 'motorcycle' | 'bike';
+  vehicle_plate?: string;
+}
+
+export interface UpdateDriverData {
+  name?: string;
+  phone?: string;
+  email?: string;
+  vehicle_type?: 'car' | 'motorcycle' | 'bike';
+  vehicle_plate?: string;
+  is_active?: boolean;
 }
 
 export interface DeliveryTracking {
