@@ -25,34 +25,7 @@ import {
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useCustomerDashboard } from '@/hooks/use-dashboard';
-import { Skeleton } from '@/components/ui/skeleton';
-
-// Composant de chargement
-const DashboardSkeleton = () => (
-  <div className="space-y-6">
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-      <div>
-        <Skeleton className="h-8 w-64 mb-2" />
-        <Skeleton className="h-4 w-96" />
-      </div>
-    </div>
-    
-    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-      {[...Array(4)].map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16 mb-2" />
-            <Skeleton className="h-3 w-32" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  </div>
-);
+import { PageSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 // Composant pour afficher les statistiques
 const StatsCard = ({ 
@@ -203,7 +176,7 @@ const UserDashboard = () => {
   if (isLoading) {
     return (
       <DashboardLayout navItems={userNavItems} title="Tableau de bord">
-        <DashboardSkeleton />
+        <PageSkeleton />
       </DashboardLayout>
     );
   }

@@ -10,110 +10,147 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { useToast } from '../../components/ui/use-toast';
-import { X, Upload, Edit, Check } from 'lucide-react';
+import { X, Upload, Edit, Check, Loader2 } from 'lucide-react';
+import { usePartnerProfile } from '../../hooks/use-partner-profile';
+import { Skeleton } from '../../components/ui/skeleton';
 
 const PartnerProfile = () => {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [profileImage, setProfileImage] = useState("/placeholder-restaurant.jpg");
-  const [coverImage, setCoverImage] = useState("/placeholder-cover.jpg");
+  const { 
+    profile, 
+    isLoading, 
+    isUpdating, 
+    isUploading, 
+    error, 
+    updateProfile, 
+    uploadImage 
+  } = usePartnerProfile();
   
-  const [profileData, setProfileData] = useState({
-    name: "Tasty Bites Restaurant",
-    email: "contact@tastybites.com",
-    phone: "(555) 123-4567",
-    description: "A family-owned restaurant serving delicious homemade meals with fresh ingredients since 2010.",
-    address: "123 Food Street, Cuisine District, NY 10001",
-    cuisine: "International",
-    openingHours: "Mon-Fri: 11:00 AM - 10:00 PM, Sat-Sun: 10:00 AM - 11:00 PM",
-    delivery: true,
-    pickup: true,
-    minOrderValue: "15.00",
-    deliveryFee: "3.50",
-    averagePreparationTime: "25",
-    website: "https://tastybites-restaurant.com",
-    socials: {
-      facebook: "tastybites",
-      instagram: "tastybites_official",
-      twitter: "tastybites"
-    }
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    description: "",
+    address: "",
+    cuisine_type: "",
+    opening_hours: "",
+    delivery_fee: "",
+    delivery_time: "",
   });
+
+  // Initialiser les données du formulaire quand le profil est chargé
+  React.useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        description: profile.description || "",
+        address: profile.address || "",
+        cuisine_type: profile.cuisine_type || "",
+        opening_hours: profile.opening_hours || "",
+        delivery_fee: profile.delivery_fee?.toString() || "",
+        delivery_time: profile.delivery_time || "",
+      });
+    }
+  }, [profile]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setProfileData((prev) => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value
     }));
   };
 
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setProfileData((prev) => ({
-      ...prev,
-      [name]: checked
-    }));
-  };
+  const handleSave = async () => {
+    const updateData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      description: formData.description,
+      address: formData.address,
+      cuisine_type: formData.cuisine_type,
+      opening_hours: formData.opening_hours,
+      delivery_fee: parseInt(formData.delivery_fee) || 0,
+      delivery_time: formData.delivery_time,
+    };
 
-  const handleSocialsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setProfileData((prev) => ({
-      ...prev,
-      socials: {
-        ...prev.socials,
-        [name]: value
-      }
-    }));
-  };
-
-  const handleSave = () => {
-    setIsEditing(false);
-    toast({
-      title: "Profile updated",
-      description: "Your restaurant profile has been successfully updated.",
-    });
-  };
-
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setProfileImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const success = await updateProfile(updateData);
+    if (success) {
+      setIsEditing(false);
     }
   };
 
-  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setCoverImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      await uploadImage(file, 'logo');
     }
   };
+
+  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadImage(file, 'cover_image');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-48 w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Skeleton className="h-96" />
+            <Skeleton className="h-96 md:col-span-2" />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
+        <div className="space-y-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-600">Erreur</h2>
+            <p className="text-muted-foreground">{error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">
+              Réessayer
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout navItems={partnerNavItems}>
+    <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Restaurant Profile</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Profil Restaurant</h2>
           {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)}>
+            <Button onClick={() => setIsEditing(true)} disabled={isUpdating}>
               <Edit className="mr-2 h-4 w-4" />
-              Edit Profile
+              Modifier le profil
             </Button>
           ) : (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
+              <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isUpdating}>
                 <X className="mr-2 h-4 w-4" />
-                Cancel
+                Annuler
               </Button>
-              <Button onClick={handleSave}>
-                <Check className="mr-2 h-4 w-4" />
-                Save Changes
+              <Button onClick={handleSave} disabled={isUpdating}>
+                {isUpdating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
+                Sauvegarder
               </Button>
             </div>
           )}
@@ -121,15 +158,19 @@ const PartnerProfile = () => {
 
         <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
           <img 
-            src={coverImage} 
-            alt="Restaurant cover" 
+            src={profile?.cover_image || "/placeholder-cover.jpg"} 
+            alt="Couverture restaurant" 
             className="w-full h-full object-cover"
           />
           {isEditing && (
             <div className="absolute bottom-4 right-4">
               <label htmlFor="cover-upload" className="cursor-pointer">
                 <div className="bg-primary text-white p-2 rounded-full">
-                  <Upload className="h-5 w-5" />
+                  {isUploading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Upload className="h-5 w-5" />
+                  )}
                 </div>
                 <input 
                   id="cover-upload" 
@@ -137,6 +178,7 @@ const PartnerProfile = () => {
                   accept="image/*" 
                   className="hidden"
                   onChange={handleCoverImageChange}
+                  disabled={isUploading}
                 />
               </label>
             </div>
@@ -148,13 +190,17 @@ const PartnerProfile = () => {
             <CardContent className="pt-6 flex flex-col items-center">
               <div className="relative mb-4">
                 <Avatar className="h-32 w-32">
-                  <AvatarImage src={profileImage} alt="Restaurant logo" />
-                  <AvatarFallback>TB</AvatarFallback>
+                  <AvatarImage src={profile?.logo || "/placeholder-restaurant.jpg"} alt="Logo restaurant" />
+                  <AvatarFallback>{profile?.name?.substring(0, 2).toUpperCase() || "RT"}</AvatarFallback>
                 </Avatar>
                 {isEditing && (
                   <label htmlFor="profile-upload" className="absolute bottom-0 right-0 cursor-pointer">
                     <div className="bg-primary text-white p-2 rounded-full">
-                      <Upload className="h-4 w-4" />
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
                     </div>
                     <input 
                       id="profile-upload" 
@@ -162,29 +208,22 @@ const PartnerProfile = () => {
                       accept="image/*" 
                       className="hidden"
                       onChange={handleProfileImageChange}
+                      disabled={isUploading}
                     />
                   </label>
                 )}
               </div>
-              <h3 className="text-xl font-semibold text-center">{profileData.name}</h3>
-              <p className="text-muted-foreground text-center">{profileData.cuisine} Cuisine</p>
+              <h3 className="text-xl font-semibold text-center">{profile?.name || "Nom du restaurant"}</h3>
+              <p className="text-muted-foreground text-center">{profile?.cuisine_type || "Type de cuisine"} Cuisine</p>
               
               <div className="w-full mt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Delivery</span>
-                  <Switch 
-                    checked={profileData.delivery} 
-                    onCheckedChange={(checked) => handleSwitchChange('delivery', checked)} 
-                    disabled={!isEditing}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Pickup</span>
-                  <Switch 
-                    checked={profileData.pickup} 
-                    onCheckedChange={(checked) => handleSwitchChange('pickup', checked)} 
-                    disabled={!isEditing}
-                  />
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Statut: {profile?.is_active ? "Actif" : "Inactif"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Ouvert: {profile?.is_open ? "Oui" : "Non"}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -192,48 +231,49 @@ const PartnerProfile = () => {
 
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>Restaurant Information</CardTitle>
+              <CardTitle>Informations Restaurant</CardTitle>
               <CardDescription>
-                Manage your restaurant's profile information
+                Gérez les informations de votre restaurant
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="basic">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                  <TabsTrigger value="business">Business Details</TabsTrigger>
-                  <TabsTrigger value="socials">Social Media</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="basic">Informations de base</TabsTrigger>
+                  <TabsTrigger value="business">Détails commerciaux</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="basic" className="space-y-4 pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Restaurant Name</Label>
+                      <Label htmlFor="name">Nom du restaurant</Label>
                       <Input 
                         id="name" 
                         name="name" 
-                        value={profileData.name} 
+                        value={formData.name} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="cuisine">Cuisine Type</Label>
+                      <Label htmlFor="cuisine_type">Type de cuisine</Label>
                       <Select 
                         disabled={!isEditing}
-                        value={profileData.cuisine}
-                        onValueChange={(value) => setProfileData(prev => ({...prev, cuisine: value}))}
+                        value={formData.cuisine_type}
+                        onValueChange={(value) => setFormData(prev => ({...prev, cuisine_type: value}))}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select cuisine type" />
+                          <SelectValue placeholder="Sélectionner le type de cuisine" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="International">International</SelectItem>
-                          <SelectItem value="Italian">Italian</SelectItem>
-                          <SelectItem value="Mexican">Mexican</SelectItem>
-                          <SelectItem value="Asian">Asian</SelectItem>
-                          <SelectItem value="American">American</SelectItem>
-                          <SelectItem value="Mediterranean">Mediterranean</SelectItem>
+                          <SelectItem value="Italien">Italien</SelectItem>
+                          <SelectItem value="Mexicain">Mexicain</SelectItem>
+                          <SelectItem value="Asiatique">Asiatique</SelectItem>
+                          <SelectItem value="Américain">Américain</SelectItem>
+                          <SelectItem value="Méditerranéen">Méditerranéen</SelectItem>
+                          <SelectItem value="Africain">Africain</SelectItem>
+                          <SelectItem value="Guinéen">Guinéen</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -243,27 +283,27 @@ const PartnerProfile = () => {
                         id="email" 
                         name="email" 
                         type="email"
-                        value={profileData.email} 
+                        value={formData.email} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone</Label>
+                      <Label htmlFor="phone">Téléphone</Label>
                       <Input 
                         id="phone" 
                         name="phone" 
-                        value={profileData.phone} 
+                        value={formData.phone} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="address">Address</Label>
+                      <Label htmlFor="address">Adresse</Label>
                       <Input 
                         id="address" 
                         name="address" 
-                        value={profileData.address} 
+                        value={formData.address} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
                       />
@@ -274,7 +314,7 @@ const PartnerProfile = () => {
                         id="description" 
                         name="description" 
                         rows={3}
-                        value={profileData.description} 
+                        value={formData.description} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
                       />
@@ -285,101 +325,36 @@ const PartnerProfile = () => {
                 <TabsContent value="business" className="space-y-4 pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="openingHours">Opening Hours</Label>
+                      <Label htmlFor="opening_hours">Heures d'ouverture</Label>
                       <Textarea 
-                        id="openingHours" 
-                        name="openingHours" 
-                        value={profileData.openingHours} 
+                        id="opening_hours" 
+                        name="opening_hours" 
+                        value={formData.opening_hours} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="website">Website</Label>
+                      <Label htmlFor="delivery_time">Temps de livraison</Label>
                       <Input 
-                        id="website" 
-                        name="website" 
-                        value={profileData.website} 
+                        id="delivery_time" 
+                        name="delivery_time" 
+                        value={formData.delivery_time} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
+                        placeholder="ex: 30-45 min"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="averagePreparationTime">Average Prep Time (minutes)</Label>
+                      <Label htmlFor="delivery_fee">Frais de livraison (FCFA)</Label>
                       <Input 
-                        id="averagePreparationTime" 
-                        name="averagePreparationTime" 
-                        value={profileData.averagePreparationTime} 
+                        id="delivery_fee" 
+                        name="delivery_fee" 
+                        type="number"
+                        value={formData.delivery_fee} 
                         onChange={handleInputChange} 
                         disabled={!isEditing} 
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="minOrderValue">Minimum Order Value ($)</Label>
-                      <Input 
-                        id="minOrderValue" 
-                        name="minOrderValue" 
-                        value={profileData.minOrderValue} 
-                        onChange={handleInputChange} 
-                        disabled={!isEditing} 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="deliveryFee">Delivery Fee ($)</Label>
-                      <Input 
-                        id="deliveryFee" 
-                        name="deliveryFee" 
-                        value={profileData.deliveryFee} 
-                        onChange={handleInputChange} 
-                        disabled={!isEditing} 
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="socials" className="space-y-4 pt-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="facebook">Facebook</Label>
-                      <div className="flex">
-                        <span className="bg-muted px-3 py-2 rounded-l-md border border-r-0 border-input">facebook.com/</span>
-                        <Input 
-                          id="facebook" 
-                          name="facebook" 
-                          className="rounded-l-none"
-                          value={profileData.socials.facebook} 
-                          onChange={handleSocialsChange} 
-                          disabled={!isEditing} 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="instagram">Instagram</Label>
-                      <div className="flex">
-                        <span className="bg-muted px-3 py-2 rounded-l-md border border-r-0 border-input">instagram.com/</span>
-                        <Input 
-                          id="instagram" 
-                          name="instagram" 
-                          className="rounded-l-none"
-                          value={profileData.socials.instagram} 
-                          onChange={handleSocialsChange} 
-                          disabled={!isEditing} 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="twitter">Twitter</Label>
-                      <div className="flex">
-                        <span className="bg-muted px-3 py-2 rounded-l-md border border-r-0 border-input">twitter.com/</span>
-                        <Input 
-                          id="twitter" 
-                          name="twitter" 
-                          className="rounded-l-none"
-                          value={profileData.socials.twitter} 
-                          onChange={handleSocialsChange} 
-                          disabled={!isEditing} 
-                        />
-                      </div>
                     </div>
                   </div>
                 </TabsContent>

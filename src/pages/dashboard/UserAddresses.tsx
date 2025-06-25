@@ -1,260 +1,386 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from 'react-hook-form';
+import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
+import { useUserProfile } from '@/hooks/use-user-profile';
+import { 
+  Card, CardContent, CardDescription, CardHeader, CardTitle 
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from '@/components/ui/badge';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Check, Edit, MapPin, MoreVertical, Plus, Trash } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/components/ui/use-toast';
+import { 
+  MapPin, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Loader2,
+  Home,
+  Building,
+  Navigation
+} from 'lucide-react';
+import { AddressSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
-// Mock user addresses
-const mockAddresses = [
-  {
-    id: '1',
-    type: 'home',
-    isDefault: true,
-    street: '123 Main St',
-    apartment: 'Apt 4B',
-    city: 'Conakry',
-    state: 'Conakry',
-    postalCode: '11000',
-    country: 'Guinea',
-  },
-  {
-    id: '2',
-    type: 'work',
-    isDefault: false,
-    street: '456 Business Ave',
-    apartment: '3rd Floor',
-    city: 'Conakry',
-    state: 'Conakry',
-    postalCode: '11000',
-    country: 'Guinea',
-  },
-  {
-    id: '3',
-    type: 'other',
-    isDefault: false,
-    street: '789 Beach Road',
-    apartment: '',
-    city: 'Saly',
-    state: 'Saly',
-    postalCode: '33000',
-    country: 'Guinea',
-  },
-];
-
+// Schéma de validation pour les adresses
 const addressFormSchema = z.object({
-  type: z.string({
-    required_error: "Please select an address type",
+  label: z.string().min(2, {
+    message: "Le libellé doit contenir au moins 2 caractères.",
   }),
-  street: z.string().min(3, {
-    message: "Street address must be at least 3 characters",
+  street: z.string().min(5, {
+    message: "La rue doit contenir au moins 5 caractères.",
   }),
-  apartment: z.string().optional(),
   city: z.string().min(2, {
-    message: "City must be at least 2 characters",
+    message: "La ville doit contenir au moins 2 caractères.",
   }),
   state: z.string().min(2, {
-    message: "State must be at least 2 characters",
+    message: "La région doit contenir au moins 2 caractères.",
   }),
-  postalCode: z.string().min(2, {
-    message: "Postal code must be at least 2 characters",
-  }),
-  country: z.string().min(2, {
-    message: "Country must be at least 2 characters",
-  }),
-  isDefault: z.boolean().optional().default(false),
+  postal_code: z.string().optional(),
+  country: z.string().default('Guinée'),
+  is_default: z.boolean().default(false),
 });
 
 type AddressFormValues = z.infer<typeof addressFormSchema>;
 
 const UserAddresses = () => {
-  const { currentUser } = useAuth();
-  const [addresses, setAddresses] = useState(mockAddresses);
-  const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
-  
-  const form = useForm<AddressFormValues>({
+  const { toast } = useToast();
+  const {
+    addresses,
+    isLoading,
+    error,
+    createAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress
+  } = useUserProfile();
+
+  // États pour les modals
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Formulaire
+  const addressForm = useForm<AddressFormValues>({
     resolver: zodResolver(addressFormSchema),
     defaultValues: {
-      type: 'home',
+      label: '',
       street: '',
-      apartment: '',
       city: '',
       state: '',
-      postalCode: '',
-      country: 'Guinea',
-      isDefault: false,
+      postal_code: '',
+      country: 'Guinée',
+      is_default: false,
     },
   });
 
-  const handleEditAddress = (address: typeof mockAddresses[0]) => {
-    form.reset({
-      type: address.type,
-      street: address.street,
-      apartment: address.apartment,
-      city: address.city,
-      state: address.state,
-      postalCode: address.postalCode,
-      country: address.country,
-      isDefault: address.isDefault,
-    });
-    setEditingAddressId(address.id);
-    setIsAddingAddress(true);
-  };
-
-  const handleDeleteAddress = (id: string) => {
-    setAddresses(addresses.filter(address => address.id !== id));
-  };
-
-  const handleSetDefaultAddress = (id: string) => {
-    setAddresses(addresses.map(address => ({
-      ...address,
-      isDefault: address.id === id,
-    })));
-  };
-
-  const onSubmit = (data: AddressFormValues) => {
-    if (editingAddressId) {
-      // Update existing address
-      setAddresses(addresses.map(address => {
-        if (address.id === editingAddressId) {
-          return {
-            ...address,
-            ...data,
-          };
-        }
-        
-        // If we're setting this address as default, remove default from others
-        if (data.isDefault && address.id !== editingAddressId) {
-          return { ...address, isDefault: false };
-        }
-        
-        return address;
-      }));
-      setEditingAddressId(null);
+  // Soumettre le formulaire d'adresse
+  const onSubmitAddress = async (data: AddressFormValues) => {
+    setIsSubmitting(true);
+    
+    // S'assurer que les champs requis sont présents
+    const addressData = {
+      label: data.label,
+      street: data.street,
+      city: data.city,
+      state: data.state,
+      postal_code: data.postal_code,
+      country: data.country,
+      is_default: data.is_default,
+    };
+    
+    const result = editingAddress 
+      ? await updateAddress(editingAddress, addressData)
+      : await createAddress(addressData);
+    
+    if (result.success) {
+      toast({
+        title: editingAddress ? "Adresse mise à jour" : "Adresse créée",
+        description: editingAddress 
+          ? "Votre adresse a été mise à jour avec succès."
+          : "Votre nouvelle adresse a été créée avec succès.",
+      });
+      setIsAddressModalOpen(false);
+      setEditingAddress(null);
+      addressForm.reset();
     } else {
-      // Add new address
-      const newAddress = {
-        id: `${addresses.length + 1}`,
-        ...data,
-      };
-      
-      // If setting this as default or it's the first address
-      if (data.isDefault || addresses.length === 0) {
-        setAddresses([
-          ...addresses.map(a => ({ ...a, isDefault: false })),
-          newAddress,
-        ]);
-      } else {
-        setAddresses([...addresses, newAddress]);
-      }
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de la gestion de l'adresse",
+        variant: "destructive",
+      });
     }
     
-    setIsAddingAddress(false);
-    form.reset();
+    setIsSubmitting(false);
   };
 
-  return (
-    <DashboardLayout navItems={userNavItems} title="Delivery Addresses">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+  // Supprimer une adresse
+  const handleDeleteAddress = async (addressId: string) => {
+    const result = await deleteAddress(addressId);
+    
+    if (result.success) {
+      toast({
+        title: "Adresse supprimée",
+        description: "Votre adresse a été supprimée avec succès.",
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de la suppression de l'adresse",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Définir une adresse comme défaut
+  const handleSetDefaultAddress = async (addressId: string) => {
+    const result = await setDefaultAddress(addressId);
+    
+    if (result.success) {
+      toast({
+        title: "Adresse par défaut",
+        description: "Votre adresse par défaut a été mise à jour.",
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de la définition de l'adresse par défaut",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Éditer une adresse
+  const handleEditAddress = (address: any) => {
+    setEditingAddress(address.id);
+    addressForm.reset({
+      label: address.label,
+      street: address.street,
+      city: address.city,
+      state: address.state,
+      postal_code: address.postal_code || '',
+      country: address.country,
+      is_default: address.is_default,
+    });
+    setIsAddressModalOpen(true);
+  };
+
+  // Ouvrir le modal pour créer une nouvelle adresse
+  const handleCreateAddress = () => {
+    setEditingAddress(null);
+    addressForm.reset({
+      label: '',
+      street: '',
+      city: '',
+      state: '',
+      postal_code: '',
+      country: 'Guinée',
+      is_default: false,
+    });
+    setIsAddressModalOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout navItems={userNavItems} title="Mes Adresses">
+        <div className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Your Delivery Addresses</h2>
-            <p className="text-gray-500">Manage your delivery addresses for faster checkout.</p>
+            <h2 className="text-2xl font-bold tracking-tight">Mes Adresses</h2>
+            <p className="text-gray-500">Gérez vos adresses de livraison pour faciliter vos commandes.</p>
           </div>
-          <Dialog open={isAddingAddress} onOpenChange={setIsAddingAddress}>
-            <DialogTrigger asChild>
-              <Button onClick={() => {
-                setEditingAddressId(null);
-                form.reset({
-                  type: 'home',
-                  street: '',
-                  apartment: '',
-                  city: '',
-                  state: '',
-                  postalCode: '',
-                  country: 'Senegal',
-                  isDefault: addresses.length === 0 ? true : false,
-                });
-              }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Address
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Adresses de livraison</CardTitle>
+                  <CardDescription>
+                    Vos adresses enregistrées pour la livraison.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <AddressSkeleton />
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout navItems={userNavItems} title="Mes Adresses">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <MapPin className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-red-600 mb-2">Erreur de chargement</h3>
+            <p className="text-red-500">{error}</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout navItems={userNavItems} title="Mes Adresses">
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Mes Adresses</h2>
+          <p className="text-gray-500">Gérez vos adresses de livraison pour faciliter vos commandes.</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+          <div>
+                <CardTitle>Adresses de livraison</CardTitle>
+                <CardDescription>
+                  Vos adresses enregistrées pour la livraison.
+                </CardDescription>
+          </div>
+              <Button onClick={handleCreateAddress}>
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter une adresse
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[550px]">
-              <DialogHeader>
-                <DialogTitle>{editingAddressId ? 'Edit Address' : 'Add New Address'}</DialogTitle>
-                <DialogDescription>
-                  {editingAddressId 
-                    ? 'Update your address details below.' 
-                    : 'Fill in the details for your new delivery address.'}
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Address Type</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex space-x-4"
+            </div>
+          </CardHeader>
+          <CardContent>
+            {addresses.length === 0 ? (
+              <div className="text-center py-12">
+                <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune adresse enregistrée</h3>
+                <p className="text-gray-500 mb-6">Ajoutez votre première adresse pour faciliter vos commandes.</p>
+                <Button onClick={handleCreateAddress}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Ajouter ma première adresse
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {addresses.map((address) => (
+                  <div key={address.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+                            {address.is_default ? (
+                              <Home className="h-5 w-5 text-blue-600" />
+                            ) : (
+                              <Building className="h-5 w-5 text-gray-600" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-lg">{address.label}</h4>
+                            <div className="flex items-center space-x-2">
+                              {address.is_default && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Adresse par défaut
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className="text-xs">
+                                {address.country}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-1 text-gray-600">
+                          <p className="flex items-center">
+                            <Navigation className="h-4 w-4 mr-2 text-gray-400" />
+                            {address.street}
+                          </p>
+                          <p className="ml-6">
+                            {address.city}, {address.state}
+                            {address.postal_code && `, ${address.postal_code}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2 ml-4">
+                        {!address.is_default && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSetDefaultAddress(address.id)}
                           >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="home" id="home" />
-                              <Label htmlFor="home">Home</Label>
+                            Définir par défaut
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditAddress(address)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteAddress(address.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="work" id="work" />
-                              <Label htmlFor="work">Work</Label>
+                ))}
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="other" id="other" />
-                              <Label htmlFor="other">Other</Label>
-                            </div>
-                          </RadioGroup>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Modal pour créer/modifier une adresse */}
+      <Dialog open={isAddressModalOpen} onOpenChange={setIsAddressModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAddress ? "Modifier l'adresse" : "Ajouter une nouvelle adresse"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingAddress 
+                ? "Modifiez les informations de votre adresse."
+                : "Ajoutez une nouvelle adresse de livraison."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...addressForm}>
+            <form onSubmit={addressForm.handleSubmit(onSubmitAddress)} className="space-y-4">
+                  <FormField
+                control={addressForm.control}
+                name="label"
+                    render={({ field }) => (
+                      <FormItem>
+                    <FormLabel>Libellé de l'adresse</FormLabel>
+                        <FormControl>
+                      <Input placeholder="Ex: Domicile, Bureau, Chez mes parents..." {...field} />
                         </FormControl>
+                    <FormDescription>
+                      Un nom pour identifier facilement cette adresse.
+                    </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
                   <FormField
-                    control={form.control}
-                    name="street"
+                control={addressForm.control}
+                name="street"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Street Address</FormLabel>
+                    <FormLabel>Rue et numéro</FormLabel>
                         <FormControl>
-                          <Input placeholder="123 Main St" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="apartment"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Apartment, Suite, etc. (optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Apt 4B" {...field} />
+                      <Input placeholder="123 Rue de la Paix" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -263,13 +389,13 @@ const UserAddresses = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control}
+                  control={addressForm.control}
                       name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>City</FormLabel>
+                      <FormLabel>Ville</FormLabel>
                           <FormControl>
-                            <Input placeholder="Dakar" {...field} />
+                        <Input placeholder="Conakry" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -277,13 +403,13 @@ const UserAddresses = () => {
                     />
 
                     <FormField
-                      control={form.control}
+                  control={addressForm.control}
                       name="state"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>State/Province</FormLabel>
+                      <FormLabel>Région</FormLabel>
                           <FormControl>
-                            <Input placeholder="Dakar" {...field} />
+                        <Input placeholder="Kaloum" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -293,13 +419,13 @@ const UserAddresses = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
-                      control={form.control}
-                      name="postalCode"
+                  control={addressForm.control}
+                  name="postal_code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Postal Code</FormLabel>
+                      <FormLabel>Code postal</FormLabel>
                           <FormControl>
-                            <Input placeholder="11000" {...field} />
+                        <Input placeholder="001" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -307,26 +433,14 @@ const UserAddresses = () => {
                     />
 
                     <FormField
-                      control={form.control}
+                  control={addressForm.control}
                       name="country"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Country</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormLabel>Pays</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a country" />
-                              </SelectTrigger>
+                        <Input {...field} />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Senegal">Senegal</SelectItem>
-                              <SelectItem value="Gambia">Gambia</SelectItem>
-                              <SelectItem value="Guinea">Guinea</SelectItem>
-                              <SelectItem value="Guinea-Bissau">Guinea-Bissau</SelectItem>
-                              <SelectItem value="Mali">Mali</SelectItem>
-                              <SelectItem value="Mauritania">Mauritania</SelectItem>
-                            </SelectContent>
-                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -334,8 +448,8 @@ const UserAddresses = () => {
                   </div>
 
                   <FormField
-                    control={form.control}
-                    name="isDefault"
+                control={addressForm.control}
+                name="is_default"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                         <FormControl>
@@ -343,112 +457,42 @@ const UserAddresses = () => {
                             type="checkbox"
                             checked={field.value}
                             onChange={field.onChange}
-                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        className="mt-1"
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel>Make this my default address</FormLabel>
-                          <p className="text-sm text-gray-500">
-                            This address will be used as default for deliveries.
-                          </p>
+                      <FormLabel>Définir comme adresse par défaut</FormLabel>
+                      <FormDescription>
+                        Cette adresse sera utilisée par défaut pour vos commandes.
+                      </FormDescription>
                         </div>
                       </FormItem>
                     )}
                   />
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAddingAddress(false)} type="button">
-                      Cancel
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsAddressModalOpen(false)}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {editingAddress ? 'Mise à jour...' : 'Création...'}
+                    </>
+                  ) : (
+                    editingAddress ? 'Mettre à jour' : 'Créer l\'adresse'
+                  )}
                     </Button>
-                    <Button type="submit">{editingAddressId ? 'Update Address' : 'Add Address'}</Button>
                   </DialogFooter>
                 </form>
               </Form>
             </DialogContent>
           </Dialog>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {addresses.map((address) => (
-            <Card key={address.id} className={`border ${address.isDefault ? 'border-primary' : ''}`}>
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-lg capitalize">{address.type}</CardTitle>
-                  </div>
-                  {address.isDefault && (
-                    <div className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full flex items-center">
-                      <Check className="h-3 w-3 mr-1" />
-                      Default
-                    </div>
-                  )}
-                </div>
-                <CardDescription>
-                  {address.street}
-                  {address.apartment && `, ${address.apartment}`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">
-                  {address.city}, {address.state} {address.postalCode}
-                </p>
-                <p className="text-sm">{address.country}</p>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                {!address.isDefault && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleSetDefaultAddress(address.id)}
-                  >
-                    Set as Default
-                  </Button>
-                )}
-                {address.isDefault && <div />}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEditAddress(address)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => handleDeleteAddress(address.id)}
-                      disabled={address.isDefault}
-                      className={address.isDefault ? 'text-muted-foreground cursor-not-allowed' : 'text-destructive'}
-                    >
-                      <Trash className="h-4 w-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-
-        {addresses.length === 0 && (
-          <Card className="border-dashed border-2">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No addresses found</h3>
-              <p className="text-center text-muted-foreground mb-4">
-                You haven't added any delivery addresses yet.
-                Add your first address to speed up checkout.
-              </p>
-              <Button onClick={() => setIsAddingAddress(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Address
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
     </DashboardLayout>
   );
 };

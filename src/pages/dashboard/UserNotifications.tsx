@@ -6,27 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell, Calendar, Check, Clock, Info, Megaphone, ShoppingBag, Truck } from 'lucide-react';
+import { Bell, Calendar, Check, Clock, Info, Megaphone, ShoppingBag, Truck, Trash2, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useNotifications } from '@/hooks/use-notifications';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Define notification types
-type NotificationType = 'order' | 'delivery' | 'promotion' | 'account' | 'payment';
+type NotificationType = 'order_status' | 'delivery_update' | 'promotion' | 'system' | 'payment' | 'reservation';
 type NotificationPriority = 'high' | 'medium' | 'low';
 
-interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  timestamp: Date;
-  isRead: boolean;
-  priority: NotificationPriority;
-}
-
-// Mock notification preferences
+// Mock notification preferences (à remplacer par des données réelles plus tard)
 interface NotificationPreferences {
   email: {
     orders: boolean;
@@ -34,6 +26,7 @@ interface NotificationPreferences {
     promotions: boolean;
     account: boolean;
     payments: boolean;
+    reservations: boolean;
   };
   push: {
     orders: boolean;
@@ -41,6 +34,7 @@ interface NotificationPreferences {
     promotions: boolean;
     account: boolean;
     payments: boolean;
+    reservations: boolean;
   };
   sms: {
     orders: boolean;
@@ -48,84 +42,9 @@ interface NotificationPreferences {
     promotions: boolean;
     account: boolean;
     payments: boolean;
+    reservations: boolean;
   };
 }
-
-// Mock notifications data
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'order',
-    title: 'Order Confirmed',
-    message: 'Your order #ORD-123456 has been confirmed and is being prepared.',
-    timestamp: new Date(2023, 5, 15, 14, 30), // June 15, 2023, 2:30 PM
-    isRead: true,
-    priority: 'medium',
-  },
-  {
-    id: '2',
-    type: 'delivery',
-    title: 'Delivery on the Way',
-    message: 'Your order #ORD-123456 is out for delivery and will arrive in 15-30 minutes.',
-    timestamp: new Date(2023, 5, 15, 16, 45), // June 15, 2023, 4:45 PM
-    isRead: true,
-    priority: 'high',
-  },
-  {
-    id: '3',
-    type: 'delivery',
-    title: 'Delivery Completed',
-    message: 'Your order #ORD-123456 has been delivered. Enjoy your meal!',
-    timestamp: new Date(2023, 5, 15, 17, 20), // June 15, 2023, 5:20 PM
-    isRead: true,
-    priority: 'medium',
-  },
-  {
-    id: '4',
-    type: 'promotion',
-    title: 'Weekend Special: 20% Off',
-    message: 'Use code WEEKEND20 for 20% off your order this weekend!',
-    timestamp: new Date(2023, 5, 16, 9, 0), // June 16, 2023, 9:00 AM
-    isRead: false,
-    priority: 'low',
-  },
-  {
-    id: '5',
-    type: 'account',
-    title: 'Profile Updated',
-    message: 'Your profile information has been successfully updated.',
-    timestamp: new Date(2023, 5, 16, 11, 15), // June 16, 2023, 11:15 AM
-    isRead: false,
-    priority: 'low',
-  },
-  {
-    id: '6',
-    type: 'order',
-    title: 'New Order Placed',
-    message: 'Your order #ORD-123457 has been placed successfully. Total: $49.97',
-    timestamp: new Date(2023, 5, 17, 13, 10), // June 17, 2023, 1:10 PM
-    isRead: false,
-    priority: 'medium',
-  },
-  {
-    id: '7',
-    type: 'payment',
-    title: 'Payment Successful',
-    message: 'Your payment of $49.97 for order #ORD-123457 was successful.',
-    timestamp: new Date(2023, 5, 17, 13, 12), // June 17, 2023, 1:12 PM
-    isRead: false,
-    priority: 'medium',
-  },
-  {
-    id: '8',
-    type: 'promotion',
-    title: 'New Restaurant Added',
-    message: 'Check out the newest addition to our platform: Senegalese Delights!',
-    timestamp: new Date(2023, 5, 18, 10, 0), // June 18, 2023, 10:00 AM
-    isRead: false,
-    priority: 'low',
-  },
-];
 
 // Mock notification preferences
 const mockPreferences: NotificationPreferences = {
@@ -135,6 +54,7 @@ const mockPreferences: NotificationPreferences = {
     promotions: false,
     account: true,
     payments: true,
+    reservations: true,
   },
   push: {
     orders: true,
@@ -142,6 +62,7 @@ const mockPreferences: NotificationPreferences = {
     promotions: true,
     account: true,
     payments: true,
+    reservations: true,
   },
   sms: {
     orders: false,
@@ -149,52 +70,56 @@ const mockPreferences: NotificationPreferences = {
     promotions: false,
     account: false,
     payments: true,
+    reservations: false,
   },
 };
 
 // Helper function to get notification icon
-const NotificationIcon = ({ type }: { type: NotificationType }) => {
+const NotificationIcon = ({ type }: { type: string }) => {
   switch (type) {
-    case 'order':
+    case 'order_status':
       return <ShoppingBag className="h-5 w-5" />;
-    case 'delivery':
+    case 'delivery_update':
       return <Truck className="h-5 w-5" />;
     case 'promotion':
       return <Megaphone className="h-5 w-5" />;
-    case 'account':
+    case 'system':
       return <Info className="h-5 w-5" />;
     case 'payment':
       return <Check className="h-5 w-5" />;
+    case 'reservation':
+      return <Calendar className="h-5 w-5" />;
     default:
       return <Bell className="h-5 w-5" />;
   }
 };
 
 // Helper function to format relative time
-const formatRelativeTime = (date: Date) => {
+const formatRelativeTime = (dateString: string) => {
+  const date = new Date(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   
   if (diffInSeconds < 60) {
-    return 'Just now';
+    return 'À l\'instant';
   }
   
   const diffInMinutes = Math.floor(diffInSeconds / 60);
   if (diffInMinutes < 60) {
-    return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`;
+    return `Il y a ${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'}`;
   }
   
   const diffInHours = Math.floor(diffInMinutes / 60);
   if (diffInHours < 24) {
-    return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`;
+    return `Il y a ${diffInHours} ${diffInHours === 1 ? 'heure' : 'heures'}`;
   }
   
   const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) {
-    return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
+    return `Il y a ${diffInDays} ${diffInDays === 1 ? 'jour' : 'jours'}`;
   }
   
-  return format(date, 'MMM d, yyyy');
+  return format(date, 'dd/MM/yyyy');
 };
 
 // Helper function to get priority class
@@ -213,14 +138,24 @@ const getPriorityClass = (priority: NotificationPriority) => {
 
 const UserNotifications = () => {
   const { currentUser } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const { 
+    notifications, 
+    isLoading, 
+    isUpdating, 
+    error, 
+    unreadCount,
+    markAsRead, 
+    markAllAsRead, 
+    deleteNotification,
+    deleteReadNotifications 
+  } = useNotifications();
   const [preferences, setPreferences] = useState<NotificationPreferences>(mockPreferences);
   const [activeTab, setActiveTab] = useState('all');
 
   // Filter notifications based on active tab
   const filteredNotifications = notifications.filter((notification) => {
     if (activeTab === 'all') return true;
-    if (activeTab === 'unread') return !notification.isRead;
+    if (activeTab === 'unread') return !notification.is_read;
     return notification.type === activeTab;
   });
 
@@ -234,22 +169,16 @@ const UserNotifications = () => {
   const lastWeek = new Date(today);
   lastWeek.setDate(lastWeek.getDate() - 7);
   
-  const todayNotifications = filteredNotifications.filter(n => n.timestamp >= today);
-  const yesterdayNotifications = filteredNotifications.filter(n => n.timestamp >= yesterday && n.timestamp < today);
-  const lastWeekNotifications = filteredNotifications.filter(n => n.timestamp >= lastWeek && n.timestamp < yesterday);
-  const olderNotifications = filteredNotifications.filter(n => n.timestamp < lastWeek);
-
-  // Mark notification as read
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, isRead: true } : n
-    ));
-  };
-
-  // Mark all notifications as read
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-  };
+  const todayNotifications = filteredNotifications.filter(n => new Date(n.created_at) >= today);
+  const yesterdayNotifications = filteredNotifications.filter(n => {
+    const date = new Date(n.created_at);
+    return date >= yesterday && date < today;
+  });
+  const lastWeekNotifications = filteredNotifications.filter(n => {
+    const date = new Date(n.created_at);
+    return date >= lastWeek && date < yesterday;
+  });
+  const olderNotifications = filteredNotifications.filter(n => new Date(n.created_at) < lastWeek);
 
   // Update preference
   const updatePreference = (channel: keyof NotificationPreferences, type: keyof NotificationPreferences['email'], value: boolean) => {
@@ -262,21 +191,52 @@ const UserNotifications = () => {
     });
   };
 
-  // Count unread notifications
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  if (isLoading) {
+    return (
+      <DashboardLayout navItems={userNavItems} title="Notifications">
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout navItems={userNavItems} title="Notifications">
+        <div className="space-y-6">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-600">Erreur</h2>
+            <p className="text-muted-foreground">{error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">
+              Réessayer
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout navItems={userNavItems} title="Notifications">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Notification Settings</h2>
-          <p className="text-gray-500">Manage your notification preferences and history.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Paramètres de notifications</h2>
+          <p className="text-gray-500">Gérez vos préférences de notifications et votre historique.</p>
         </div>
 
         <Tabs defaultValue="notifications" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="notifications">Notifications History</TabsTrigger>
-            <TabsTrigger value="preferences">Notification Preferences</TabsTrigger>
+            <TabsTrigger value="notifications">Historique des notifications</TabsTrigger>
+            <TabsTrigger value="preferences">Préférences de notifications</TabsTrigger>
           </TabsList>
           
           <TabsContent value="notifications" className="space-y-4 mt-4">
@@ -287,7 +247,7 @@ const UserNotifications = () => {
                   size="sm"
                   onClick={() => setActiveTab('all')}
                 >
-                  All
+                  Toutes
                 </Button>
                 <Button 
                   variant={activeTab === 'unread' ? 'default' : 'outline'} 
@@ -295,24 +255,31 @@ const UserNotifications = () => {
                   onClick={() => setActiveTab('unread')}
                   className="relative"
                 >
-                  Unread
+                  Non lues
                   {unreadCount > 0 && (
                     <Badge className="ml-1 bg-primary-600">{unreadCount}</Badge>
                   )}
                 </Button>
                 <Button 
-                  variant={activeTab === 'order' ? 'default' : 'outline'} 
+                  variant={activeTab === 'order_status' ? 'default' : 'outline'} 
                   size="sm"
-                  onClick={() => setActiveTab('order')}
+                  onClick={() => setActiveTab('order_status')}
                 >
-                  Orders
+                  Commandes
                 </Button>
                 <Button 
-                  variant={activeTab === 'delivery' ? 'default' : 'outline'} 
+                  variant={activeTab === 'delivery_update' ? 'default' : 'outline'} 
                   size="sm"
-                  onClick={() => setActiveTab('delivery')}
+                  onClick={() => setActiveTab('delivery_update')}
                 >
-                  Deliveries
+                  Livraisons
+                </Button>
+                <Button 
+                  variant={activeTab === 'reservation' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setActiveTab('reservation')}
+                >
+                  Réservations
                 </Button>
                 <Button 
                   variant={activeTab === 'promotion' ? 'default' : 'outline'} 
@@ -323,21 +290,46 @@ const UserNotifications = () => {
                 </Button>
               </div>
               
-              {unreadCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                  Mark all as read
+              <div className="flex space-x-2">
+                {unreadCount > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={markAllAsRead}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-2" />
+                    )}
+                    Tout marquer comme lu
+                  </Button>
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={deleteReadNotifications}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Supprimer les lues
                 </Button>
-              )}
+              </div>
             </div>
 
             {filteredNotifications.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No notifications</h3>
+                  <h3 className="text-lg font-medium mb-2">Aucune notification</h3>
                   <p className="text-center text-muted-foreground">
-                    You don't have any {activeTab !== 'all' ? activeTab + ' ' : ''}notifications
-                    {activeTab === 'unread' ? ' that are unread' : ''}.
+                    Vous n'avez aucune {activeTab !== 'all' ? activeTab + ' ' : ''}notification
+                    {activeTab === 'unread' ? ' non lue' : ''}.
                   </p>
                 </CardContent>
               </Card>
@@ -348,7 +340,7 @@ const UserNotifications = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Today
+                      Aujourd'hui
                     </h3>
                     <Card>
                       <CardContent className="p-0">
@@ -357,7 +349,9 @@ const UserNotifications = () => {
                             <NotificationItem 
                               key={notification.id} 
                               notification={notification} 
-                              onMarkAsRead={markAsRead} 
+                              onMarkAsRead={markAsRead}
+                              onDelete={deleteNotification}
+                              isUpdating={isUpdating}
                             />
                           ))}
                         </div>
@@ -371,7 +365,7 @@ const UserNotifications = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Yesterday
+                      Hier
                     </h3>
                     <Card>
                       <CardContent className="p-0">
@@ -380,7 +374,9 @@ const UserNotifications = () => {
                             <NotificationItem 
                               key={notification.id} 
                               notification={notification} 
-                              onMarkAsRead={markAsRead} 
+                              onMarkAsRead={markAsRead}
+                              onDelete={deleteNotification}
+                              isUpdating={isUpdating}
                             />
                           ))}
                         </div>
@@ -394,7 +390,7 @@ const UserNotifications = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Last Week
+                      Cette semaine
                     </h3>
                     <Card>
                       <CardContent className="p-0">
@@ -403,7 +399,9 @@ const UserNotifications = () => {
                             <NotificationItem 
                               key={notification.id} 
                               notification={notification} 
-                              onMarkAsRead={markAsRead} 
+                              onMarkAsRead={markAsRead}
+                              onDelete={deleteNotification}
+                              isUpdating={isUpdating}
                             />
                           ))}
                         </div>
@@ -417,7 +415,7 @@ const UserNotifications = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Older
+                      Plus anciennes
                     </h3>
                     <Card>
                       <CardContent className="p-0">
@@ -426,7 +424,9 @@ const UserNotifications = () => {
                             <NotificationItem 
                               key={notification.id} 
                               notification={notification} 
-                              onMarkAsRead={markAsRead} 
+                              onMarkAsRead={markAsRead}
+                              onDelete={deleteNotification}
+                              isUpdating={isUpdating}
                             />
                           ))}
                         </div>
@@ -441,198 +441,179 @@ const UserNotifications = () => {
           <TabsContent value="preferences" className="space-y-6 mt-4">
             <Card>
               <CardHeader>
-                <CardTitle>Email Notifications</CardTitle>
+                <CardTitle>Préférences de notifications</CardTitle>
                 <CardDescription>
-                  Configure which notifications you receive via email.
+                  Choisissez comment vous souhaitez recevoir vos notifications
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <ShoppingBag className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="email-orders">Order updates</Label>
+              <CardContent className="space-y-6">
+                {/* Email notifications */}
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Notifications par email</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-orders">Commandes</Label>
+                      <Switch 
+                        id="email-orders"
+                        checked={preferences.email.orders} 
+                        onCheckedChange={(checked) => updatePreference('email', 'orders', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-deliveries">Livraisons</Label>
+                      <Switch 
+                        id="email-deliveries"
+                        checked={preferences.email.deliveries} 
+                        onCheckedChange={(checked) => updatePreference('email', 'deliveries', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-reservations">Réservations</Label>
+                      <Switch 
+                        id="email-reservations"
+                        checked={preferences.email.reservations} 
+                        onCheckedChange={(checked) => updatePreference('email', 'reservations', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-promotions">Promotions</Label>
+                      <Switch 
+                        id="email-promotions"
+                        checked={preferences.email.promotions} 
+                        onCheckedChange={(checked) => updatePreference('email', 'promotions', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-account">Compte</Label>
+                      <Switch 
+                        id="email-account"
+                        checked={preferences.email.account} 
+                        onCheckedChange={(checked) => updatePreference('email', 'account', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="email-payments">Paiements</Label>
+                      <Switch 
+                        id="email-payments"
+                        checked={preferences.email.payments} 
+                        onCheckedChange={(checked) => updatePreference('email', 'payments', checked)} 
+                      />
+                    </div>
                   </div>
-                  <Switch 
-                    id="email-orders"
-                    checked={preferences.email.orders}
-                    onCheckedChange={(checked) => updatePreference('email', 'orders', checked)}
-                  />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Truck className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="email-deliveries">Delivery notifications</Label>
-                  </div>
-                  <Switch 
-                    id="email-deliveries"
-                    checked={preferences.email.deliveries}
-                    onCheckedChange={(checked) => updatePreference('email', 'deliveries', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Megaphone className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="email-promotions">Promotions and offers</Label>
-                  </div>
-                  <Switch 
-                    id="email-promotions"
-                    checked={preferences.email.promotions}
-                    onCheckedChange={(checked) => updatePreference('email', 'promotions', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Info className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="email-account">Account updates</Label>
-                  </div>
-                  <Switch 
-                    id="email-account"
-                    checked={preferences.email.account}
-                    onCheckedChange={(checked) => updatePreference('email', 'account', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Check className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="email-payments">Payment confirmations</Label>
-                  </div>
-                  <Switch 
-                    id="email-payments"
-                    checked={preferences.email.payments}
-                    onCheckedChange={(checked) => updatePreference('email', 'payments', checked)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Push Notifications</CardTitle>
-                <CardDescription>
-                  Configure which notifications you receive on your device.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <ShoppingBag className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="push-orders">Order updates</Label>
-                  </div>
-                  <Switch 
-                    id="push-orders"
-                    checked={preferences.push.orders}
-                    onCheckedChange={(checked) => updatePreference('push', 'orders', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Truck className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="push-deliveries">Delivery notifications</Label>
-                  </div>
-                  <Switch 
-                    id="push-deliveries"
-                    checked={preferences.push.deliveries}
-                    onCheckedChange={(checked) => updatePreference('push', 'deliveries', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Megaphone className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="push-promotions">Promotions and offers</Label>
-                  </div>
-                  <Switch 
-                    id="push-promotions"
-                    checked={preferences.push.promotions}
-                    onCheckedChange={(checked) => updatePreference('push', 'promotions', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Info className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="push-account">Account updates</Label>
-                  </div>
-                  <Switch 
-                    id="push-account"
-                    checked={preferences.push.account}
-                    onCheckedChange={(checked) => updatePreference('push', 'account', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Check className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="push-payments">Payment confirmations</Label>
-                  </div>
-                  <Switch 
-                    id="push-payments"
-                    checked={preferences.push.payments}
-                    onCheckedChange={(checked) => updatePreference('push', 'payments', checked)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                <Separator />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>SMS Notifications</CardTitle>
-                <CardDescription>
-                  Configure which notifications you receive via SMS.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <ShoppingBag className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="sms-orders">Order updates</Label>
+                {/* Push notifications */}
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Notifications push</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="push-orders">Commandes</Label>
+                      <Switch 
+                        id="push-orders"
+                        checked={preferences.push.orders} 
+                        onCheckedChange={(checked) => updatePreference('push', 'orders', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="push-deliveries">Livraisons</Label>
+                      <Switch 
+                        id="push-deliveries"
+                        checked={preferences.push.deliveries} 
+                        onCheckedChange={(checked) => updatePreference('push', 'deliveries', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="push-reservations">Réservations</Label>
+                      <Switch 
+                        id="push-reservations"
+                        checked={preferences.push.reservations} 
+                        onCheckedChange={(checked) => updatePreference('push', 'reservations', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="push-promotions">Promotions</Label>
+                      <Switch 
+                        id="push-promotions"
+                        checked={preferences.push.promotions} 
+                        onCheckedChange={(checked) => updatePreference('push', 'promotions', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="push-account">Compte</Label>
+                      <Switch 
+                        id="push-account"
+                        checked={preferences.push.account} 
+                        onCheckedChange={(checked) => updatePreference('push', 'account', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="push-payments">Paiements</Label>
+                      <Switch 
+                        id="push-payments"
+                        checked={preferences.push.payments} 
+                        onCheckedChange={(checked) => updatePreference('push', 'payments', checked)} 
+                      />
+                    </div>
                   </div>
-                  <Switch 
-                    id="sms-orders"
-                    checked={preferences.sms.orders}
-                    onCheckedChange={(checked) => updatePreference('sms', 'orders', checked)}
-                  />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Truck className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="sms-deliveries">Delivery notifications</Label>
+
+                <Separator />
+
+                {/* SMS notifications */}
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Notifications SMS</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sms-orders">Commandes</Label>
+                      <Switch 
+                        id="sms-orders"
+                        checked={preferences.sms.orders} 
+                        onCheckedChange={(checked) => updatePreference('sms', 'orders', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sms-deliveries">Livraisons</Label>
+                      <Switch 
+                        id="sms-deliveries"
+                        checked={preferences.sms.deliveries} 
+                        onCheckedChange={(checked) => updatePreference('sms', 'deliveries', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sms-reservations">Réservations</Label>
+                      <Switch 
+                        id="sms-reservations"
+                        checked={preferences.sms.reservations} 
+                        onCheckedChange={(checked) => updatePreference('sms', 'reservations', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sms-promotions">Promotions</Label>
+                      <Switch 
+                        id="sms-promotions"
+                        checked={preferences.sms.promotions} 
+                        onCheckedChange={(checked) => updatePreference('sms', 'promotions', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sms-account">Compte</Label>
+                      <Switch 
+                        id="sms-account"
+                        checked={preferences.sms.account} 
+                        onCheckedChange={(checked) => updatePreference('sms', 'account', checked)} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="sms-payments">Paiements</Label>
+                      <Switch 
+                        id="sms-payments"
+                        checked={preferences.sms.payments} 
+                        onCheckedChange={(checked) => updatePreference('sms', 'payments', checked)} 
+                      />
+                    </div>
                   </div>
-                  <Switch 
-                    id="sms-deliveries"
-                    checked={preferences.sms.deliveries}
-                    onCheckedChange={(checked) => updatePreference('sms', 'deliveries', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Megaphone className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="sms-promotions">Promotions and offers</Label>
-                  </div>
-                  <Switch 
-                    id="sms-promotions"
-                    checked={preferences.sms.promotions}
-                    onCheckedChange={(checked) => updatePreference('sms', 'promotions', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Info className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="sms-account">Account updates</Label>
-                  </div>
-                  <Switch 
-                    id="sms-account"
-                    checked={preferences.sms.account}
-                    onCheckedChange={(checked) => updatePreference('sms', 'account', checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Check className="h-4 w-4 text-gray-500" />
-                    <Label htmlFor="sms-payments">Payment confirmations</Label>
-                  </div>
-                  <Switch 
-                    id="sms-payments"
-                    checked={preferences.sms.payments}
-                    onCheckedChange={(checked) => updatePreference('sms', 'payments', checked)}
-                  />
                 </div>
               </CardContent>
             </Card>
@@ -643,74 +624,76 @@ const UserNotifications = () => {
   );
 };
 
-// Notification Item Component
 const NotificationItem = ({ 
   notification, 
   onMarkAsRead,
+  onDelete,
+  isUpdating,
 }: { 
-  notification: Notification;
+  notification: any;
   onMarkAsRead: (id: string) => void;
+  onDelete: (id: string) => void;
+  isUpdating: boolean;
 }) => {
   return (
-    <div 
-      className={cn(
-        "p-4 hover:bg-gray-50 transition-colors",
-        !notification.isRead && "bg-blue-50/50"
-      )}
-      onClick={() => !notification.isRead && onMarkAsRead(notification.id)}
-    >
-      <div className="flex items-start space-x-4">
+    <div className={cn(
+      "flex items-start space-x-4 p-4 hover:bg-gray-50 transition-colors",
+      !notification.is_read && "bg-blue-50"
+    )}>
+      <div className="flex-shrink-0">
         <div className={cn(
-          "flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center",
-          !notification.isRead && "bg-primary-100"
+          "p-2 rounded-full",
+          getPriorityClass(notification.priority)
         )}>
-          <div className={cn(
-            "text-gray-600",
-            !notification.isRead && "text-primary-600"
-          )}>
-            <NotificationIcon type={notification.type} />
-          </div>
+          <NotificationIcon type={notification.type} />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <p className={cn(
-              "text-sm font-medium",
-              !notification.isRead && "font-semibold"
-            )}>
+      </div>
+      
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h4 className="text-sm font-medium text-gray-900">
               {notification.title}
+            </h4>
+            <p className="text-sm text-gray-600 mt-1">
+              {notification.message}
             </p>
-            <div className="flex items-center">
-              <span className={cn(
-                "text-xs px-2 py-0.5 ml-2 rounded-full border",
-                getPriorityClass(notification.priority)
-              )}>
-                {notification.priority}
-              </span>
+            <div className="flex items-center mt-2 text-xs text-gray-500">
+              <Clock className="h-3 w-3 mr-1" />
+              {formatRelativeTime(notification.created_at)}
             </div>
           </div>
-          <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
-          <div className="flex items-center mt-1">
-            <Clock className="h-3 w-3 text-gray-400 mr-1" />
-            <p className="text-xs text-gray-400">
-              {formatRelativeTime(notification.timestamp)}
-            </p>
+          
+          <div className="flex items-center space-x-2 ml-4">
+            {!notification.is_read && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onMarkAsRead(notification.id)}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(notification.id)}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </div>
       </div>
-      {!notification.isRead && (
-        <div className="flex justify-end mt-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkAsRead(notification.id);
-            }}
-          >
-            Mark as read
-          </Button>
-        </div>
-      )}
     </div>
   );
 };

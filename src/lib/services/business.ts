@@ -4,17 +4,24 @@ export interface Business {
   id: number;
   name: string;
   description: string;
+  business_type_id?: number;
+  category_id?: number;
   cover_image: string;
   logo: string;
-  cuisine_type: string;
   rating: number;
   review_count: number;
   delivery_time: string;
   delivery_fee: number;
   address: string;
   phone: string;
+  email: string;
   opening_hours: string;
-  is_popular: boolean;
+  cuisine_type: string;
+  latitude?: number;
+  longitude?: number;
+  is_active: boolean;
+  is_open: boolean;
+  owner_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -260,5 +267,123 @@ export const BusinessService = {
     } catch (error) {
       return { data: [], error: 'Erreur de connexion' };
     }
-  }
+  },
+
+  // Récupérer les restaurants pour les réservations
+  getRestaurantsForReservations: async (): Promise<{ data: Business[]; error: string | null }> => {
+    try {
+      // D'abord, récupérer l'ID du type 'restaurant'
+      const { data: businessType, error: typeError } = await supabase
+        .from('business_types')
+        .select('id')
+        .eq('name', 'restaurant')
+        .single();
+
+
+      console.log('businessType', businessType);
+
+      if (typeError || !businessType) {
+        console.error('Erreur lors de la récupération du type restaurant:', typeError);
+        return { data: [], error: 'Type de commerce restaurant non trouvé' };
+      }
+
+      // Ensuite, récupérer tous les restaurants avec ce type
+      const { data, error } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('business_type_id', businessType.id)
+        .eq('is_active', true)
+        .eq('is_open', true)
+        .order('name', { ascending: true });
+
+      console.log('restaurants', data);
+      
+      if (error) {
+        console.error('Erreur lors de la récupération des restaurants:', error);
+        return { data: [], error: error.message };
+      }
+
+      return { data: data || [], error: null };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des restaurants:', error);
+      return { data: [], error: 'Erreur de connexion' };
+    }
+  },
+
+  // Récupérer le profil partenaire par user_id
+  getPartnerProfile: async (userId: string): Promise<{ data: Business | null; error: string | null }> => {
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', userId)
+        .single();
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la récupération du profil partenaire:', error);
+      return { data: null, error: 'Erreur de connexion' };
+    }
+  },
+
+  // Mettre à jour le profil partenaire
+  updatePartnerProfile: async (
+    userId: string, 
+    profileData: Partial<Business>
+  ): Promise<{ data: Business | null; error: string | null }> => {
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .update({
+          ...profileData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('owner_id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du profil partenaire:', error);
+      return { data: null, error: 'Erreur de connexion' };
+    }
+  },
+
+  // Upload d'image de profil
+  uploadProfileImage: async (
+    userId: string, 
+    file: File, 
+    type: 'logo' | 'cover_image'
+  ): Promise<{ url: string | null; error: string | null }> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}/${type}_${Date.now()}.${fileExt}`;
+      const filePath = `business-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('business-images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        return { url: null, error: uploadError.message };
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('business-images')
+        .getPublicUrl(filePath);
+
+      return { url: publicUrl, error: null };
+    } catch (error) {
+      console.error('Erreur lors de l\'upload de l\'image:', error);
+      return { url: null, error: 'Erreur lors de l\'upload' };
+    }
+  },
 }; 

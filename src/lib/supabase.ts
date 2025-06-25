@@ -171,6 +171,82 @@ export interface Database {
           created_at?: string
         }
       }
+      cart: {
+        Row: {
+          id: string
+          user_id: string
+          business_id?: number
+          business_name?: string
+          items: any[]
+          delivery_method: 'delivery' | 'pickup'
+          delivery_address?: string
+          delivery_instructions?: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          business_id?: number
+          business_name?: string
+          items?: any[]
+          delivery_method?: 'delivery' | 'pickup'
+          delivery_address?: string
+          delivery_instructions?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          business_id?: number
+          business_name?: string
+          items?: any[]
+          delivery_method?: 'delivery' | 'pickup'
+          delivery_address?: string
+          delivery_instructions?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      cart_items: {
+        Row: {
+          id: string
+          cart_id: string
+          menu_item_id?: number
+          name: string
+          price: number
+          quantity: number
+          image?: string
+          special_instructions?: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          cart_id: string
+          menu_item_id?: number
+          name: string
+          price: number
+          quantity?: number
+          image?: string
+          special_instructions?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          cart_id?: string
+          menu_item_id?: number
+          name?: string
+          price?: number
+          quantity?: number
+          image?: string
+          special_instructions?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
       orders: {
         Row: {
           id: string
@@ -302,10 +378,36 @@ export interface Database {
       }
     }
     Views: {
-      [_ in never]: never
+      cart_details: {
+        Row: {
+          cart_id: string
+          user_id: string
+          business_id?: number
+          business_name?: string
+          delivery_method: 'delivery' | 'pickup'
+          delivery_address?: string
+          delivery_instructions?: string
+          created_at: string
+          updated_at: string
+          total: number
+          item_count: number
+          items: any[]
+        }
+      }
     }
     Functions: {
-      [_ in never]: never
+      calculate_cart_total: {
+        Args: { cart_uuid: string }
+        Returns: number
+      }
+      get_cart_item_count: {
+        Args: { cart_uuid: string }
+        Returns: number
+      }
+      clear_user_cart: {
+        Args: { user_uuid: string }
+        Returns: void
+      }
     }
     Enums: {
       [_ in never]: never

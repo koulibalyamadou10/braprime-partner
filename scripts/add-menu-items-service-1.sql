@@ -2,26 +2,26 @@
 -- Exécutez ce script dans l'éditeur SQL de Supabase après avoir ajouté les catégories
 
 -- ============================================================================
--- AJOUT D'ARTICLES DE MENU POUR LE SERVICE ID 1
+-- AJOUT D'ARTICLES DE MENU POUR LE SERVICE ID 9
 -- ============================================================================
 
--- Vérifier d'abord si le service ID 1 existe
+-- Vérifier d'abord si le service ID 9 existe
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM businesses WHERE id = 1) THEN
-    RAISE EXCEPTION 'Le service avec l''ID 1 n''existe pas dans la table businesses';
+  IF NOT EXISTS (SELECT 1 FROM businesses WHERE id = 9) THEN
+    RAISE EXCEPTION 'Le service avec l''ID 9 n''existe pas dans la table businesses';
   END IF;
 END $$;
 
 -- Vérifier que les catégories existent
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM menu_categories WHERE business_id = 1) THEN
-    RAISE EXCEPTION 'Aucune catégorie de menu trouvée pour le service ID 1. Exécutez d''abord le script add-menu-categories-service-1.sql';
+  IF NOT EXISTS (SELECT 1 FROM menu_categories WHERE business_id = 9) THEN
+    RAISE EXCEPTION 'Aucune catégorie de menu trouvée pour le service ID 9. Exécutez d''abord le script add-menu-categories-service-1.sql';
   END IF;
 END $$;
 
--- Insérer des articles de menu pour le service ID 1
+-- Insérer des articles de menu pour le service ID 9
 INSERT INTO menu_items (name, description, price, image, category_id, business_id, is_popular, is_available, preparation_time, allergens, nutritional_info) VALUES
 
 -- ============================================================================
@@ -123,14 +123,14 @@ INSERT INTO menu_items (name, description, price, image, category_id, business_i
 
 -- Afficher les articles créés par catégorie
 SELECT 
-  'Articles de menu créés pour le service ID 1:' as info;
+  'Articles de menu créés pour le service ID 9:' as info;
 
 SELECT 
   mc.name as category_name,
   COUNT(mi.id) as items_count
 FROM menu_categories mc
 LEFT JOIN menu_items mi ON mc.id = mi.category_id
-WHERE mc.business_id = 1
+WHERE mc.business_id = 9
 GROUP BY mc.id, mc.name, mc.sort_order
 ORDER BY mc.sort_order;
 
@@ -148,7 +148,7 @@ SELECT
   mi.preparation_time
 FROM menu_items mi
 JOIN menu_categories mc ON mi.category_id = mc.id
-WHERE mi.business_id = 1
+WHERE mi.business_id = 9
 ORDER BY mc.sort_order, mi.name;
 
 -- Compter le nombre total d'articles
@@ -156,7 +156,7 @@ SELECT
   'Nombre total d''articles:' as info,
   COUNT(*) as total_items
 FROM menu_items 
-WHERE business_id = 1;
+WHERE business_id = 9;
 
 -- ============================================================================
 -- MESSAGE DE CONFIRMATION
@@ -164,4 +164,4 @@ WHERE business_id = 1;
 
 SELECT 
   'Script exécuté avec succès !' as status,
-  'Les articles de menu ont été ajoutés au service ID 1.' as message; 
+  'Les articles de menu ont été ajoutés au service ID 9

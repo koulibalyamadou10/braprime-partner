@@ -2,18 +2,149 @@
 -- Exécutez ce script dans l'éditeur SQL de Supabase
 
 -- ============================================================================
--- CORRECTION DES POLITIQUES RLS POUR MENU_ITEMS
+-- SCRIPT POUR CONFIGURER LES POLITIQUES RLS POUR LES TABLES DE MENU
+-- ============================================================================
+-- Ce script configure les politiques de sécurité pour permettre aux partenaires
+-- de gérer leurs propres catégories et articles de menu
+
+-- ============================================================================
+-- POLITIQUES POUR menu_categories
 -- ============================================================================
 
 -- Supprimer les politiques existantes si elles existent
-DROP POLICY IF EXISTS "Anyone can view menu items" ON menu_items;
-DROP POLICY IF EXISTS "Users can view menu items" ON menu_items;
+DROP POLICY IF EXISTS "Partners can view their own menu categories" ON menu_categories;
+DROP POLICY IF EXISTS "Partners can create their own menu categories" ON menu_categories;
+DROP POLICY IF EXISTS "Partners can update their own menu categories" ON menu_categories;
+DROP POLICY IF EXISTS "Partners can delete their own menu categories" ON menu_categories;
 
--- Créer une politique pour permettre la lecture publique des articles de menu
-CREATE POLICY "Anyone can view menu items" ON menu_items
-    FOR SELECT USING (true);
+-- Activer RLS sur menu_categories
+ALTER TABLE menu_categories ENABLE ROW LEVEL SECURITY;
 
--- Vérifier que la politique a été créée
+-- Politique pour permettre aux partenaires de voir leurs propres catégories
+CREATE POLICY "Partners can view their own menu categories" ON menu_categories
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_categories.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- Politique pour permettre aux partenaires de créer leurs propres catégories
+CREATE POLICY "Partners can create their own menu categories" ON menu_categories
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_categories.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- Politique pour permettre aux partenaires de modifier leurs propres catégories
+CREATE POLICY "Partners can update their own menu categories" ON menu_categories
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_categories.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- Politique pour permettre aux partenaires de supprimer leurs propres catégories
+CREATE POLICY "Partners can delete their own menu categories" ON menu_categories
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_categories.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- ============================================================================
+-- POLITIQUES POUR menu_items
+-- ============================================================================
+
+-- Supprimer les politiques existantes si elles existent
+DROP POLICY IF EXISTS "Partners can view their own menu items" ON menu_items;
+DROP POLICY IF EXISTS "Partners can create their own menu items" ON menu_items;
+DROP POLICY IF EXISTS "Partners can update their own menu items" ON menu_items;
+DROP POLICY IF EXISTS "Partners can delete their own menu items" ON menu_items;
+
+-- Activer RLS sur menu_items
+ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
+
+-- Politique pour permettre aux partenaires de voir leurs propres articles
+CREATE POLICY "Partners can view their own menu items" ON menu_items
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_items.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- Politique pour permettre aux partenaires de créer leurs propres articles
+CREATE POLICY "Partners can create their own menu items" ON menu_items
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_items.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- Politique pour permettre aux partenaires de modifier leurs propres articles
+CREATE POLICY "Partners can update their own menu items" ON menu_items
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_items.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- Politique pour permettre aux partenaires de supprimer leurs propres articles
+CREATE POLICY "Partners can delete their own menu items" ON menu_items
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_items.business_id 
+            AND b.owner_id = auth.uid()
+        )
+    );
+
+-- ============================================================================
+-- POLITIQUES POUR LES CLIENTS (lecture publique)
+-- ============================================================================
+
+-- Politique pour permettre aux clients de voir les articles des commerces actifs
+CREATE POLICY "Customers can view active business menu items" ON menu_items
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_items.business_id 
+            AND b.is_active = true 
+            AND b.is_open = true
+        )
+    );
+
+-- Politique pour permettre aux clients de voir les catégories des commerces actifs
+CREATE POLICY "Customers can view active business menu categories" ON menu_categories
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM businesses b 
+            WHERE b.id = menu_categories.business_id 
+            AND b.is_active = true 
+            AND b.is_open = true
+        )
+        AND menu_categories.is_active = true
+    );
+
+-- ============================================================================
+-- VÉRIFICATION DES POLITIQUES
+-- ============================================================================
+
+-- Afficher les politiques créées
 SELECT 
     schemaname,
     tablename,
@@ -24,17 +155,16 @@ SELECT
     qual,
     with_check
 FROM pg_policies 
-WHERE tablename = 'menu_items';
+WHERE tablename IN ('menu_items', 'menu_categories')
+ORDER BY tablename, policyname;
 
--- Test de la requête après correction
-SELECT 
-    'Test après correction RLS:' as info;
-SELECT 
-    id,
-    name,
-    price,
-    business_id,
-    is_available
-FROM menu_items 
-WHERE business_id = 1
-LIMIT 5; 
+-- ============================================================================
+-- MESSAGE DE CONFIRMATION
+-- ============================================================================
+
+DO $$
+BEGIN
+    RAISE NOTICE 'Politiques RLS configurées avec succès pour les tables de menu!';
+    RAISE NOTICE 'Les partenaires peuvent maintenant gérer leurs catégories et articles.';
+    RAISE NOTICE 'Les clients peuvent voir les menus des commerces actifs.';
+END $$; 

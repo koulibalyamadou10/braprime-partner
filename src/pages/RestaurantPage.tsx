@@ -5,7 +5,8 @@ import Layout from '@/components/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
-import { useOrder } from '@/contexts/OrderContext';
+import { useCart } from '@/hooks/use-cart';
+import { useAuth } from '@/contexts/AuthContext';
 import { AddToCartButton } from '@/components/AddToCartButton';
 import { FloatingCart } from '@/components/FloatingCart';
 import { useBusinessById } from '@/hooks/use-business';
@@ -18,9 +19,10 @@ import {
 } from 'lucide-react';
 
 const RestaurantPage = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const { toast } = useToast();
-  const { addToCart, getCartTotal, cart } = useOrder();
+  const { currentUser } = useAuth();
+  const { addToCart, cart } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   
   // Récupérer les données du commerce
@@ -68,7 +70,7 @@ const RestaurantPage = () => {
       </Layout>
     );
   }
-  
+
   // Affichage du skeleton pendant le chargement
   if (isLoading || !data) {
     return (
@@ -77,7 +79,7 @@ const RestaurantPage = () => {
       </Layout>
     );
   }
-  
+
   const { data: business } = data;
   
   // Si pas de commerce trouvé
@@ -93,28 +95,28 @@ const RestaurantPage = () => {
     return `${amount} GNF`;
   };
   
-  const handleAddToCart = (item: {
+  const handleAddToCart = async (item: {
     id: number;
     name: string;
     price: number;
     image?: string;
   }) => {
-    addToCart(
-      { 
-        id: item.id, 
-        name: item.name, 
-        price: item.price,
-        quantity: 1,
-        image: item.image
-      },
-      business.id,
-      business.name
-    );
-    
-    toast({
-      title: "Ajouté au panier",
-      description: "Cet article a été ajouté à votre panier",
-    });
+    if (!currentUser) {
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter pour ajouter des articles au panier.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await addToCart({
+      menu_item_id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: 1,
+      image: item.image
+    }, business.id, business.name);
   };
   
   // Filtrer les articles par catégorie sélectionnée
@@ -157,7 +159,7 @@ const RestaurantPage = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Restaurant Info */}
       <div className="container mx-auto px-4 my-6">
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
@@ -191,7 +193,7 @@ const RestaurantPage = () => {
             </Button>
           </div>
         </div>
-        
+
         {/* Menu avec onglets de catégories */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <h2 className="text-xl font-bold mb-6 flex items-center">
@@ -251,27 +253,45 @@ const RestaurantPage = () => {
               Erreur lors du chargement du menu: {menuItemsError.message}
             </div>
           ) : filteredItems.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {filteredItems.map(item => (
-                <div key={item.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-lg">{item.name}</h3>
-                    {item.is_popular && (
-                      <Badge className="bg-yellow-100 text-yellow-800">Populaire</Badge>
+                <div key={item.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white">
+                  <div className="flex">
+                    {/* Image de l'article - côté gauche */}
+                    {item.image && (
+                      <div className="w-32 h-32 flex-shrink-0">
+                        <img 
+                          src={item.image} 
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     )}
-                  </div>
-                  {item.description && (
-                    <p className="text-gray-600 text-sm mb-3">{item.description}</p>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-lg">{formatCurrency(item.price)}</span>
-                    <Button
-                      onClick={() => handleAddToCart(item)}
-                      size="sm"
-                      className="bg-guinea-red hover:bg-guinea-red/90"
-                    >
-                      Ajouter
-                    </Button>
+                    
+                    {/* Contenu de la carte - côté droit */}
+                    <div className="flex-1 p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold text-lg">{item.name}</h3>
+                          {item.is_popular && (
+                            <Badge className="bg-yellow-100 text-yellow-800 text-xs">Populaire</Badge>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description}</p>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-lg">{formatCurrency(item.price)}</span>
+                        <AddToCartButton
+                          item={item}
+                          businessId={business.id}
+                          businessName={business.name}
+                          variant="compact"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -286,7 +306,7 @@ const RestaurantPage = () => {
           )}
         </div>
       </div>
-      
+
       {/* Panier flottant */}
       <FloatingCart variant="bottom" />
     </Layout>

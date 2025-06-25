@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { format } from 'date-fns';
 import { useDashboardOrders, type DashboardOrder } from '@/hooks/use-dashboard-orders';
 import { type Order as SupabaseOrder } from '@/lib/services/orders';
+import { TableSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 // Define the Order type
 type OrderStatus = SupabaseOrder['status'];
@@ -214,9 +215,11 @@ const UserOrders = () => {
             <h2 className="text-2xl font-bold tracking-tight">Vos Commandes</h2>
             <p className="text-muted-foreground">Chargement de vos commandes...</p>
           </div>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-guinea-red"></div>
-          </div>
+          <Card>
+            <CardContent>
+              <TableSkeleton rows={6} />
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     );

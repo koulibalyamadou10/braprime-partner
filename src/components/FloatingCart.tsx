@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useOrder } from '@/contexts/OrderContext';
-import { ShoppingBag, X } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCart } from '@/hooks/use-cart';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface FloatingCartProps {
+export interface FloatingCartProps {
   className?: string;
   variant?: 'bottom' | 'corner';
 }
@@ -14,13 +15,26 @@ export const FloatingCart: React.FC<FloatingCartProps> = ({
   className,
   variant = 'bottom'
 }) => {
-  const { cart, getCartTotal, getCartCount, currentRestaurantName } = useOrder();
-  const itemCount = getCartCount();
-  const total = getCartTotal();
+  const { currentUser } = useAuth();
+  const { cart, loading } = useCart();
 
-  if (itemCount === 0) {
+  // Ne pas afficher si l'utilisateur n'est pas connecté ou s'il n'y a pas d'articles
+  if (!currentUser || !cart || cart.item_count === 0 || loading) {
     return null;
   }
+
+  const itemCount = cart.item_count;
+  const total = cart.total;
+
+  // Formater la monnaie
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'GNF',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
   // Variant corner (coin de l'écran)
   if (variant === 'corner') {
@@ -57,9 +71,9 @@ export const FloatingCart: React.FC<FloatingCartProps> = ({
               <p className="text-sm font-medium">
                 {itemCount} article{itemCount > 1 ? 's' : ''} dans le panier
               </p>
-              {currentRestaurantName && (
+              {cart.business_name && (
                 <p className="text-xs text-gray-500">
-                  De {currentRestaurantName}
+                  De {cart.business_name}
                 </p>
               )}
             </div>
@@ -69,7 +83,7 @@ export const FloatingCart: React.FC<FloatingCartProps> = ({
             <div className="text-right">
               <p className="text-sm text-gray-500">Total</p>
               <p className="font-bold text-lg text-guinea-red">
-                {total.toLocaleString()} GNF
+                {formatCurrency(total)}
               </p>
             </div>
             

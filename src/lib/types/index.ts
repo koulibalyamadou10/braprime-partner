@@ -192,23 +192,53 @@ export interface Order {
 }
 
 // ============================================================================
-// TYPES DE PANIER
+// TYPES DE PANIER PERSISTANT
 // ============================================================================
 
-export interface CartItem extends OrderItem {
-  businessId: number;
-  businessName: string;
+// Article du panier en base de données
+export interface CartItem {
+  id: string;
+  cart_id: string;
+  menu_item_id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  special_instructions?: string;
+  created_at: string;
+  updated_at: string;
 }
 
+// Panier principal en base de données
 export interface Cart {
-  items: CartItem[];
-  businessId: number | null;
-  businessName: string | null;
-  deliveryMethod: DeliveryMethod;
-  subtotal: number;
-  deliveryFee: number;
-  tax: number;
+  id: string;
+  user_id: string;
+  business_id: number;
+  business_name: string;
   total: number;
+  item_count: number;
+  created_at: string;
+  updated_at: string;
+  items: CartItem[];
+}
+
+// Article pour l'ajout au panier
+export interface AddToCartItem {
+  menu_item_id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  special_instructions?: string;
+}
+
+// Article du localStorage (ancien format)
+export interface LocalCartItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
 }
 
 // ============================================================================
@@ -291,7 +321,7 @@ export interface Category {
 }
 
 // ============================================================================
-// TYPES D'AVIS ET NOTES
+// TYPES D'AVIS
 // ============================================================================
 
 export interface Review {
@@ -376,7 +406,7 @@ export interface OrderAnalytics {
 }
 
 // ============================================================================
-// TYPES DE RECHERCHE ET FILTRES
+// TYPES DE RECHERCHE
 // ============================================================================
 
 export interface SearchFilters {
@@ -403,7 +433,7 @@ export interface SearchResult {
 }
 
 // ============================================================================
-// TYPES D'ADRESSE
+// TYPES D'ADRESSES
 // ============================================================================
 
 export interface Address {

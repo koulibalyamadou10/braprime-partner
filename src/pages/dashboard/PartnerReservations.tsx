@@ -1,35 +1,20 @@
 import { useState } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { partnerNavItems } from './PartnerOrders';
+import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
-  Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter 
+  Card, CardContent, CardDescription, CardHeader, CardTitle 
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
 import {
   Calendar as CalendarIcon,
   Check,
   Clock,
   Search,
-  User,
-  Users,
-  Phone,
   XCircle,
-  Clock4,
-  Filter,
   ClipboardList,
   MoreHorizontal
 } from 'lucide-react';
@@ -48,723 +33,474 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
-
-// Types for reservations
-type ReservationStatus = 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'no-show';
-
-type Reservation = {
-  id: string;
-  customerName: string;
-  customerPhone: string;
-  email: string;
-  date: Date;
-  time: string;
-  partySize: number;
-  specialRequests?: string;
-  status: ReservationStatus;
-  tableNumber?: string;
-};
-
-// Mock reservations data
-const mockReservations: Reservation[] = [
-  {
-    id: "RES-1234",
-    customerName: "Aminata Diop",
-    customerPhone: "+221781234567",
-    email: "aminata.diop@example.com",
-    date: new Date(2023, 5, 25, 19, 30),
-    time: "19:30",
-    partySize: 4,
-    specialRequests: "Window table if possible",
-    status: "confirmed",
-    tableNumber: "T12"
-  },
-  {
-    id: "RES-1235",
-    customerName: "Ibrahim Sow",
-    customerPhone: "+221777654321",
-    email: "ibrahim.sow@example.com",
-    date: new Date(2023, 5, 25, 20, 0),
-    time: "20:00",
-    partySize: 2,
-    status: "confirmed",
-    tableNumber: "T5"
-  },
-  {
-    id: "RES-1236",
-    customerName: "Fatou Ndiaye",
-    customerPhone: "+221765551234",
-    email: "fatou.ndiaye@example.com",
-    date: new Date(2023, 5, 25, 20, 30),
-    time: "20:30",
-    partySize: 6,
-    specialRequests: "Birthday celebration, cake will be brought in",
-    status: "pending"
-  },
-  {
-    id: "RES-1237",
-    customerName: "Moussa Diallo",
-    customerPhone: "+221783334444",
-    email: "moussa.diallo@example.com",
-    date: new Date(2023, 5, 26, 19, 0),
-    time: "19:00",
-    partySize: 3,
-    status: "confirmed",
-    tableNumber: "T8"
-  },
-  {
-    id: "RES-1238",
-    customerName: "Aissatou Ba",
-    customerPhone: "+221765559876",
-    email: "aissatou.ba@example.com",
-    date: new Date(2023, 5, 26, 20, 30),
-    time: "20:30",
-    partySize: 2,
-    status: "confirmed",
-    tableNumber: "T3"
-  },
-  {
-    id: "RES-1239",
-    customerName: "Ousmane Gueye",
-    customerPhone: "+221772223333",
-    email: "ousmane.gueye@example.com",
-    date: new Date(2023, 5, 24, 19, 30),
-    time: "19:30",
-    partySize: 5,
-    specialRequests: "One vegetarian meal",
-    status: "completed",
-    tableNumber: "T15"
-  },
-  {
-    id: "RES-1240",
-    customerName: "Mariama Seck",
-    customerPhone: "+221764445555",
-    email: "mariama.seck@example.com",
-    date: new Date(2023, 5, 24, 20, 0),
-    time: "20:00",
-    partySize: 4,
-    status: "no-show"
-  },
-  {
-    id: "RES-1241",
-    customerName: "Abdou Diop",
-    customerPhone: "+221781112222",
-    email: "abdou.diop@example.com",
-    date: new Date(2023, 5, 24, 18, 30),
-    time: "18:30",
-    partySize: 2,
-    status: "cancelled"
-  }
-];
+import { useToast } from '@/components/ui/use-toast';
+import { ReservationSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { usePartnerReservations, PartnerReservation } from '@/hooks/use-partner-reservations';
 
 // Helper function to get status color
-const getStatusColor = (status: ReservationStatus) => {
+const getStatusColor = (status: PartnerReservation['status']) => {
   switch (status) {
     case 'confirmed':
-      return "bg-green-100 text-green-800";
+      return 'bg-green-100 text-green-800 hover:bg-green-100';
     case 'pending':
-      return "bg-yellow-100 text-yellow-800";
+      return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100';
     case 'cancelled':
-      return "bg-red-100 text-red-800";
+      return 'bg-red-100 text-red-800 hover:bg-red-100';
     case 'completed':
-      return "bg-blue-100 text-blue-800";
-    case 'no-show':
-      return "bg-gray-100 text-gray-800";
+      return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
     default:
-      return "bg-gray-100 text-gray-800";
+      return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
   }
 };
 
 // Helper function to get status icon
-const getStatusIcon = (status: ReservationStatus) => {
+const getStatusIcon = (status: PartnerReservation['status']) => {
   switch (status) {
     case 'confirmed':
-      return <Check className="h-4 w-4" />;
+      return <Check className="mr-1 h-3 w-3" />;
     case 'pending':
-      return <Clock className="h-4 w-4" />;
+      return <Clock className="mr-1 h-3 w-3" />;
     case 'cancelled':
-      return <XCircle className="h-4 w-4" />;
+      return <XCircle className="mr-1 h-3 w-3" />;
     case 'completed':
-      return <Check className="h-4 w-4" />;
-    case 'no-show':
-      return <XCircle className="h-4 w-4" />;
+      return <Check className="mr-1 h-3 w-3" />;
     default:
-      return <Clock className="h-4 w-4" />;
+      return null;
+  }
+};
+
+const getStatusLabel = (status: PartnerReservation['status']) => {
+  switch (status) {
+    case 'confirmed':
+      return 'Confirmée';
+    case 'pending':
+      return 'En attente';
+    case 'cancelled':
+      return 'Annulée';
+    case 'completed':
+      return 'Terminée';
+    default:
+      return status;
   }
 };
 
 const PartnerReservations = () => {
   const { currentUser } = useAuth();
+  const { toast } = useToast();
   
-  // State for reservations
-  const [reservations, setReservations] = useState<Reservation[]>(mockReservations);
-  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>(mockReservations);
+  // Utiliser le hook personnalisé
+  const {
+    reservations,
+    loading,
+    error,
+    fetchPartnerReservations,
+    updateReservationStatus,
+    assignTable,
+    getReservationStats
+  } = usePartnerReservations();
+  
+  // State pour les filtres et la recherche
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   
-  // State for selected reservation
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  // State pour la réservation sélectionnée
+  const [selectedReservation, setSelectedReservation] = useState<PartnerReservation | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
-  // Filter reservations by date and status
-  const filterReservations = () => {
-    let filtered = [...reservations];
-    
-    // Filter by date if selected
+  // Filtrer les réservations
+  const filteredReservations = reservations.filter((reservation) => {
+    // Filtre par date
     if (selectedDate) {
-      filtered = filtered.filter(res => 
-        res.date.getDate() === selectedDate.getDate() &&
-        res.date.getMonth() === selectedDate.getMonth() &&
-        res.date.getFullYear() === selectedDate.getFullYear()
-      );
+      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+      if (reservation.date !== selectedDateStr) return false;
     }
     
-    // Filter by status if not "all"
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter(res => res.status === selectedStatus);
+    // Filtre par statut
+    if (selectedStatus !== "all" && reservation.status !== selectedStatus) {
+      return false;
     }
     
-    // Filter by search query if present
+    // Filtre par recherche
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(res => 
-        res.customerName.toLowerCase().includes(query) ||
-        res.id.toLowerCase().includes(query) ||
-        res.customerPhone.includes(query)
+      return (
+        reservation.customer_name?.toLowerCase().includes(query) ||
+        reservation.customer_phone?.includes(query) ||
+        reservation.customer_email?.toLowerCase().includes(query) ||
+        reservation.special_requests?.toLowerCase().includes(query)
       );
     }
     
-    setFilteredReservations(filtered);
-  };
-  
-  // Handle date change
+    return true;
+  });
+
+  // Gérer le changement de date
   const handleDateChange = (date: Date | undefined) => {
     setSelectedDate(date);
-    if (date) {
-      let filtered = [...reservations];
-      
-      filtered = filtered.filter(res => 
-        res.date.getDate() === date.getDate() &&
-        res.date.getMonth() === date.getMonth() &&
-        res.date.getFullYear() === date.getFullYear()
-      );
-      
-      if (selectedStatus !== "all") {
-        filtered = filtered.filter(res => res.status === selectedStatus);
-      }
-      
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        filtered = filtered.filter(res => 
-          res.customerName.toLowerCase().includes(query) ||
-          res.id.toLowerCase().includes(query) ||
-          res.customerPhone.includes(query)
-        );
-      }
-      
-      setFilteredReservations(filtered);
-    } else {
-      filterReservations();
-    }
   };
-  
-  // Handle status change
+
+  // Gérer le changement de statut
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status);
-    
-    let filtered = [...reservations];
-    
-    if (selectedDate) {
-      filtered = filtered.filter(res => 
-        res.date.getDate() === selectedDate.getDate() &&
-        res.date.getMonth() === selectedDate.getMonth() &&
-        res.date.getFullYear() === selectedDate.getFullYear()
-      );
-    }
-    
-    if (status !== "all") {
-      filtered = filtered.filter(res => res.status === status);
-    }
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(res => 
-        res.customerName.toLowerCase().includes(query) ||
-        res.id.toLowerCase().includes(query) ||
-        res.customerPhone.includes(query)
-      );
-    }
-    
-    setFilteredReservations(filtered);
   };
-  
-  // Handle search
+
+  // Gérer la recherche
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    
-    let filtered = [...reservations];
-    
-    if (selectedDate) {
-      filtered = filtered.filter(res => 
-        res.date.getDate() === selectedDate.getDate() &&
-        res.date.getMonth() === selectedDate.getMonth() &&
-        res.date.getFullYear() === selectedDate.getFullYear()
-      );
-    }
-    
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter(res => res.status === selectedStatus);
-    }
-    
-    if (query) {
-      const lowercaseQuery = query.toLowerCase();
-      filtered = filtered.filter(res => 
-        res.customerName.toLowerCase().includes(lowercaseQuery) ||
-        res.id.toLowerCase().includes(lowercaseQuery) ||
-        res.customerPhone.includes(lowercaseQuery)
-      );
-    }
-    
-    setFilteredReservations(filtered);
   };
-  
-  // Handle view reservation details
-  const handleViewReservation = (reservation: Reservation) => {
+
+  // Voir les détails d'une réservation
+  const handleViewReservation = (reservation: PartnerReservation) => {
     setSelectedReservation(reservation);
     setIsDetailsOpen(true);
   };
-  
-  // Handle update reservation status
-  const handleUpdateStatus = (reservationId: string, newStatus: ReservationStatus) => {
-    const updatedReservations = reservations.map(res => 
-      res.id === reservationId ? { ...res, status: newStatus } : res
-    );
+
+  // Mettre à jour le statut d'une réservation
+  const handleUpdateStatus = async (reservationId: string, newStatus: PartnerReservation['status']) => {
+    const result = await updateReservationStatus(reservationId, newStatus);
     
-    setReservations(updatedReservations);
-    
-    // Also update filtered reservations
-    const updatedFiltered = filteredReservations.map(res => 
-      res.id === reservationId ? { ...res, status: newStatus } : res
-    );
-    
-    setFilteredReservations(updatedFiltered);
-    
-    // If we're filtering by status, we might need to remove this reservation
-    if (selectedStatus !== "all" && selectedStatus !== newStatus) {
-      setFilteredReservations(prevFiltered => 
-        prevFiltered.filter(res => res.id !== reservationId)
-      );
-    }
-    
-    // Update selected reservation if it's the one we're viewing
-    if (selectedReservation && selectedReservation.id === reservationId) {
-      setSelectedReservation({ ...selectedReservation, status: newStatus });
-    }
-  };
-  
-  // Handle assign table
-  const handleAssignTable = (reservationId: string, tableNumber: string) => {
-    const updatedReservations = reservations.map(res => 
-      res.id === reservationId ? { ...res, tableNumber } : res
-    );
-    
-    setReservations(updatedReservations);
-    
-    // Also update filtered reservations
-    const updatedFiltered = filteredReservations.map(res => 
-      res.id === reservationId ? { ...res, tableNumber } : res
-    );
-    
-    setFilteredReservations(updatedFiltered);
-    
-    // Update selected reservation if it's the one we're viewing
-    if (selectedReservation && selectedReservation.id === reservationId) {
-      setSelectedReservation({ ...selectedReservation, tableNumber });
+    if (result.success) {
+      toast({
+        title: "Statut mis à jour",
+        description: `La réservation a été ${getStatusLabel(newStatus).toLowerCase()}.`,
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Impossible de mettre à jour le statut",
+        variant: "destructive",
+      });
     }
   };
 
+  // Assigner une table
+  const handleAssignTable = async (reservationId: string, tableNumber: string) => {
+    const result = await assignTable(reservationId, parseInt(tableNumber));
+    
+    if (result.success) {
+      toast({
+        title: "Table assignée",
+        description: `La table ${tableNumber} a été assignée à cette réservation.`,
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Impossible d'assigner la table",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Afficher l'état de chargement
+  if (loading) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Réservations">
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
+            <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
+          </div>
+          <ReservationSkeleton />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Afficher l'erreur
+  if (error) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Réservations">
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
+            <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
+          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <p className="text-red-500 mb-4">{error}</p>
+              <Button onClick={fetchPartnerReservations}>
+                Réessayer
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const stats = getReservationStats();
+
   return (
-    <DashboardLayout navItems={partnerNavItems} title="Reservations">
+    <DashboardLayout navItems={partnerNavItems} title="Réservations">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Reservations</h2>
-          <p className="text-gray-500">Manage your restaurant's reservations and table assignments.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
+          <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Calendar and Filters */}
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Select Date</CardTitle>
-              <CardDescription>
-                Filter reservations by date
-              </CardDescription>
+
+        {/* Statistiques */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateChange}
-                className="border rounded-md"
-              />
-              
-              <div className="space-y-2 pt-4 border-t">
-                <Label>Filter by Status</Label>
-                <Select value={selectedStatus} onValueChange={handleStatusChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="no-show">No-show</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2 pt-4 border-t">
-                <Label>Search</Label>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.total}</div>
+              <p className="text-xs text-muted-foreground">Réservations</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">En attente</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.pending}</div>
+              <p className="text-xs text-muted-foreground">À confirmer</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Confirmées</CardTitle>
+              <Check className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.confirmed}</div>
+              <p className="text-xs text-muted-foreground">Validées</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Terminées</CardTitle>
+              <Check className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.completed}</div>
+              <p className="text-xs text-muted-foreground">Aujourd'hui</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filtres */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtres et Recherche</CardTitle>
+            <CardDescription>
+              Filtrez et recherchez dans vos réservations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <Label htmlFor="search">Rechercher</Label>
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                  <Input 
-                    type="search" 
-                    placeholder="Search by name or ID..." 
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="Rechercher par nom, téléphone, email..."
                     className="pl-8"
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
                   />
                 </div>
               </div>
-              
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">Reservation Summary</h3>
-                  {selectedDate && (
-                    <span className="text-sm text-gray-500">
-                      {format(selectedDate, 'PP')}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Total Guests</p>
-                      <p className="text-xl font-bold">
-                        {filteredReservations.reduce((sum, res) => sum + res.partySize, 0)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                    <ClipboardList className="h-4 w-4 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-medium">Reservations</p>
-                      <p className="text-xl font-bold">{filteredReservations.length}</p>
-                    </div>
-                  </div>
-                </div>
+              <div className="sm:w-48">
+                <Label htmlFor="status">Statut</Label>
+                <Select value={selectedStatus} onValueChange={handleStatusChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tous les statuts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="confirmed">Confirmée</SelectItem>
+                    <SelectItem value="completed">Terminée</SelectItem>
+                    <SelectItem value="cancelled">Annulée</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
-          
-          {/* Reservations List */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>
-                {selectedDate 
-                  ? `Reservations for ${format(selectedDate, 'PP')}` 
-                  : 'All Reservations'}
-              </CardTitle>
-              <CardDescription>
-                {filteredReservations.length} reservations found
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredReservations.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Party</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Table</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredReservations
-                      .sort((a, b) => a.time.localeCompare(b.time))
-                      .map((reservation) => (
-                        <TableRow key={reservation.id}>
-                          <TableCell className="font-medium">{reservation.id}</TableCell>
-                          <TableCell>{reservation.customerName}</TableCell>
-                          <TableCell>{reservation.time}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Users className="h-3.5 w-3.5 text-gray-500" />
-                              <span>{reservation.partySize}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`${getStatusColor(reservation.status)} flex w-fit items-center gap-1`}>
-                              {getStatusIcon(reservation.status)}
-                              <span className="capitalize">{reservation.status}</span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {reservation.tableNumber || (
-                              <span className="text-gray-500 text-sm">Not assigned</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => handleViewReservation(reservation)}
-                              >
-                                <Search className="h-4 w-4" />
-                                <span className="sr-only">View details</span>
-                              </Button>
-                              
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">More options</span>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {reservation.status === 'pending' && (
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'confirmed')}>
-                                      Confirm Reservation
-                                    </DropdownMenuItem>
-                                  )}
-                                  {(reservation.status === 'pending' || reservation.status === 'confirmed') && (
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
-                                      Cancel Reservation
-                                    </DropdownMenuItem>
-                                  )}
-                                  {reservation.status === 'confirmed' && (
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'completed')}>
-                                      Mark as Completed
-                                    </DropdownMenuItem>
-                                  )}
-                                  {reservation.status === 'confirmed' && (
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'no-show')}>
-                                      Mark as No-Show
-                                    </DropdownMenuItem>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                    <CalendarIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium">No Reservations Found</h3>
-                  <p className="text-gray-500 mt-2 max-w-md text-center">
-                    {searchQuery 
-                      ? `No reservations match your search for "${searchQuery}"`
-                      : selectedDate 
-                        ? `No reservations for ${format(selectedDate, 'PP')}`
-                        : "No reservations found with the current filters."
-                    }
-                  </p>
-                  {(searchQuery || selectedStatus !== "all" || selectedDate) && (
-                    <Button 
-                      variant="outline" 
-                      className="mt-4"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setSelectedStatus("all");
-                        setSelectedDate(undefined);
-                        setFilteredReservations(reservations);
-                      }}
-                    >
-                      Clear Filters
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-      
-      {/* Reservation Details Dialog */}
-      {selectedReservation && (
-        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <span>Reservation {selectedReservation.id}</span>
-                <Badge className={`${getStatusColor(selectedReservation.status)} flex items-center gap-1`}>
-                  {getStatusIcon(selectedReservation.status)}
-                  <span className="capitalize">{selectedReservation.status}</span>
-                </Badge>
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Customer</h3>
-                  <div className="mt-1 flex items-start gap-2">
-                    <User className="h-4 w-4 mt-0.5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">{selectedReservation.customerName}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Contact</h3>
-                  <div className="mt-1 flex items-start gap-2">
-                    <Phone className="h-4 w-4 mt-0.5 text-gray-500" />
-                    <div>
-                      <p>{selectedReservation.customerPhone}</p>
-                      <p className="text-sm text-gray-500">{selectedReservation.email}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
-                  <div className="mt-1 flex items-start gap-2">
-                    <CalendarIcon className="h-4 w-4 mt-0.5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">{format(selectedReservation.date, 'PP')}</p>
-                      <p>{selectedReservation.time}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Party Size</h3>
-                  <div className="mt-1 flex items-start gap-2">
-                    <Users className="h-4 w-4 mt-0.5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">{selectedReservation.partySize} {selectedReservation.partySize === 1 ? 'person' : 'people'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {selectedReservation.specialRequests && (
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-medium text-gray-500">Special Requests</h3>
-                  <p className="mt-1 text-sm">{selectedReservation.specialRequests}</p>
-                </div>
-              )}
-              
-              <div className="pt-2 border-t">
-                <h3 className="text-sm font-medium text-gray-500">Table Assignment</h3>
-                {selectedReservation.tableNumber ? (
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="font-medium">Table {selectedReservation.tableNumber}</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        const newTable = prompt("Enter new table number:", selectedReservation.tableNumber);
-                        if (newTable) {
-                          handleAssignTable(selectedReservation.id, newTable);
-                        }
-                      }}
-                    >
-                      Change
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="mt-1 flex justify-between items-center">
-                    <p className="text-sm text-gray-500">No table assigned</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        const newTable = prompt("Enter table number:");
-                        if (newTable) {
-                          handleAssignTable(selectedReservation.id, newTable);
-                        }
-                      }}
-                    >
-                      Assign Table
-                    </Button>
-                  </div>
-                )}
-              </div>
-              
-              <div className="pt-4 border-t">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Update Status</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedReservation.status === 'pending' && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="justify-start"
-                      onClick={() => handleUpdateStatus(selectedReservation.id, 'confirmed')}
-                    >
-                      <Check className="h-4 w-4 mr-2" /> Confirm
-                    </Button>
-                  )}
-                  {(selectedReservation.status === 'pending' || selectedReservation.status === 'confirmed') && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="justify-start text-red-600"
-                      onClick={() => handleUpdateStatus(selectedReservation.id, 'cancelled')}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" /> Cancel
-                    </Button>
-                  )}
-                  {selectedReservation.status === 'confirmed' && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="justify-start"
-                      onClick={() => handleUpdateStatus(selectedReservation.id, 'completed')}
-                    >
-                      <Check className="h-4 w-4 mr-2" /> Complete
-                    </Button>
-                  )}
-                  {selectedReservation.status === 'confirmed' && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="justify-start"
-                      onClick={() => handleUpdateStatus(selectedReservation.id, 'no-show')}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" /> No-Show
-                    </Button>
-                  )}
-                </div>
+              <div className="sm:w-48">
+                <Label>Date</Label>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateChange}
+                  className="rounded-md border"
+                />
               </div>
             </div>
-            
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+          </CardContent>
+        </Card>
+
+        {/* Liste des réservations */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Réservations ({filteredReservations.length})</CardTitle>
+            <CardDescription>
+              Liste des réservations filtrées
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {filteredReservations.length === 0 ? (
+              <div className="text-center py-8">
+                <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Aucune réservation</h3>
+                <p className="text-muted-foreground">
+                  {searchQuery || selectedStatus !== 'all' || selectedDate
+                    ? 'Aucune réservation ne correspond à vos critères.'
+                    : 'Aucune réservation pour le moment.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredReservations.map((reservation) => (
+                  <div key={reservation.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-semibold">{reservation.customer_name}</h4>
+                          <Badge className={getStatusColor(reservation.status)}>
+                            {getStatusIcon(reservation.status)}
+                            {getStatusLabel(reservation.status)}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <p>📅 {format(new Date(reservation.date), 'dd/MM/yyyy')} à {reservation.time}</p>
+                          <p>👥 {reservation.guests} personnes</p>
+                          {reservation.table_number && (
+                            <p>🪑 Table {reservation.table_number}</p>
+                          )}
+                          {reservation.customer_phone && (
+                            <p>📞 {reservation.customer_phone}</p>
+                          )}
+                          {reservation.special_requests && (
+                            <p>💬 {reservation.special_requests}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewReservation(reservation)}
+                        >
+                          Détails
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {reservation.status === 'pending' && (
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'confirmed')}>
+                                <Check className="mr-2 h-4 w-4" />
+                                Confirmer
+                              </DropdownMenuItem>
+                            )}
+                            {reservation.status === 'confirmed' && (
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'completed')}>
+                                <Check className="mr-2 h-4 w-4" />
+                                Marquer comme terminée
+                              </DropdownMenuItem>
+                            )}
+                            {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
+                              <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Annuler
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Modal de détails */}
+        {selectedReservation && (
+          <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Détails de la réservation</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Client</Label>
+                    <p className="font-medium">{selectedReservation.customer_name}</p>
+                  </div>
+                  <div>
+                    <Label>Statut</Label>
+                    <Badge className={getStatusColor(selectedReservation.status)}>
+                      {getStatusIcon(selectedReservation.status)}
+                      {getStatusLabel(selectedReservation.status)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Label>Date</Label>
+                    <p>{format(new Date(selectedReservation.date), 'dd/MM/yyyy')}</p>
+                  </div>
+                  <div>
+                    <Label>Heure</Label>
+                    <p>{selectedReservation.time}</p>
+                  </div>
+                  <div>
+                    <Label>Nombre de personnes</Label>
+                    <p>{selectedReservation.guests}</p>
+                  </div>
+                  <div>
+                    <Label>Table</Label>
+                    <p>{selectedReservation.table_number || 'Non assignée'}</p>
+                  </div>
+                </div>
+                {selectedReservation.customer_phone && (
+                  <div>
+                    <Label>Téléphone</Label>
+                    <p>{selectedReservation.customer_phone}</p>
+                  </div>
+                )}
+                {selectedReservation.customer_email && (
+                  <div>
+                    <Label>Email</Label>
+                    <p>{selectedReservation.customer_email}</p>
+                  </div>
+                )}
+                {selectedReservation.special_requests && (
+                  <div>
+                    <Label>Demandes spéciales</Label>
+                    <p className="text-sm text-muted-foreground">{selectedReservation.special_requests}</p>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-4">
+                  {selectedReservation.status === 'pending' && (
+                    <Button onClick={() => handleUpdateStatus(selectedReservation.id, 'confirmed')}>
+                      Confirmer
+                    </Button>
+                  )}
+                  {selectedReservation.status === 'confirmed' && (
+                    <Button onClick={() => handleUpdateStatus(selectedReservation.id, 'completed')}>
+                      Marquer comme terminée
+                    </Button>
+                  )}
+                  {selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && (
+                    <Button variant="destructive" onClick={() => handleUpdateStatus(selectedReservation.id, 'cancelled')}>
+                      Annuler
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </DashboardLayout>
   );
 };

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { 
   ShoppingBag, 
   Clock, 
@@ -23,7 +24,9 @@ import {
   MapPin,
   Phone,
   Calendar,
-  DollarSign
+  DollarSign,
+  MoreHorizontal,
+  ChevronDown
 } from 'lucide-react';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
@@ -166,8 +169,64 @@ const PartnerOrders = () => {
       case 'ready': return <CheckCircle className="h-4 w-4" />;
       case 'out_for_delivery': return <Package className="h-4 w-4" />;
       case 'delivered': return <CheckCircle className="h-4 w-4" />;
-      case 'cancelled': return <XCircle className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  // Obtenir les options de statut disponibles selon le statut actuel
+  const getAvailableStatusOptions = (currentStatus: string) => {
+    const statusOptions = [
+      { value: 'pending', label: 'En attente', icon: <Clock className="h-4 w-4" /> },
+      { value: 'confirmed', label: 'Confirmée', icon: <CheckCircle className="h-4 w-4" /> },
+      { value: 'preparing', label: 'En préparation', icon: <Package className="h-4 w-4" /> },
+      { value: 'ready', label: 'Prête', icon: <CheckCircle className="h-4 w-4" /> },
+      { value: 'out_for_delivery', label: 'En livraison', icon: <Package className="h-4 w-4" /> },
+      { value: 'delivered', label: 'Livrée', icon: <CheckCircle className="h-4 w-4" /> },
+      { value: 'cancelled', label: 'Annulée', icon: <XCircle className="h-4 w-4" /> }
+    ];
+
+    // Filtrer les options selon le statut actuel
+    switch (currentStatus) {
+      case 'pending':
+        return statusOptions.filter(option => 
+          ['confirmed', 'cancelled'].includes(option.value)
+        );
+      case 'confirmed':
+        return statusOptions.filter(option => 
+          ['preparing', 'cancelled'].includes(option.value)
+        );
+      case 'preparing':
+        return statusOptions.filter(option => 
+          ['ready'].includes(option.value)
+        );
+      case 'ready':
+        return statusOptions.filter(option => 
+          ['out_for_delivery'].includes(option.value)
+        );
+      case 'out_for_delivery':
+        return statusOptions.filter(option => 
+          ['delivered'].includes(option.value)
+        );
+      case 'delivered':
+        return []; // Aucune option disponible une fois livrée
+      case 'cancelled':
+        return []; // Aucune option disponible une fois annulée
+      default:
+        return statusOptions;
+    }
+  };
+
+  // Obtenir le label du statut
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'En attente';
+      case 'confirmed': return 'Confirmée';
+      case 'preparing': return 'En préparation';
+      case 'ready': return 'Prête';
+      case 'out_for_delivery': return 'En livraison';
+      case 'delivered': return 'Livrée';
+      case 'cancelled': return 'Annulée';
+      default: return status;
     }
   };
 
@@ -415,7 +474,7 @@ const PartnerOrders = () => {
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(order.status)}>
                           {getStatusIcon(order.status)}
-                          <span className="ml-1">{order.status}</span>
+                          <span className="ml-1">{getStatusLabel(order.status)}</span>
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -423,6 +482,40 @@ const PartnerOrders = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          {/* Debug: Afficher le statut et les options disponibles */}
+                          <div className="text-xs text-gray-500">
+                            Statut: {order.status} | Options: {getAvailableStatusOptions(order.status).length}
+                          </div>
+                          
+                          {/* Menu déroulant pour changer le statut - toujours affiché */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                Changer statut
+                                <ChevronDown className="h-4 w-4 ml-1" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {getAvailableStatusOptions(order.status).length > 0 ? (
+                                getAvailableStatusOptions(order.status).map((option) => (
+                                  <DropdownMenuItem
+                                    key={option.value}
+                                    onClick={() => handleStatusChange(order.id, option.value as OrderStatus)}
+                                    className="flex items-center gap-2"
+                                  >
+                                    {option.icon}
+                                    {option.label}
+                                  </DropdownMenuItem>
+                                ))
+                              ) : (
+                                <DropdownMenuItem disabled>
+                                  Aucune action disponible
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          
+                          {/* Bouton pour voir les détails */}
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button
@@ -510,57 +603,18 @@ const PartnerOrders = () => {
                                   </div>
                                 </div>
 
-                                {/* Actions */}
+                                {/* Actions dans la modal */}
                                 <div className="flex gap-2">
-                                  {order.status === 'pending' && (
+                                  {getAvailableStatusOptions(order.status).map((option) => (
                                     <Button
-                                      onClick={() => handleStatusChange(order.id, 'confirmed')}
-                                      className="flex-1"
+                                      key={option.value}
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleStatusChange(order.id, option.value as OrderStatus)}
                                     >
-                                      Confirmer
+                                      {option.label}
                                     </Button>
-                                  )}
-                                  {order.status === 'confirmed' && (
-                                    <Button
-                                      onClick={() => handleStatusChange(order.id, 'preparing')}
-                                      className="flex-1"
-                                    >
-                                      Commencer la préparation
-                                    </Button>
-                                  )}
-                                  {order.status === 'preparing' && (
-                                    <Button
-                                      onClick={() => handleStatusChange(order.id, 'ready')}
-                                      className="flex-1"
-                                    >
-                                      Marquer comme prêt
-                                    </Button>
-                                  )}
-                                  {order.status === 'ready' && (
-                                    <Button
-                                      onClick={() => handleStatusChange(order.id, 'out_for_delivery')}
-                                      className="flex-1"
-                                    >
-                                      En livraison
-                                    </Button>
-                                  )}
-                                  {order.status === 'out_for_delivery' && (
-                                    <Button
-                                      onClick={() => handleStatusChange(order.id, 'delivered')}
-                                      className="flex-1"
-                                    >
-                                      Livrée
-                                    </Button>
-                                  )}
-                                  {(order.status === 'pending' || order.status === 'confirmed') && (
-                                    <Button
-                                      variant="destructive"
-                                      onClick={() => handleStatusChange(order.id, 'cancelled')}
-                                      className="flex-1"
-                                    >
-                                      Annuler
-                                    </Button>
-                                  )}
+                                  ))}
                                 </div>
                               </div>
                             </DialogContent>

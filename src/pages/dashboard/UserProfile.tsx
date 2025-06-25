@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { 
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle 
 } from '@/components/ui/card';
@@ -18,133 +19,376 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useToast } from '@/components/ui/use-toast';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  Shield, 
+  Bell, 
+  Trash2, 
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Camera
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ProfileSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
+// Schémas de validation
 const profileFormSchema = z.object({
-  firstName: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
+  name: z.string().min(2, {
+    message: "Le nom doit contenir au moins 2 caractères.",
   }),
-  lastName: z.string().min(2, {
-    message: "Last name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  phone: z.string().min(8, {
-    message: "Phone number must be at least 8 digits.",
-  }),
-  bio: z.string().max(160, {
-    message: "Bio must not be longer than 160 characters.",
+  phone_number: z.string().min(8, {
+    message: "Le numéro de téléphone doit contenir au moins 8 chiffres.",
   }).optional(),
-  language: z.string({
-    required_error: "Please select a language.",
+  address: z.string().max(200, {
+    message: "L'adresse ne doit pas dépasser 200 caractères.",
+  }).optional(),
+});
+
+const passwordFormSchema = z.object({
+  currentPassword: z.string().min(6, {
+    message: "Le mot de passe actuel doit contenir au moins 6 caractères.",
   }),
+  newPassword: z.string().min(6, {
+    message: "Le nouveau mot de passe doit contenir au moins 6 caractères.",
+  }),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Les mots de passe ne correspondent pas.",
+  path: ["confirmPassword"],
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
+type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 const UserProfile = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
+  const { toast } = useToast();
+  const {
+    profile,
+    isLoading,
+    error,
+    updateProfile,
+    uploadProfileImage,
+    deleteProfileImage,
+    changePassword,
+    deleteAccount
+  } = useUserProfile();
+
+  // États pour les modals
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  const defaultValues: ProfileFormValues = {
-    firstName: currentUser?.firstName || '',
-    lastName: currentUser?.lastName || '',
-    email: currentUser?.email || '',
-    phone: currentUser?.phoneNumber || '',
-    bio: currentUser?.bio || '',
-    language: currentUser?.language || 'english',
-  };
-
-  const form = useForm<ProfileFormValues>({
+  // Formulaires
+  const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues,
+    defaultValues: {
+      name: profile?.name || '',
+      phone_number: profile?.phone_number || '',
+      address: profile?.address || '',
+    },
   });
 
-  const onSubmit = async (data: ProfileFormValues) => {
+  const passwordForm = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordFormSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
+
+  // Mettre à jour les valeurs par défaut quand le profil se charge
+  useEffect(() => {
+    if (profile) {
+      profileForm.reset({
+        name: profile.name,
+        phone_number: profile.phone_number || '',
+        address: profile.address || '',
+      });
+    }
+  }, [profile?.id]); // Seulement quand l'ID du profil change
+
+  // Soumettre le formulaire de profil
+  const onSubmitProfile = async (data: ProfileFormValues) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const result = await updateProfile(data);
     
-    console.log('Profile updated:', data);
+    if (result.success) {
+      toast({
+        title: "Profil mis à jour",
+        description: "Vos informations ont été mises à jour avec succès.",
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de la mise à jour du profil",
+        variant: "destructive",
+      });
+    }
     
     setIsSubmitting(false);
-    // In a real application, you would update the user profile data in your backend
   };
 
+  // Soumettre le formulaire de mot de passe
+  const onSubmitPassword = async (data: PasswordFormValues) => {
+    setIsSubmitting(true);
+    
+    const result = await changePassword(data.currentPassword, data.newPassword);
+    
+    if (result.success) {
+      toast({
+        title: "Mot de passe changé",
+        description: "Votre mot de passe a été changé avec succès.",
+      });
+      setIsPasswordModalOpen(false);
+      passwordForm.reset();
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors du changement de mot de passe",
+        variant: "destructive",
+      });
+    }
+    
+    setIsSubmitting(false);
+  };
+
+  // Supprimer le compte
+  const handleDeleteAccount = async () => {
+    const result = await deleteAccount();
+    
+    if (result.success) {
+      toast({
+        title: "Compte supprimé",
+        description: "Votre compte a été supprimé avec succès.",
+      });
+      logout();
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de la suppression du compte",
+        variant: "destructive",
+      });
+    }
+    
+    setIsDeleteModalOpen(false);
+  };
+
+  // Gérer l'upload d'image de profil
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Vérifier le type de fichier
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Type de fichier non supporté",
+        description: "Veuillez sélectionner une image (JPG, PNG, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Vérifier la taille (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Fichier trop volumineux",
+        description: "La taille maximale est de 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+
+    try {
+      const result = await uploadProfileImage(file);
+      
+      if (result.success) {
+        toast({
+          title: "Image de profil mise à jour",
+          description: "Votre image de profil a été mise à jour avec succès.",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.error || "Erreur lors de l'upload de l'image",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de l'upload de l'image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingImage(false);
+      // Réinitialiser l'input
+      event.target.value = '';
+    }
+  };
+
+  // Supprimer l'image de profil
+  const handleDeleteImage = async () => {
+    setIsUploadingImage(true);
+
+    try {
+      const result = await deleteProfileImage();
+      
+      if (result.success) {
+        toast({
+          title: "Image de profil supprimée",
+          description: "Votre image de profil a été supprimée avec succès.",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.error || "Erreur lors de la suppression de l'image",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la suppression de l'image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout navItems={userNavItems} title="Mon Profil">
+        <ProfileSkeleton />
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout navItems={userNavItems} title="Profil">
+        <div className="flex items-center justify-center py-12">
+          <AlertCircle className="h-8 w-8 text-red-400" />
+          <span className="ml-2 text-red-500">Erreur: {error}</span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
-    <DashboardLayout navItems={userNavItems} title="Your Profile">
+    <DashboardLayout navItems={userNavItems} title="Profil">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Profile Settings</h2>
-          <p className="text-gray-500">Manage your account settings and preferences.</p>
+          <h2 className="text-2xl font-bold tracking-tight">Paramètres du profil</h2>
+          <p className="text-gray-500">Gérez vos informations personnelles et préférences.</p>
         </div>
 
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="profile">Informations personnelles</TabsTrigger>
+            <TabsTrigger value="security">Sécurité</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile" className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
+                  <CardTitle>Informations personnelles</CardTitle>
               <CardDescription>
-                Update your personal details and how we can reach you.
+                    Mettez à jour vos informations personnelles.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="flex justify-center mb-6">
                     <div className="space-y-2">
                       <Avatar className="w-24 h-24 mx-auto">
-                        <AvatarImage src={currentUser?.profilePic || ''} alt={currentUser?.firstName} />
+                        <AvatarImage src={profile?.profile_image || ''} alt={profile?.name} />
                         <AvatarFallback className="text-2xl">
-                          {currentUser?.firstName?.[0]}{currentUser?.lastName?.[0]}
+                          {profile?.name?.charAt(0) || 'U'}
                         </AvatarFallback>
                       </Avatar>
-                      <Button type="button" variant="outline" size="sm" className="w-full">
-                        Change Avatar
+                      <div className="flex flex-col space-y-2">
+                        <input
+                          id="profile-image"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          ref={(input) => {
+                            if (input) {
+                              // Stocker la référence pour pouvoir la déclencher
+                              (window as any).profileImageInput = input;
+                            }
+                          }}
+                        />
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full" 
+                          disabled={isUploadingImage}
+                          onClick={() => {
+                            const input = document.getElementById('profile-image') as HTMLInputElement;
+                            if (input) {
+                              input.click();
+                            }
+                          }}
+                        >
+                          {isUploadingImage ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Upload...
+                            </>
+                          ) : (
+                            <>
+                              <Camera className="mr-2 h-4 w-4" />
+                              Changer l'avatar
+                            </>
+                          )}
+                        </Button>
+                        {profile?.profile_image && (
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full text-red-600 hover:text-red-700"
+                            onClick={handleDeleteImage}
+                            disabled={isUploadingImage}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Supprimer
                       </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <Form {...profileForm}>
+                    <form onSubmit={profileForm.handleSubmit(onSubmitProfile)} className="space-y-4">
                     <FormField
-                      control={form.control}
-                      name="firstName"
+                        control={profileForm.control}
+                        name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>First Name</FormLabel>
+                            <FormLabel>Nom complet</FormLabel>
                           <FormControl>
-                            <Input placeholder="John" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="john.doe@example.com" {...field} />
+                              <Input placeholder="Votre nom complet" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -152,13 +396,13 @@ const UserProfile = () => {
                   />
 
                   <FormField
-                    control={form.control}
-                    name="phone"
+                        control={profileForm.control}
+                        name="phone_number"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
+                            <FormLabel>Numéro de téléphone</FormLabel>
                         <FormControl>
-                          <Input placeholder="+123456789" {...field} />
+                              <Input placeholder="+224 123 456 789" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -166,46 +410,18 @@ const UserProfile = () => {
                   />
 
                   <FormField
-                    control={form.control}
-                    name="bio"
+                        control={profileForm.control}
+                        name="address"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Bio</FormLabel>
+                            <FormLabel>Adresse principale</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Tell us a little bit about yourself"
+                                placeholder="Votre adresse principale"
                             className="resize-none"
                             {...field}
                           />
                         </FormControl>
-                        <FormDescription>
-                          Brief description for your profile. Max 160 characters.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="language"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Language</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a language" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="english">English</SelectItem>
-                            <SelectItem value="french">French</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          This is the language that will be used throughout the application.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -213,7 +429,14 @@ const UserProfile = () => {
 
                   <div className="flex justify-end">
                     <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? 'Saving...' : 'Save Changes'}
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sauvegarde...
+                            </>
+                          ) : (
+                            'Sauvegarder'
+                          )}
                     </Button>
                   </div>
                 </form>
@@ -224,62 +447,199 @@ const UserProfile = () => {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Account Security</CardTitle>
+                    <CardTitle>Informations du compte</CardTitle>
+                    <CardDescription>
+                      Détails de votre compte.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="font-medium">Email</p>
+                        <p className="text-sm text-gray-500">{profile?.email}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="font-medium">Rôle</p>
+                        <p className="text-sm text-gray-500">{profile?.role_name || 'Client'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <div>
+                        <p className="font-medium">Statut</p>
+                        <Badge variant="outline" className="text-green-600">
+                          Actif
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <p className="font-medium">Membre depuis</p>
+                        <p className="text-sm text-gray-500">
+                          {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('fr-FR') : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Sécurité du compte</CardTitle>
                 <CardDescription>
-                  Update your password and security settings.
+                    Mettez à jour votre mot de passe et vos paramètres de sécurité.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <h4 className="font-medium">Password</h4>
+                    <h4 className="font-medium">Mot de passe</h4>
                   <p className="text-sm text-gray-500">
-                    Change your password to keep your account secure.
+                      Changez votre mot de passe pour sécuriser votre compte.
                   </p>
                 </div>
-                <Button variant="outline">Change Password</Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsPasswordModalOpen(true)}
+                  >
+                    Changer le mot de passe
+                  </Button>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Notifications</CardTitle>
+                  <CardTitle>Supprimer le compte</CardTitle>
                 <CardDescription>
-                  Choose what notifications you receive.
+                    Supprimez définitivement votre compte et toutes vos données.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-500">
-                  Manage your notification preferences in the notifications section.
+                  <p className="text-sm text-gray-500 mb-4">
+                    Cette action est irréversible. Toutes vos données seront supprimées définitivement.
                 </p>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Supprimer le compte
+                  </Button>
               </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full">
-                  Notification Settings
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Delete Account</CardTitle>
-                <CardDescription>
-                  Permanently delete your account and all your data.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500">
-                  Once you delete your account, there is no going back. Please be certain.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button variant="destructive" className="w-full">
-                  Delete Account
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
-        </div>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Modal de changement de mot de passe */}
+      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Changer le mot de passe</DialogTitle>
+            <DialogDescription>
+              Entrez votre mot de passe actuel et votre nouveau mot de passe.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...passwordForm}>
+            <form onSubmit={passwordForm.handleSubmit(onSubmitPassword)} className="space-y-4">
+              <FormField
+                control={passwordForm.control}
+                name="currentPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mot de passe actuel</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Mot de passe actuel" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={passwordForm.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nouveau mot de passe</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Nouveau mot de passe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={passwordForm.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmer le nouveau mot de passe</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Confirmer le nouveau mot de passe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsPasswordModalOpen(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Changement...
+                    </>
+                  ) : (
+                    'Changer le mot de passe'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de suppression de compte */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer le compte</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center py-2">
+            <AlertCircle className="h-6 w-6 text-red-500 mr-2" />
+            <p className="text-sm text-gray-600">
+              Toutes vos données, commandes et réservations seront supprimées définitivement.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAccount}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Supprimer définitivement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

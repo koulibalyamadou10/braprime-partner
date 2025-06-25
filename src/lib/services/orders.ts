@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Inserts } from '@/lib/supabase'
+import { NotificationService } from './notifications'
 
 export interface Order {
   id: string
@@ -66,6 +67,21 @@ export class OrderService {
       }
 
       console.log('Commande créée avec succès:', data)
+
+      // Créer une notification pour la nouvelle commande
+      await NotificationService.create({
+        user_id: orderData.user_id,
+        type: 'order_status',
+        title: 'Commande confirmée',
+        message: `Votre commande #${data.id.substring(0, 8)} a été confirmée et est en cours de préparation.`,
+        priority: 'medium',
+        data: {
+          order_id: data.id,
+          business_name: orderData.business_name,
+          total: orderData.grand_total
+        }
+      })
+
       return { order: data, error: null }
     } catch (error) {
       console.error('Erreur lors de la création de la commande:', error)
@@ -145,6 +161,11 @@ export class OrderService {
 
       if (error) {
         return { order: null, error: error.message }
+      }
+
+      // Créer une notification selon le nouveau statut
+      if (data) {
+        await createStatusNotification(data, status)
       }
 
       return { order: data, error: null }
@@ -314,5 +335,58 @@ export class OrderService {
         }
       )
       .subscribe()
+  }
+}
+
+// Fonction helper pour créer des notifications selon le statut
+const createStatusNotification = async (order: Order, status: string) => {
+  const statusMessages = {
+    'confirmed': {
+      title: 'Commande confirmée',
+      message: `Votre commande #${order.id.substring(0, 8)} a été confirmée par ${order.business_name}.`,
+      priority: 'medium' as const
+    },
+    'preparing': {
+      title: 'Commande en préparation',
+      message: `Votre commande #${order.id.substring(0, 8)} est en cours de préparation chez ${order.business_name}.`,
+      priority: 'medium' as const
+    },
+    'ready': {
+      title: 'Commande prête',
+      message: `Votre commande #${order.id.substring(0, 8)} est prête pour la livraison.`,
+      priority: 'high' as const
+    },
+    'picked_up': {
+      title: 'Commande en livraison',
+      message: `Votre commande #${order.id.substring(0, 8)} est en cours de livraison.`,
+      priority: 'high' as const
+    },
+    'delivered': {
+      title: 'Commande livrée',
+      message: `Votre commande #${order.id.substring(0, 8)} a été livrée. Bon appétit !`,
+      priority: 'medium' as const
+    },
+    'cancelled': {
+      title: 'Commande annulée',
+      message: `Votre commande #${order.id.substring(0, 8)} a été annulée.`,
+      priority: 'high' as const
+    }
+  }
+
+  const notificationData = statusMessages[status as keyof typeof statusMessages]
+  
+  if (notificationData) {
+    await NotificationService.create({
+      user_id: order.user_id,
+      type: 'order_status',
+      title: notificationData.title,
+      message: notificationData.message,
+      priority: notificationData.priority,
+      data: {
+        order_id: order.id,
+        business_name: order.business_name,
+        status: status
+      }
+    })
   }
 } 

@@ -14,207 +14,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { format, addHours, isBefore, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Calendar, Clock, MapPin, Phone, Star, X, Check, AlertCircle, Search, Filter, Plus, ArrowLeft, User } from 'lucide-react';
+import { Calendar, Clock, MapPin, Phone, Star, X, Check, AlertCircle, Search, Filter, Plus, ArrowLeft, User, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-
-// Types for reservations
-type ReservationType = 'restaurant' | 'cafe' | 'salon' | 'other';
-type ReservationStatus = 'confirmed' | 'pending' | 'cancelled' | 'completed';
-
-interface Establishment {
-  id: string;
-  name: string;
-  type: ReservationType;
-  image: string;
-  address: string;
-  phone: string;
-  description: string;
-  rating: number;
-  openingHours: {
-    open: string;
-    close: string;
-  };
-  features: string[];
-}
-
-interface Reservation {
-  id: string;
-  establishmentId: string;
-  establishmentName: string;
-  establishmentType: ReservationType;
-  establishmentImage: string;
-  date: Date;
-  time: string;
-  partySize: number;
-  status: ReservationStatus;
-  notes?: string;
-  createdAt: Date;
-}
-
-// Mock establishments data for Guinea
-const mockEstablishments: Establishment[] = [
-  {
-    id: 'est-1',
-    name: 'Le Petit Conakry',
-    type: 'restaurant',
-    image: 'https://ui-avatars.com/api/?name=Le+Petit+Conakry&background=0D8ABC&color=fff',
-    address: '15 Rue du Port, Kaloum, Conakry',
-    phone: '+224 621 12 34 56',
-    description: 'Restaurant traditionnel guinéen offrant des plats typiques comme le poulet yassa et le riz sauce arachide.',
-    rating: 4.8,
-    openingHours: {
-      open: '10:00',
-      close: '22:00',
-    },
-    features: ['Terrasse', 'Wi-Fi gratuit', 'Climatisation', 'Plats végétariens']
-  },
-  {
-    id: 'est-2',
-    name: 'Café Nimba',
-    type: 'cafe',
-    image: 'https://ui-avatars.com/api/?name=Café+Nimba&background=D4A017&color=fff',
-    address: '45 Avenue de la République, Dixinn, Conakry',
-    phone: '+224 622 23 45 67',
-    description: 'Café moderne servant des cafés de spécialité, pâtisseries et petit-déjeuners dans un cadre contemporain.',
-    rating: 4.5,
-    openingHours: {
-      open: '07:00',
-      close: '20:00',
-    },
-    features: ['Wi-Fi gratuit', 'Prises électriques', 'Pâtisseries maison', 'Café de spécialité']
-  },
-  {
-    id: 'est-3',
-    name: 'Salon Belle Guinée',
-    type: 'salon',
-    image: 'https://ui-avatars.com/api/?name=Belle+Guinée&background=C24641&color=fff',
-    address: '78 Rue des Palmiers, Ratoma, Conakry',
-    phone: '+224 623 34 56 78',
-    description: 'Salon de beauté moderne proposant coiffure, maquillage, manucure et soins esthétiques.',
-    rating: 4.7,
-    openingHours: {
-      open: '09:00',
-      close: '19:00',
-    },
-    features: ['Coiffure', 'Maquillage', 'Manucure', 'Pédicure', 'Soins du visage']
-  },
-  {
-    id: 'est-4',
-    name: 'Le Manguier Restaurant',
-    type: 'restaurant',
-    image: 'https://ui-avatars.com/api/?name=Le+Manguier&background=2E8B57&color=fff',
-    address: '33 Boulevard du Commerce, Matam, Conakry',
-    phone: '+224 624 45 67 89',
-    description: 'Restaurant proposant une cuisine fusion guinéenne et internationale dans un cadre élégant.',
-    rating: 4.6,
-    openingHours: {
-      open: '11:30',
-      close: '23:00',
-    },
-    features: ['Climatisation', 'Parking', 'Plats végétariens', 'Bar']
-  },
-  {
-    id: 'est-5',
-    name: 'Conakry Spa & Wellness',
-    type: 'salon',
-    image: 'https://ui-avatars.com/api/?name=Conakry+Spa&background=64A8D1&color=fff',
-    address: '12 Rue du Bien-Être, Ratoma, Conakry',
-    phone: '+224 625 56 78 90',
-    description: 'Centre de spa et bien-être proposant massages, soins du corps et rituels relaxants.',
-    rating: 4.9,
-    openingHours: {
-      open: '10:00',
-      close: '20:00',
-    },
-    features: ['Massages', 'Soins du corps', 'Hammam', 'Sauna', 'Aromathérapie']
-  },
-  {
-    id: 'est-6',
-    name: 'Baobab Café Culturel',
-    type: 'cafe',
-    image: 'https://ui-avatars.com/api/?name=Baobab+Café&background=8B6914&color=fff',
-    address: '67 Avenue Cheick Anta Diop, Dixinn, Conakry',
-    phone: '+224 626 67 89 01',
-    description: "Café culturel proposant boissons artisanales, pâtisseries locales et espace d'exposition d'art guinéen.",
-    rating: 4.4,
-    openingHours: {
-      open: '08:00',
-      close: '21:00',
-    },
-    features: ['Expositions d\'art', 'Wi-Fi gratuit', 'Événements culturels', 'Produits locaux']
-  }
-];
-
-// Mock user reservations
-const mockUserReservations: Reservation[] = [
-  {
-    id: 'res-1',
-    establishmentId: 'est-1',
-    establishmentName: 'Le Petit Conakry',
-    establishmentType: 'restaurant',
-    establishmentImage: 'https://ui-avatars.com/api/?name=Le+Petit+Conakry&background=0D8ABC&color=fff',
-    date: new Date(2023, 6, 25),
-    time: '19:30',
-    partySize: 4,
-    status: 'confirmed',
-    notes: 'Table en terrasse si possible',
-    createdAt: new Date(2023, 6, 20)
-  },
-  {
-    id: 'res-2',
-    establishmentId: 'est-3',
-    establishmentName: 'Salon Belle Guinée',
-    establishmentType: 'salon',
-    establishmentImage: 'https://ui-avatars.com/api/?name=Belle+Guinée&background=C24641&color=fff',
-    date: new Date(2023, 6, 28),
-    time: '14:00',
-    partySize: 1,
-    status: 'pending',
-    notes: 'Coiffure et manucure',
-    createdAt: new Date(2023, 6, 21)
-  },
-  {
-    id: 'res-3',
-    establishmentId: 'est-2',
-    establishmentName: 'Café Nimba',
-    establishmentType: 'cafe',
-    establishmentImage: 'https://ui-avatars.com/api/?name=Café+Nimba&background=D4A017&color=fff',
-    date: new Date(2023, 6, 22),
-    time: '10:00',
-    partySize: 2,
-    status: 'completed',
-    createdAt: new Date(2023, 6, 19)
-  },
-  {
-    id: 'res-4',
-    establishmentId: 'est-4',
-    establishmentName: 'Le Manguier Restaurant',
-    establishmentType: 'restaurant',
-    establishmentImage: 'https://ui-avatars.com/api/?name=Le+Manguier&background=2E8B57&color=fff',
-    date: new Date(2023, 6, 18),
-    time: '20:00',
-    partySize: 6,
-    status: 'cancelled',
-    notes: 'Annulation pour cause de maladie',
-    createdAt: new Date(2023, 6, 15)
-  }
-];
+import { useRestaurantsReservations } from '@/hooks/use-restaurants-reservations';
+import { useReservations } from '@/hooks/use-reservations';
+import { Business } from '@/lib/services/business';
+import { Reservation } from '@/lib/services/reservations';
 
 // Helper functions
-const getEstablishmentTypeLabel = (type: ReservationType): string => {
-  switch (type) {
-    case 'restaurant':
-      return 'Restaurant';
-    case 'cafe':
-      return 'Café';
-    case 'salon':
-      return 'Salon de beauté';
-    default:
-      return 'Autre';
-  }
-};
-
-const getStatusBadge = (status: ReservationStatus) => {
+const getStatusBadge = (status: Reservation['status']) => {
   switch (status) {
     case 'confirmed':
       return <Badge className="bg-green-100 text-green-800 hover:bg-green-100"><Check className="mr-1 h-3 w-3" /> Confirmée</Badge>;
@@ -229,8 +37,16 @@ const getStatusBadge = (status: ReservationStatus) => {
   }
 };
 
-const getTimeOptions = (openHour: string, closeHour: string) => {
+const getTimeOptions = (openingHours: string) => {
+  // Parse opening hours (format: "10:00-22:00")
   const times = [];
+  const [openHour, closeHour] = openingHours.split('-');
+  
+  if (!openHour || !closeHour) {
+    // Default times if parsing fails
+    return ['12:00', '13:00', '14:00', '19:00', '20:00', '21:00'];
+  }
+  
   const [openHours, openMinutes] = openHour.split(':').map(Number);
   const [closeHours, closeMinutes] = closeHour.split(':').map(Number);
   
@@ -252,24 +68,36 @@ const getTimeOptions = (openHour: string, closeHour: string) => {
     current.setMinutes(current.getMinutes() + 30);
   }
   
-  return times;
+  return times.length > 0 ? times : ['12:00', '13:00', '14:00', '19:00', '20:00', '21:00'];
 };
 
 const UserReservations = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  const { 
+    restaurants, 
+    filteredRestaurants, 
+    isLoading: restaurantsLoading, 
+    error: restaurantsError, 
+    filterRestaurants 
+  } = useRestaurantsReservations();
+  
+  const {
+    reservations,
+    isLoading: reservationsLoading,
+    error: reservationsError,
+    createReservation,
+    cancelReservation
+  } = useReservations();
+  
   const [activeTab, setActiveTab] = useState('upcoming');
-  const [reservations, setReservations] = useState<Reservation[]>(mockUserReservations);
-  const [establishments, setEstablishments] = useState<Establishment[]>(mockEstablishments);
-  const [filteredEstablishments, setFilteredEstablishments] = useState<Establishment[]>(mockEstablishments);
   
   // Booking state
   const [bookingOpen, setBookingOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
   
   // New reservation state
-  const [selectedEstablishment, setSelectedEstablishment] = useState<Establishment | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Business | null>(null);
   const [reservationDate, setReservationDate] = useState<Date | undefined>(new Date());
   const [reservationTime, setReservationTime] = useState('');
   const [partySize, setPartySize] = useState('2');
@@ -279,37 +107,23 @@ const UserReservations = () => {
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<string | null>(null);
   
-  // Filter establishments
-  const handleFilterEstablishments = () => {
-    let filtered = [...establishments];
-    
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(est => 
-        est.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        est.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    // Filter by type
-    if (filterType !== 'all') {
-      filtered = filtered.filter(est => est.type === filterType);
-    }
-    
-    setFilteredEstablishments(filtered);
-  };
-  
-  // Handle establishment selection
-  const handleSelectEstablishment = (establishment: Establishment) => {
-    setSelectedEstablishment(establishment);
+  // Handle restaurant selection
+  const handleSelectRestaurant = (restaurant: Business) => {
+    setSelectedRestaurant(restaurant);
     // Default time to a reasonable hour
     const defaultHour = '19:00';
     setReservationTime(defaultHour);
   };
   
+  // Handle search
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    filterRestaurants(query);
+  };
+  
   // Handle reservation creation
-  const handleCreateReservation = () => {
-    if (!selectedEstablishment || !reservationDate || !reservationTime || !partySize) {
+  const handleCreateReservation = async () => {
+    if (!selectedRestaurant || !reservationDate || !reservationTime || !partySize) {
       toast({
         title: "Information incomplète",
         description: "Veuillez remplir tous les champs requis.",
@@ -318,26 +132,18 @@ const UserReservations = () => {
       return;
     }
     
-    // Create a new reservation
-    const newReservation: Reservation = {
-      id: `res-${Math.floor(Math.random() * 10000)}`,
-      establishmentId: selectedEstablishment.id,
-      establishmentName: selectedEstablishment.name,
-      establishmentType: selectedEstablishment.type,
-      establishmentImage: selectedEstablishment.image,
-      date: reservationDate,
+    const result = await createReservation({
+      business_id: selectedRestaurant.id,
+      business_name: selectedRestaurant.name,
+      date: format(reservationDate, 'yyyy-MM-dd'),
       time: reservationTime,
-      partySize: parseInt(partySize, 10),
-      status: 'pending',
-      notes: notes,
-      createdAt: new Date()
-    };
+      guests: parseInt(partySize, 10),
+      special_requests: notes
+    });
     
-    // Add the new reservation to the list
-    setReservations([newReservation, ...reservations]);
-    
+    if (result.success) {
     // Reset form
-    setSelectedEstablishment(null);
+      setSelectedRestaurant(null);
     setReservationDate(new Date());
     setReservationTime('');
     setPartySize('2');
@@ -351,18 +157,22 @@ const UserReservations = () => {
       title: "Réservation créée",
       description: "Votre demande de réservation a été soumise avec succès.",
     });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de la création de la réservation",
+        variant: "destructive",
+      });
+    }
   };
   
   // Handle reservation cancellation
-  const handleCancelReservation = () => {
+  const handleCancelReservation = async () => {
     if (!reservationToCancel) return;
     
-    // Update reservation status
-    const updatedReservations = reservations.map(res => 
-      res.id === reservationToCancel ? { ...res, status: 'cancelled' } : res
-    );
+    const result = await cancelReservation(reservationToCancel);
     
-    setReservations(updatedReservations);
+    if (result.success) {
     setConfirmCancelOpen(false);
     setReservationToCancel(null);
     
@@ -370,18 +180,25 @@ const UserReservations = () => {
       title: "Réservation annulée",
       description: "Votre réservation a été annulée avec succès.",
     });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de l'annulation",
+        variant: "destructive",
+      });
+    }
   };
   
   // Filter reservations by status
   const upcomingReservations = reservations.filter(res => 
     (res.status === 'confirmed' || res.status === 'pending') && 
-    (new Date(`${format(res.date, 'yyyy-MM-dd')}T${res.time}`) > new Date())
+    (new Date(`${res.date}T${res.time}`) > new Date())
   );
   
   const pastReservations = reservations.filter(res => 
     res.status === 'completed' || 
     res.status === 'cancelled' ||
-    (new Date(`${format(res.date, 'yyyy-MM-dd')}T${res.time}`) <= new Date())
+    (new Date(`${res.date}T${res.time}`) <= new Date())
   );
   
   return (
@@ -397,6 +214,17 @@ const UserReservations = () => {
           </Button>
         </div>
 
+        {reservationsLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-500">Chargement de vos réservations...</span>
+          </div>
+        ) : reservationsError ? (
+          <div className="flex items-center justify-center py-12">
+            <AlertCircle className="h-8 w-8 text-red-400" />
+            <span className="ml-2 text-red-500">Erreur: {reservationsError}</span>
+          </div>
+        ) : (
         <Tabs defaultValue="upcoming" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="upcoming">À venir ({upcomingReservations.length})</TabsTrigger>
@@ -410,7 +238,7 @@ const UserReservations = () => {
                   <Calendar className="h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-center text-lg font-medium">Vous n'avez pas de réservations à venir</p>
                   <p className="text-center text-sm text-gray-500 mt-1 mb-4">
-                    Réservez une table dans un restaurant ou un rendez-vous dans un salon de beauté.
+                      Réservez une table dans un restaurant.
                   </p>
                   <Button onClick={() => setBookingOpen(true)}>
                     Faire une réservation
@@ -423,24 +251,29 @@ const UserReservations = () => {
                   <Card key={reservation.id} className="overflow-hidden">
                     <div className="h-36 bg-gray-100 relative">
                       <img 
-                        src={reservation.establishmentImage} 
-                        alt={reservation.establishmentName}
+                          src={reservation.business_logo || reservation.business_cover_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(reservation.business_name)}&background=0D8ABC&color=fff`}
+                          alt={reservation.business_name}
                         className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback vers l'avatar si l'image ne charge pas
+                            const target = e.target as HTMLImageElement;
+                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(reservation.business_name)}&background=0D8ABC&color=fff`;
+                          }}
                       />
                       <div className="absolute top-2 right-2">
                         {getStatusBadge(reservation.status)}
                       </div>
                     </div>
                     <CardHeader className="pb-2">
-                      <CardTitle>{reservation.establishmentName}</CardTitle>
+                        <CardTitle>{reservation.business_name}</CardTitle>
                       <CardDescription>
-                        {getEstablishmentTypeLabel(reservation.establishmentType)}
+                          {reservation.business_cuisine_type || 'Restaurant'}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2 pb-2">
                       <div className="flex items-center text-sm">
                         <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-                        <span>{format(reservation.date, 'dd MMMM yyyy', { locale: fr })}</span>
+                          <span>{format(new Date(reservation.date), 'dd MMMM yyyy', { locale: fr })}</span>
                       </div>
                       <div className="flex items-center text-sm">
                         <Clock className="mr-2 h-4 w-4 text-gray-500" />
@@ -448,12 +281,18 @@ const UserReservations = () => {
                       </div>
                       <div className="flex items-center text-sm">
                         <User className="mr-2 h-4 w-4 text-gray-500" />
-                        <span>{reservation.partySize} {reservation.partySize > 1 ? 'personnes' : 'personne'}</span>
+                          <span>{reservation.guests} {reservation.guests > 1 ? 'personnes' : 'personne'}</span>
+                        </div>
+                        {reservation.business_address && (
+                          <div className="flex items-center text-sm">
+                            <MapPin className="mr-2 h-4 w-4 text-gray-500" />
+                            <span className="text-gray-600">{reservation.business_address}</span>
                       </div>
-                      {reservation.notes && (
+                        )}
+                        {reservation.special_requests && (
                         <div className="text-sm bg-gray-50 p-2 rounded-md">
                           <p className="font-medium mb-1">Notes:</p>
-                          <p className="text-gray-600">{reservation.notes}</p>
+                            <p className="text-gray-600">{reservation.special_requests}</p>
                         </div>
                       )}
                     </CardContent>
@@ -494,24 +333,29 @@ const UserReservations = () => {
                   <Card key={reservation.id} className="overflow-hidden">
                     <div className="h-36 bg-gray-100 relative">
                       <img 
-                        src={reservation.establishmentImage} 
-                        alt={reservation.establishmentName}
+                          src={reservation.business_logo || reservation.business_cover_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(reservation.business_name)}&background=0D8ABC&color=fff`}
+                          alt={reservation.business_name}
                         className="w-full h-full object-cover opacity-70"
+                          onError={(e) => {
+                            // Fallback vers l'avatar si l'image ne charge pas
+                            const target = e.target as HTMLImageElement;
+                            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(reservation.business_name)}&background=0D8ABC&color=fff`;
+                          }}
                       />
                       <div className="absolute top-2 right-2">
                         {getStatusBadge(reservation.status)}
                       </div>
                     </div>
                     <CardHeader className="pb-2">
-                      <CardTitle>{reservation.establishmentName}</CardTitle>
+                        <CardTitle>{reservation.business_name}</CardTitle>
                       <CardDescription>
-                        {getEstablishmentTypeLabel(reservation.establishmentType)}
+                          {reservation.business_cuisine_type || 'Restaurant'}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <div className="flex items-center text-sm">
                         <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-                        <span>{format(reservation.date, 'dd MMMM yyyy', { locale: fr })}</span>
+                          <span>{format(new Date(reservation.date), 'dd MMMM yyyy', { locale: fr })}</span>
                       </div>
                       <div className="flex items-center text-sm">
                         <Clock className="mr-2 h-4 w-4 text-gray-500" />
@@ -519,8 +363,14 @@ const UserReservations = () => {
                       </div>
                       <div className="flex items-center text-sm">
                         <User className="mr-2 h-4 w-4 text-gray-500" />
-                        <span>{reservation.partySize} {reservation.partySize > 1 ? 'personnes' : 'personne'}</span>
+                          <span>{reservation.guests} {reservation.guests > 1 ? 'personnes' : 'personne'}</span>
+                        </div>
+                        {reservation.business_address && (
+                          <div className="flex items-center text-sm">
+                            <MapPin className="mr-2 h-4 w-4 text-gray-500" />
+                            <span className="text-gray-600">{reservation.business_address}</span>
                       </div>
+                        )}
                     </CardContent>
                   </Card>
                 ))}
@@ -528,6 +378,7 @@ const UserReservations = () => {
             )}
           </TabsContent>
         </Tabs>
+        )}
       </div>
       
       {/* New Reservation Dialog */}
@@ -536,84 +387,79 @@ const UserReservations = () => {
           <DialogHeader>
             <DialogTitle>Nouvelle réservation</DialogTitle>
             <DialogDescription>
-              Réservez dans un restaurant, café ou salon de beauté à Conakry.
+              Réservez dans un restaurant à Conakry.
             </DialogDescription>
           </DialogHeader>
           
-          {!selectedEstablishment ? (
+          {!selectedRestaurant ? (
             <div className="space-y-4">
               <div className="flex flex-col md:flex-row gap-2">
                 <div className="flex-1">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                     <Input
-                      placeholder="Rechercher un établissement..."
+                      placeholder="Rechercher un restaurant..."
                       className="pl-9"
                       value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        handleFilterEstablishments();
-                      }}
+                      onChange={(e) => handleSearch(e.target.value)}
                     />
                   </div>
                 </div>
-                <Select
-                  value={filterType}
-                  onValueChange={(value) => {
-                    setFilterType(value);
-                    handleFilterEstablishments();
-                  }}
-                >
-                  <SelectTrigger className="w-full md:w-[180px]">
-                    <div className="flex items-center">
-                      <Filter className="mr-2 h-4 w-4" />
-                      <SelectValue placeholder="Filtrer par type" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les types</SelectItem>
-                    <SelectItem value="restaurant">Restaurants</SelectItem>
-                    <SelectItem value="cafe">Cafés</SelectItem>
-                    <SelectItem value="salon">Salons de beauté</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               
+              {restaurantsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  <span className="ml-2 text-gray-500">Chargement des restaurants...</span>
+                </div>
+              ) : restaurantsError ? (
+                <div className="flex items-center justify-center py-8">
+                  <AlertCircle className="h-8 w-8 text-red-400" />
+                  <span className="ml-2 text-red-500">Erreur: {restaurantsError}</span>
+                </div>
+              ) : filteredRestaurants.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-gray-500">
+                    {searchQuery ? 'Aucun restaurant trouvé pour votre recherche.' : 'Aucun restaurant disponible.'}
+                  </p>
+                </div>
+              ) : (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-                {filteredEstablishments.map(establishment => (
+                  {filteredRestaurants.map(restaurant => (
                   <Card 
-                    key={establishment.id} 
+                      key={restaurant.id} 
                     className="cursor-pointer hover:border-guinea-red/50 transition-colors"
-                    onClick={() => handleSelectEstablishment(establishment)}
+                      onClick={() => handleSelectRestaurant(restaurant)}
                   >
                     <div className="flex h-full">
                       <div className="w-1/3 bg-gray-100">
                         <img 
-                          src={establishment.image} 
-                          alt={establishment.name}
+                            src={restaurant.cover_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(restaurant.name)}&background=0D8ABC&color=fff`} 
+                            alt={restaurant.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <div className="w-2/3 p-4">
-                        <h3 className="font-semibold">{establishment.name}</h3>
-                        <p className="text-sm text-gray-500">{getEstablishmentTypeLabel(establishment.type)}</p>
+                          <h3 className="font-semibold">{restaurant.name}</h3>
+                          <p className="text-sm text-gray-500">Restaurant</p>
                         <div className="flex items-center mt-1 text-sm">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 mr-1" />
-                          <span>{establishment.rating}</span>
+                            <span>{restaurant.rating}</span>
                         </div>
                         <div className="mt-2 text-xs text-gray-600 flex items-start">
                           <MapPin className="h-3 w-3 mr-1 mt-0.5 flex-shrink-0" />
-                          <span>{establishment.address}</span>
+                            <span>{restaurant.address}</span>
                         </div>
                         <div className="mt-2 text-xs text-gray-600 flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
-                          <span>{establishment.openingHours.open} - {establishment.openingHours.close}</span>
+                            <span>{restaurant.opening_hours || 'Horaires non disponibles'}</span>
                         </div>
                       </div>
                     </div>
                   </Card>
                 ))}
               </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -621,19 +467,19 @@ const UserReservations = () => {
                 <Button 
                   variant="ghost" 
                   className="p-0 h-auto mr-2"
-                  onClick={() => setSelectedEstablishment(null)}
+                  onClick={() => setSelectedRestaurant(null)}
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <h3 className="font-semibold text-lg">{selectedEstablishment.name}</h3>
+                <h3 className="font-semibold text-lg">{selectedRestaurant.name}</h3>
               </div>
               
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
                 <div>
                   <div className="bg-gray-100 h-40 rounded-md overflow-hidden">
                     <img 
-                      src={selectedEstablishment.image} 
-                      alt={selectedEstablishment.name}
+                      src={selectedRestaurant.cover_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedRestaurant.name)}&background=0D8ABC&color=fff`} 
+                      alt={selectedRestaurant.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -641,31 +487,29 @@ const UserReservations = () => {
                   <div className="mt-4 space-y-2">
                     <div className="flex items-start">
                       <MapPin className="h-4 w-4 mr-2 mt-0.5 text-gray-500 flex-shrink-0" />
-                      <span>{selectedEstablishment.address}</span>
+                      <span>{selectedRestaurant.address}</span>
                     </div>
                     <div className="flex items-center">
                       <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>{selectedEstablishment.phone}</span>
+                      <span>{selectedRestaurant.phone || 'Téléphone non disponible'}</span>
                     </div>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>Ouvert de {selectedEstablishment.openingHours.open} à {selectedEstablishment.openingHours.close}</span>
+                      <span>Ouvert: {selectedRestaurant.opening_hours || 'Horaires non disponibles'}</span>
                     </div>
                   </div>
                   
                   <div className="mt-4">
-                    <p className="text-sm text-gray-700">{selectedEstablishment.description}</p>
+                    <p className="text-sm text-gray-700">{selectedRestaurant.description || 'Aucune description disponible.'}</p>
                   </div>
                   
+                  {selectedRestaurant.cuisine_type && (
                   <div className="mt-4">
-                    <div className="flex flex-wrap gap-2">
-                      {selectedEstablishment.features.map((feature, index) => (
-                        <Badge key={index} variant="outline" className="bg-gray-50">
-                          {feature}
+                      <Badge variant="outline" className="bg-gray-50">
+                        {selectedRestaurant.cuisine_type}
                         </Badge>
-                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
                 
                 <div className="space-y-4">
@@ -704,10 +548,7 @@ const UserReservations = () => {
                         <SelectValue placeholder="Choisir une heure" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getTimeOptions(
-                          selectedEstablishment.openingHours.open, 
-                          selectedEstablishment.openingHours.close
-                        ).map(time => (
+                        {getTimeOptions(selectedRestaurant.opening_hours || '12:00-22:00').map(time => (
                           <SelectItem key={time} value={time}>
                             {time}
                           </SelectItem>
@@ -749,7 +590,7 @@ const UserReservations = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setBookingOpen(false)}>Annuler</Button>
-            {selectedEstablishment && (
+            {selectedRestaurant && (
               <Button 
                 onClick={handleCreateReservation}
                 disabled={!reservationDate || !reservationTime || !partySize}
@@ -774,7 +615,7 @@ const UserReservations = () => {
           <div className="flex items-center py-2">
             <AlertCircle className="h-6 w-6 text-red-500 mr-2" />
             <p className="text-sm text-gray-600">
-              L'établissement sera informé de l'annulation de votre réservation.
+              Le restaurant sera informé de l'annulation de votre réservation.
             </p>
           </div>
           <DialogFooter>

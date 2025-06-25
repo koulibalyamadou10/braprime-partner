@@ -138,32 +138,32 @@ const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) =>
 export const userNavItems = [
   {
     href: '/dashboard',
-    label: 'Dashboard',
+    label: 'Tableau de bord',
     icon: <Home className="h-5 w-5" />,
   },
   {
     href: '/dashboard/orders',
-    label: 'Orders',
+    label: 'Commandes',
     icon: <ShoppingBag className="h-5 w-5" />,
   },
   {
     href: '/dashboard/reservations',
-    label: 'Reservations',
+    label: 'Réservations',
     icon: <Calendar className="h-5 w-5" />,
   },
   {
     href: '/dashboard/profile',
-    label: 'Profile',
+    label: 'Profil',
     icon: <UserCircle className="h-5 w-5" />,
   },
   {
     href: '/dashboard/addresses',
-    label: 'Addresses',
+    label: 'Adresses',
     icon: <MapPin className="h-5 w-5" />,
   },
   {
     href: '/dashboard/payments',
-    label: 'Payment Methods',
+    label: 'Moyens de paiement',
     icon: <CreditCard className="h-5 w-5" />,
   },
   {
@@ -176,12 +176,12 @@ export const userNavItems = [
 export const partnerNavItems = [
   {
     href: '/partner-dashboard',
-    label: 'Dashboard',
+    label: 'Tableau de bord',
     icon: <Home className="h-5 w-5" />,
   },
   {
     href: '/partner-dashboard/orders',
-    label: 'Orders',
+    label: 'Commandes',
     icon: <ShoppingBag className="h-5 w-5" />,
   },
   {
@@ -191,22 +191,22 @@ export const partnerNavItems = [
   },
   {
     href: '/partner-dashboard/reservations',
-    label: 'Reservations',
+    label: 'Réservations',
     icon: <Bell className="h-5 w-5" />,
   },
   {
     href: '/partner-dashboard/revenue',
-    label: 'Revenue',
+    label: 'Revenus',
     icon: <CreditCard className="h-5 w-5" />,
   },
   {
     href: '/partner-dashboard/profile',
-    label: 'Profile',
+    label: 'Profil',
     icon: <UserCircle className="h-5 w-5" />,
   },
   {
     href: '/partner-dashboard/settings',
-    label: 'Settings',
+    label: 'Paramètres',
     icon: <MapPin className="h-5 w-5" />,
   },
 ];

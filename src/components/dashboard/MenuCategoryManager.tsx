@@ -27,7 +27,10 @@ import {
   Edit, 
   Trash2, 
   GripVertical, 
-  MoreHorizontal 
+  MoreHorizontal,
+  Store,
+  Check,
+  X
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -38,7 +41,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
-import { PartnerMenuCategory, MenuCategoryCreate, MenuCategoryUpdate } from '@/lib/services/partner-menu';
+import { PartnerMenuCategory, MenuCategoryCreate, MenuCategoryUpdate, PartnerMenuItem } from '@/lib/services/partner-menu';
 import { useCreateMenuCategory, useUpdateMenuCategory, useDeleteMenuCategory } from '@/hooks/use-partner-menu';
 
 const categorySchema = z.object({
@@ -52,10 +55,11 @@ type CategoryFormValues = z.infer<typeof categorySchema>;
 interface MenuCategoryManagerProps {
   businessId: number;
   categories: PartnerMenuCategory[];
+  items?: PartnerMenuItem[]; // Ajout des articles pour compter
   onCategoryUpdate: () => void;
 }
 
-const MenuCategoryManager = ({ businessId, categories, onCategoryUpdate }: MenuCategoryManagerProps) => {
+const MenuCategoryManager = ({ businessId, categories, items = [], onCategoryUpdate }: MenuCategoryManagerProps) => {
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentCategory, setCurrentCategory] = useState<PartnerMenuCategory | null>(null);
@@ -73,6 +77,13 @@ const MenuCategoryManager = ({ businessId, categories, onCategoryUpdate }: MenuC
       is_active: true,
     },
   });
+
+  // Statistiques
+  const totalCategories = categories.length;
+  const activeCategories = categories.filter(cat => cat.is_active).length;
+  const categoriesWithItems = categories.filter(cat => 
+    items.some(item => item.category_id === cat.id)
+  ).length;
 
   const handleAddCategory = () => {
     setFormMode('add');
@@ -104,6 +115,14 @@ const MenuCategoryManager = ({ businessId, categories, onCategoryUpdate }: MenuC
   const handleDeleteCategory = async () => {
     if (!currentCategory) return;
 
+    // Vérifier s'il y a des articles dans cette catégorie
+    const itemsInCategory = items.filter(item => item.category_id === currentCategory.id);
+    if (itemsInCategory.length > 0) {
+      alert(`Impossible de supprimer cette catégorie car elle contient ${itemsInCategory.length} article(s). Veuillez d'abord déplacer ou supprimer ces articles.`);
+      setIsDeleteOpen(false);
+      return;
+    }
+
     await deleteCategoryMutation.mutateAsync(currentCategory.id);
     setIsDeleteOpen(false);
     setCurrentCategory(null);
@@ -113,7 +132,9 @@ const MenuCategoryManager = ({ businessId, categories, onCategoryUpdate }: MenuC
   const onSubmit = async (data: CategoryFormValues) => {
     if (formMode === 'add') {
       const newCategory: MenuCategoryCreate = {
-        ...data,
+        name: data.name,
+        sort_order: data.sort_order,
+        is_active: data.is_active,
         business_id: businessId,
       };
       await createCategoryMutation.mutateAsync(newCategory);
@@ -136,6 +157,10 @@ const MenuCategoryManager = ({ businessId, categories, onCategoryUpdate }: MenuC
 
   const sortedCategories = [...categories].sort((a, b) => a.sort_order - b.sort_order);
 
+  const getCategoryItemCount = (categoryId: number) => {
+    return items.filter(item => item.category_id === categoryId).length;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -149,6 +174,43 @@ const MenuCategoryManager = ({ businessId, categories, onCategoryUpdate }: MenuC
           <Plus className="h-4 w-4" />
           Ajouter une Catégorie
         </Button>
+      </div>
+
+      {/* Statistiques des catégories */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Store className="h-4 w-4 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Catégories</p>
+                <p className="text-2xl font-bold">{totalCategories}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Check className="h-4 w-4 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Catégories Actives</p>
+                <p className="text-2xl font-bold">{activeCategories}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <X className="h-4 w-4 text-orange-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-600">Avec Articles</p>
+                <p className="text-2xl font-bold">{categoriesWithItems}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -168,59 +230,73 @@ const MenuCategoryManager = ({ businessId, categories, onCategoryUpdate }: MenuC
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedCategories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <GripVertical className="h-4 w-4 text-gray-400" />
-                        <span className="font-mono text-sm">{category.sort_order}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{category.name}</p>
-                        <p className="text-xs text-gray-500">
-                          ID: {category.id}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={category.is_active ? "default" : "secondary"}
-                      >
-                        {category.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-500">
-                        {/* TODO: Compter les articles dans cette catégorie */}
-                        0 articles
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditCategory(category)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteDialog(category)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Supprimer
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {sortedCategories.map((category) => {
+                  const itemCount = getCategoryItemCount(category.id);
+                  return (
+                    <TableRow key={category.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="h-4 w-4 text-gray-400" />
+                          <span className="font-mono text-sm">{category.sort_order}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{category.name}</p>
+                          <p className="text-xs text-gray-500">
+                            ID: {category.id}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={category.is_active ? "default" : "secondary"}
+                        >
+                          {category.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{itemCount}</span>
+                          <span className="text-sm text-gray-500">
+                            article{itemCount !== 1 ? 's' : ''}
+                          </span>
+                          {itemCount > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              Utilisée
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditCategory(category)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteDialog(category)}
+                              className="text-red-600"
+                              disabled={itemCount > 0}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Supprimer
+                              {itemCount > 0 && (
+                                <span className="ml-1 text-xs">(Non vide)</span>
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (

@@ -10,7 +10,16 @@ export interface PartnerMenuItem {
   category_id: number;
   business_id: number;
   is_available: boolean;
-  preparation_time: number; // en minutes
+  preparation_time: number;
+  allergens: string[];
+  nutritional_info: {
+    calories?: number;
+    proteines?: number;
+    glucides?: number;
+    lipides?: number;
+    fibres?: number;
+  };
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +30,7 @@ export interface PartnerMenuCategory {
   business_id: number;
   sort_order: number;
   is_active: boolean;
+  description?: string;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +45,15 @@ export interface MenuItemCreate {
   business_id: number;
   is_available: boolean;
   preparation_time: number;
+  allergens?: string[];
+  nutritional_info?: {
+    calories?: number;
+    proteines?: number;
+    glucides?: number;
+    lipides?: number;
+    fibres?: number;
+  };
+  sort_order?: number;
 }
 
 export interface MenuItemUpdate {
@@ -46,6 +65,15 @@ export interface MenuItemUpdate {
   category_id?: number;
   is_available?: boolean;
   preparation_time?: number;
+  allergens?: string[];
+  nutritional_info?: {
+    calories?: number;
+    proteines?: number;
+    glucides?: number;
+    lipides?: number;
+    fibres?: number;
+  };
+  sort_order?: number;
 }
 
 export interface MenuCategoryCreate {
