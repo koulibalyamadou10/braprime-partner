@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   Edit, 
@@ -27,18 +29,22 @@ import {
   Package,
   User,
   Car,
-  Motorcycle,
+  Zap,
   Bike,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Eye,
+  Key
 } from 'lucide-react';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DriverAuthManager } from '@/components/dashboard/DriverAuthManager';
 
 const PartnerDrivers = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<any>(null);
@@ -189,10 +195,14 @@ const PartnerDrivers = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleViewDetails = (driver: any) => {
+    navigate(`/partner-dashboard/drivers/${driver.id}`);
+  };
+
   const getVehicleIcon = (vehicleType: string) => {
     switch (vehicleType) {
       case 'car': return <Car className="h-4 w-4" />;
-      case 'motorcycle': return <Motorcycle className="h-4 w-4" />;
+      case 'motorcycle': return <Zap className="h-4 w-4" />;
       case 'bike': return <Bike className="h-4 w-4" />;
       default: return <Truck className="h-4 w-4" />;
     }
@@ -399,125 +409,152 @@ const PartnerDrivers = () => {
           </Card>
         </div>
 
-        {/* Liste des livreurs */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Liste des Livreurs</CardTitle>
-            <CardDescription>
-              Gérez votre équipe de livreurs et leurs informations.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {drivers.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Livreur</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Véhicule</TableHead>
-                    <TableHead>Statistiques</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {drivers.map((driver) => (
-                    <TableRow key={driver.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <Avatar>
-                            <AvatarFallback>
-                              <User className="h-4 w-4" />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{driver.name}</p>
-                            <p className="text-sm text-gray-500">ID: {driver.id.slice(0, 8)}...</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <Phone className="h-3 w-3 text-gray-500" />
-                            <span className="text-sm">{driver.phone}</span>
-                          </div>
-                          {driver.email && (
-                            <div className="flex items-center space-x-2">
-                              <Mail className="h-3 w-3 text-gray-500" />
-                              <span className="text-sm">{driver.email}</span>
+        {/* Onglets */}
+        <Tabs defaultValue="list" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="list" className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              Liste des Livreurs
+            </TabsTrigger>
+            <TabsTrigger value="auth" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              Comptes de Connexion
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="list" className="space-y-6">
+            {/* Liste des livreurs */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Liste des Livreurs</CardTitle>
+                <CardDescription>
+                  Gérez votre équipe de livreurs et leurs informations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {drivers.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Livreur</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Véhicule</TableHead>
+                        <TableHead>Statistiques</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {drivers.map((driver) => (
+                        <TableRow key={driver.id}>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <Avatar>
+                                <AvatarFallback>
+                                  <User className="h-4 w-4" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{driver.name}</p>
+                                <p className="text-sm text-gray-500">ID: {driver.id.slice(0, 8)}...</p>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {driver.vehicle_type ? (
-                          <div className="flex items-center space-x-2">
-                            {getVehicleIcon(driver.vehicle_type)}
-                            <div>
-                              <p className="text-sm font-medium">{getVehicleLabel(driver.vehicle_type)}</p>
-                              {driver.vehicle_plate && (
-                                <p className="text-xs text-gray-500">{driver.vehicle_plate}</p>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <Phone className="h-3 w-3 text-gray-500" />
+                                <span className="text-sm">{driver.phone}</span>
+                              </div>
+                              {driver.email && (
+                                <div className="flex items-center space-x-2">
+                                  <Mail className="h-3 w-3 text-gray-500" />
+                                  <span className="text-sm">{driver.email}</span>
+                                </div>
                               )}
                             </div>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-500">Non spécifié</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <Package className="h-3 w-3 text-gray-500" />
-                            <span className="text-sm">{driver.total_deliveries || 0} livraisons</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Star className="h-3 w-3 text-gray-500" />
-                            <span className="text-sm">{driver.rating || 0} étoiles</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          {getStatusIcon(driver.is_active)}
-                          <Badge variant={driver.is_active ? "default" : "secondary"}>
-                            {driver.is_active ? "Actif" : "Inactif"}
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(driver)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDeleteDialog(driver)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-8">
-                <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 mb-4">Aucun livreur ajouté</p>
-                <p className="text-sm text-gray-400">
-                  Commencez par ajouter votre premier livreur pour assurer la livraison de vos commandes.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          </TableCell>
+                          <TableCell>
+                            {driver.vehicle_type ? (
+                              <div className="flex items-center space-x-2">
+                                {getVehicleIcon(driver.vehicle_type)}
+                                <div>
+                                  <p className="text-sm font-medium">{getVehicleLabel(driver.vehicle_type)}</p>
+                                  {driver.vehicle_plate && (
+                                    <p className="text-xs text-gray-500">{driver.vehicle_plate}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-500">Non spécifié</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <Package className="h-3 w-3 text-gray-500" />
+                                <span className="text-sm">{driver.total_deliveries || 0} livraisons</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Star className="h-3 w-3 text-gray-500" />
+                                <span className="text-sm">{driver.rating || 0} étoiles</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              {getStatusIcon(driver.is_active)}
+                              <Badge variant={driver.is_active ? "default" : "secondary"}>
+                                {driver.is_active ? "Actif" : "Inactif"}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewDetails(driver)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditDialog(driver)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openDeleteDialog(driver)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8">
+                    <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-4">Aucun livreur ajouté</p>
+                    <p className="text-sm text-gray-400">
+                      Commencez par ajouter votre premier livreur pour assurer la livraison de vos commandes.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="auth" className="space-y-6">
+            <DriverAuthManager businessId={business?.id || 0} />
+          </TabsContent>
+        </Tabs>
 
         {/* Dialog d'édition */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

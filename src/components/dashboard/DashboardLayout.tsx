@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Menu, X, LogOut, Home, ChevronRight, 
-  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck
+  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck, Key, Building2, Users, BarChart3, Settings, Shield
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -200,6 +200,11 @@ export const partnerNavItems = [
     icon: <Truck className="h-5 w-5" />,
   },
   {
+    href: '/partner-dashboard/driver-auth',
+    label: 'Comptes Livreurs',
+    icon: <Key className="h-5 w-5" />,
+  },
+  {
     href: '/partner-dashboard/revenue',
     label: 'Revenus',
     icon: <CreditCard className="h-5 w-5" />,
@@ -213,6 +218,49 @@ export const partnerNavItems = [
     href: '/partner-dashboard/settings',
     label: 'Paramètres',
     icon: <MapPin className="h-5 w-5" />,
+  },
+];
+
+export const adminNavItems = [
+  {
+    href: '/admin-dashboard',
+    label: 'Tableau de bord',
+    icon: <Home className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/businesses',
+    label: 'Commerces',
+    icon: <Building2 className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/users',
+    label: 'Utilisateurs',
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/orders',
+    label: 'Commandes',
+    icon: <ShoppingBag className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/drivers',
+    label: 'Livreurs',
+    icon: <Truck className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/reports',
+    label: 'Rapports',
+    icon: <BarChart3 className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/system',
+    label: 'Système',
+    icon: <Settings className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/settings',
+    label: 'Paramètres',
+    icon: <Shield className="h-5 w-5" />,
   },
 ];
 

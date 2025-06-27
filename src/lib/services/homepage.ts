@@ -70,18 +70,38 @@ export class HomepageService {
       if (customersError) throw customersError;
 
       // Calculer le temps de livraison moyen
-      const { data: deliveryTimes, error: deliveryError } = await supabase
+      const { data: deliveredOrders, error: deliveryError } = await supabase
         .from('orders')
-        .select('delivery_time')
+        .select('created_at, actual_delivery')
         .eq('status', 'delivered')
-        .not('delivery_time', 'is', null);
+        .not('actual_delivery', 'is', null);
 
       if (deliveryError) throw deliveryError;
 
-      // Calculer le temps moyen (simulation basée sur les données)
-      const averageDeliveryTime = deliveryTimes && deliveryTimes.length > 0 
-        ? Math.round(deliveryTimes.length * 30) // Simulation basée sur le nombre de commandes
-        : 35; // Valeur par défaut
+      // Calculer le temps moyen de livraison
+      let averageDeliveryTime = 35; // Valeur par défaut
+      
+      if (deliveredOrders && deliveredOrders.length > 0) {
+        let totalDeliveryTime = 0;
+        let validOrders = 0;
+        
+        deliveredOrders.forEach(order => {
+          if (order.created_at && order.actual_delivery) {
+            const createdTime = new Date(order.created_at).getTime();
+            const deliveredTime = new Date(order.actual_delivery).getTime();
+            const deliveryTimeMinutes = (deliveredTime - createdTime) / (1000 * 60);
+            
+            if (deliveryTimeMinutes > 0 && deliveryTimeMinutes < 180) { // Entre 0 et 3 heures
+              totalDeliveryTime += deliveryTimeMinutes;
+              validOrders++;
+            }
+          }
+        });
+        
+        if (validOrders > 0) {
+          averageDeliveryTime = Math.round(totalDeliveryTime / validOrders);
+        }
+      }
 
       return {
         totalRestaurants: businessesCount || 0,

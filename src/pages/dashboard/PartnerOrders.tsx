@@ -26,11 +26,14 @@ import {
   Calendar,
   DollarSign,
   MoreHorizontal,
-  ChevronDown
+  ChevronDown,
+  Truck,
+  Zap
 } from 'lucide-react';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
 import { toast } from 'sonner';
+import { AssignDriverDialog } from '@/components/AssignDriverDialog';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -48,6 +51,10 @@ const PartnerOrders = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // État pour l'assignation de livreur
+  const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
+  const [orderToAssign, setOrderToAssign] = useState<DashboardOrder | null>(null);
 
   // Charger les commandes du business
   const loadOrders = async () => {
@@ -123,6 +130,33 @@ const PartnerOrders = () => {
   const handleOrderSelect = (order: DashboardOrder) => {
     setSelectedOrder(order);
     setIsDetailsOpen(true);
+  };
+
+  // Gérer l'ouverture du dialogue d'assignation de livreur
+  const handleAssignDriver = (order: DashboardOrder) => {
+    setOrderToAssign(order);
+    setIsAssignDriverOpen(true);
+  };
+
+  // Gérer l'assignation réussie d'un livreur
+  const handleDriverAssigned = async (driverId: string, driverName: string, driverPhone: string) => {
+    if (!orderToAssign) return;
+
+    try {
+      // Mettre à jour le statut de la commande vers "out_for_delivery"
+      const success = await updateOrderStatus(orderToAssign.id, 'out_for_delivery');
+      
+      if (success) {
+        toast.success(`Livreur assigné et commande mise en livraison`);
+        // Recharger les commandes
+        await loadOrders();
+      } else {
+        toast.error('Erreur lors de la mise à jour du statut');
+      }
+    } catch (err) {
+      console.error('Erreur lors de l\'assignation:', err);
+      toast.error('Erreur lors de l\'assignation du livreur');
+    }
   };
 
   // Formater les montants
@@ -487,6 +521,19 @@ const PartnerOrders = () => {
                             Statut: {order.status} | Options: {getAvailableStatusOptions(order.status).length}
                           </div>
                           
+                          {/* Bouton d'assignation de livreur pour les commandes prêtes */}
+                          {order.status === 'ready' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAssignDriver(order)}
+                              className="flex items-center gap-1"
+                            >
+                              <Truck className="h-4 w-4" />
+                              Assigner livreur
+                            </Button>
+                          )}
+                          
                           {/* Menu déroulant pour changer le statut - toujours affiché */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -639,6 +686,21 @@ const PartnerOrders = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialogue d'assignation de livreur */}
+      {orderToAssign && (
+        <AssignDriverDialog
+          isOpen={isAssignDriverOpen}
+          onClose={() => {
+            setIsAssignDriverOpen(false);
+            setOrderToAssign(null);
+          }}
+          orderId={orderToAssign.id}
+          orderNumber={orderToAssign.id.slice(0, 8)}
+          businessId={business.id}
+          onDriverAssigned={handleDriverAssigned}
+        />
+      )}
     </DashboardLayout>
   );
 };

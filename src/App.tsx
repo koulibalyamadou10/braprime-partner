@@ -61,9 +61,15 @@ const PartnerOrders = lazy(() => import("./pages/dashboard/PartnerOrders"));
 const PartnerMenu = lazy(() => import("./pages/dashboard/PartnerMenu"));
 const PartnerReservations = lazy(() => import("./pages/dashboard/PartnerReservations"));
 const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers"));
+const DriverDetails = lazy(() => import("./pages/dashboard/DriverDetails"));
+const PartnerDriverAuth = lazy(() => import("./pages/dashboard/PartnerDriverAuth"));
 const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
 const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
+
+// Admin Dashboard Pages
+const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
+const DriverDashboard = lazy(() => import("./pages/dashboard/DriverDashboard"));
 
 const queryClient = new QueryClient();
 
@@ -198,6 +204,16 @@ const App = () => (
                     <PartnerDrivers />
                   </ProtectedRoute>
                 } />
+                <Route path="/partner-dashboard/driver-auth" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerDriverAuth />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/drivers/:driverId" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <DriverDetails />
+                  </ProtectedRoute>
+                } />
                 <Route path="/partner-dashboard/revenue" element={
                   <ProtectedRoute allowedRoles={["partner"]}>
                     <PartnerRevenue />
@@ -211,6 +227,18 @@ const App = () => (
                 <Route path="/partner-dashboard/settings" element={
                   <ProtectedRoute allowedRoles={["partner"]}>
                     <PartnerSettings />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Admin Dashboard Routes */}
+                <Route path="/admin-dashboard" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/driver-dashboard" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <DriverDashboard />
                   </ProtectedRoute>
                 } />
                 
