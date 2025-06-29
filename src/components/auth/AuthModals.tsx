@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth, type User } from '@/contexts/AuthContext';
-import { Loader2, Building2, MapPin, Phone, Clock, Truck } from 'lucide-react';
+import { Loader2, Building2, MapPin, Phone, Clock, Truck, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAvailableServiceTypes } from '@/hooks/use-dashboard';
 
@@ -92,27 +92,6 @@ export const AuthModals = ({
     setIsLoggingIn(true);
     
     try {
-      // Demo accounts
-      if (loginEmail === 'demo') {
-        await login('customer@example.com', 'password');
-        toast({
-          title: "Connexion réussie",
-          description: "Vous êtes connecté en tant que client de démonstration.",
-        });
-        resetLoginForm();
-        onLoginClose();
-        return;
-      } else if (loginEmail === 'demop' || loginEmail === 'demo-partner') {
-        await login('partner@example.com', 'password');
-        toast({
-          title: "Connexion réussie",
-          description: "Vous êtes connecté en tant que partenaire de démonstration.",
-        });
-        resetLoginForm();
-        onLoginClose();
-        return;
-      }
-      
       // Regular login
       const success = await login(loginEmail, loginPassword);
       
@@ -318,35 +297,6 @@ export const AuthModals = ({
                 {formErrors.loginPassword && (
                   <p className="text-sm text-red-500">{formErrors.loginPassword}</p>
                 )}
-              </div>
-              
-              {/* Demo accounts section */}
-              <div className="space-y-2 pt-2 border-t">
-                <p className="text-sm font-medium">Comptes de démonstration (Mot de passe: "password" pour tous)</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setLoginEmail('customer@example.com');
-                      setLoginPassword('password');
-                    }}
-                  >
-                    Client
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setLoginEmail('partner@example.com');
-                      setLoginPassword('password');
-                    }}
-                  >
-                    Partenaire
-                  </Button>
-                </div>
               </div>
               
               <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">

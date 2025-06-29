@@ -13,6 +13,9 @@ export interface Driver {
   total_deliveries: number;
   vehicle_type?: string;
   vehicle_plate?: string;
+  total_earnings: number;
+  is_verified: boolean;
+  avatar_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -167,7 +170,9 @@ export class DriverService {
           ...driverData,
           is_active: true,
           rating: 0,
-          total_deliveries: 0
+          total_deliveries: 0,
+          total_earnings: 0,
+          is_verified: false
         }])
         .select()
         .single();

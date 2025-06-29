@@ -60,6 +60,19 @@ export interface Business {
   };
 }
 
+// Interface pour les types de business dans la base de données
+export interface BusinessTypeDB {
+  id: number;
+  name: string;
+  icon: string;
+  color: string;
+  description?: string;
+  features?: any[];
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type BusinessType = 
   | 'restaurant' 
   | 'cafe' 
@@ -285,6 +298,9 @@ export interface Driver {
   total_deliveries: number;
   vehicle_type?: 'car' | 'motorcycle' | 'bike';
   vehicle_plate?: string;
+  total_earnings: number;
+  is_verified: boolean;
+  avatar_url?: string;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { BusinessTypeDB } from '@/lib/types'
 
 export interface PartnerRegistrationData {
   // Informations du propriétaire
@@ -216,11 +217,11 @@ export class PartnerRegistrationService {
   }
 
   // Obtenir les types de business disponibles
-  static async getBusinessTypes(): Promise<{ id: number; name: string; icon: string; color: string }[]> {
+  static async getBusinessTypes(): Promise<BusinessTypeDB[]> {
     try {
       const { data, error } = await supabase
         .from('business_types')
-        .select('id, name, icon, color')
+        .select('*')
         .order('name')
 
       if (error) {

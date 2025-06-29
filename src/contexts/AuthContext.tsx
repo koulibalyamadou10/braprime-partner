@@ -3,7 +3,7 @@ import { AuthService, AuthUser } from '@/lib/services/auth';
 import { validateEnv } from '@/config/env';
 
 // Define user types
-export type UserRole = 'customer' | 'partner';
+export type UserRole = 'customer' | 'partner' | 'driver';
 
 export interface User {
   id: string;
@@ -13,6 +13,12 @@ export interface User {
   phoneNumber?: string;
   address?: string;
   profileImage?: string;
+  // Propriétés spécifiques aux livreurs
+  driverId?: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+  businessId?: number;
+  businessName?: string;
 }
 
 interface AuthContextType {
@@ -55,7 +61,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             role: user.role,
             phoneNumber: user.phone_number,
             address: user.address,
-            profileImage: user.profile_image
+            profileImage: user.profile_image,
+            // Données spécifiques aux livreurs
+            driverId: user.driver_id,
+            vehicleType: user.vehicle_type,
+            vehiclePlate: user.vehicle_plate,
+            businessId: user.business_id,
+            businessName: user.business_name
           };
           setCurrentUser(convertedUser);
         }
@@ -70,7 +82,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               role: user.role,
               phoneNumber: user.phone_number,
               address: user.address,
-              profileImage: user.profile_image
+              profileImage: user.profile_image,
+              // Données spécifiques aux livreurs
+              driverId: user.driver_id,
+              vehicleType: user.vehicle_type,
+              vehiclePlate: user.vehicle_plate,
+              businessId: user.business_id,
+              businessName: user.business_name
             };
             setCurrentUser(convertedUser);
           } else {
@@ -115,7 +133,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: user.role,
           phoneNumber: user.phone_number,
           address: user.address,
-          profileImage: user.profile_image
+          profileImage: user.profile_image,
+          // Données spécifiques aux livreurs
+          driverId: user.driver_id,
+          vehicleType: user.vehicle_type,
+          vehiclePlate: user.vehicle_plate,
+          businessId: user.business_id,
+          businessName: user.business_name
         };
         setCurrentUser(convertedUser);
         setIsLoading(false);
@@ -167,7 +191,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           role: user.role,
           phoneNumber: user.phone_number,
           address: user.address,
-          profileImage: user.profile_image
+          profileImage: user.profile_image,
+          // Données spécifiques aux livreurs
+          driverId: user.driver_id,
+          vehicleType: user.vehicle_type,
+          vehiclePlate: user.vehicle_plate,
+          businessId: user.business_id,
+          businessName: user.business_name
         };
         setCurrentUser(convertedUser);
         setIsLoading(false);

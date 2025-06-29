@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { BusinessTypeDB } from '@/lib/types'
 
 export interface HomepageStats {
   totalRestaurants: number
@@ -285,7 +286,7 @@ export class HomepageService {
   }
 
   // Récupérer les types de commerce
-  static async getBusinessTypes(): Promise<any[]> {
+  static async getBusinessTypes(): Promise<BusinessTypeDB[]> {
     try {
       const { data, error } = await supabase
         .from('business_types')

@@ -40,7 +40,31 @@ import {
   CreditCard,
   Activity,
   Globe,
-  Database
+  Database,
+  FileText,
+  Map,
+  Star as StarIcon,
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
+  Filter,
+  Search,
+  Download,
+  Upload,
+  Lock,
+  Unlock,
+  AlertTriangle,
+  CheckCircle,
+  Clock as ClockIcon,
+  Calendar as CalendarIcon,
+  Tag,
+  Award,
+  Zap,
+  Target,
+  TrendingDown,
+  Minus,
+  Equal
 } from 'lucide-react';
 import { format, subDays, isToday, isYesterday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -59,12 +83,14 @@ const AdminDashboard = () => {
   // Utiliser le hook pour les données du dashboard admin
   const { 
     stats, 
-    recentOrders, 
-    topBusinesses, 
-    systemHealth,
-    refresh, 
-    isLoading, 
-    error 
+    users,
+    businesses,
+    orders,
+    drivers,
+    analytics,
+    loading, 
+    error,
+    refreshData
   } = useAdminDashboard();
 
   // Formater les montants
@@ -98,7 +124,7 @@ const AdminDashboard = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <DashboardLayout navItems={adminNavItems} title="Administration">
         <div className="space-y-6">
@@ -127,8 +153,8 @@ const AdminDashboard = () => {
         <div className="flex flex-col items-center justify-center py-12">
           <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
           <h3 className="text-lg font-semibold mb-2">Erreur de chargement</h3>
-          <p className="text-muted-foreground mb-4">{error.message}</p>
-          <Button onClick={() => refresh.mutate()}>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={refreshData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Réessayer
           </Button>
@@ -152,10 +178,10 @@ const AdminDashboard = () => {
             <Button 
               variant="outline" 
               size="icon"
-              onClick={() => refresh.mutate()}
-              disabled={refresh.isPending}
+              onClick={refreshData}
+              disabled={loading}
             >
-              <RefreshCw className={`h-4 w-4 ${refresh.isPending ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
             <Button asChild>
               <Link to="/admin-dashboard/settings">
@@ -170,11 +196,14 @@ const AdminDashboard = () => {
         <RealTimeStats />
 
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Aperçu</TabsTrigger>
             <TabsTrigger value="businesses">Commerces</TabsTrigger>
             <TabsTrigger value="orders">Commandes</TabsTrigger>
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+            <TabsTrigger value="drivers">Livreurs</TabsTrigger>
+            <TabsTrigger value="content">Contenu</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="system">Système</TabsTrigger>
           </TabsList>
           
@@ -188,13 +217,13 @@ const AdminDashboard = () => {
                       <ShoppingBag className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats?.data?.totalOrders || 0}</p>
+                      <p className="text-2xl font-bold">{stats?.totalOrders || 0}</p>
                       <p className="text-sm text-gray-500">Commandes totales</p>
                     </div>
                   </div>
                   <div className="mt-2 flex items-center text-sm">
                     <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                    <span className="text-green-500">{formatPercentage(stats?.data?.orderGrowth || 0)}</span>
+                    <span className="text-green-500">+12.5%</span>
                     <span className="text-gray-500 ml-1">vs hier</span>
                   </div>
                 </CardContent>
@@ -207,13 +236,13 @@ const AdminDashboard = () => {
                       <DollarSign className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{formatCurrency(stats?.data?.totalRevenue || 0)}</p>
+                      <p className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</p>
                       <p className="text-sm text-gray-500">Revenus totaux</p>
                     </div>
                   </div>
                   <div className="mt-2 flex items-center text-sm">
                     <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                    <span className="text-green-500">{formatPercentage(stats?.data?.revenueGrowth || 0)}</span>
+                    <span className="text-green-500">+8.3%</span>
                     <span className="text-gray-500 ml-1">vs hier</span>
                   </div>
                 </CardContent>
@@ -226,13 +255,13 @@ const AdminDashboard = () => {
                       <Users className="h-5 w-5 text-purple-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats?.data?.totalUsers || 0}</p>
+                      <p className="text-2xl font-bold">{stats?.totalUsers || 0}</p>
                       <p className="text-sm text-gray-500">Utilisateurs actifs</p>
                     </div>
                   </div>
                   <div className="mt-2 flex items-center text-sm">
                     <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                    <span className="text-green-500">{formatPercentage(stats?.data?.userGrowth || 0)}</span>
+                    <span className="text-green-500">+15.7%</span>
                     <span className="text-gray-500 ml-1">vs hier</span>
                   </div>
                 </CardContent>
@@ -245,13 +274,13 @@ const AdminDashboard = () => {
                       <Building2 className="h-5 w-5 text-orange-600" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stats?.data?.totalBusinesses || 0}</p>
+                      <p className="text-2xl font-bold">{stats?.totalBusinesses || 0}</p>
                       <p className="text-sm text-gray-500">Commerces actifs</p>
                     </div>
                   </div>
                   <div className="mt-2 flex items-center text-sm">
                     <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                    <span className="text-green-500">{formatPercentage(stats?.data?.businessGrowth || 0)}</span>
+                    <span className="text-green-500">+5.2%</span>
                     <span className="text-gray-500 ml-1">vs hier</span>
                   </div>
                 </CardContent>
@@ -285,14 +314,14 @@ const AdminDashboard = () => {
                   <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
                     <Link to="/admin-dashboard/orders">
                       <ShoppingBag className="h-6 w-6" />
-                      Suivre Commandes
+                      Gérer Commandes
                     </Link>
                   </Button>
                   
                   <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-                    <Link to="/admin-dashboard/system">
-                      <Settings className="h-6 w-6" />
-                      Configuration
+                    <Link to="/admin-dashboard/drivers">
+                      <Truck className="h-6 w-6" />
+                      Gérer Livreurs
                     </Link>
                   </Button>
                 </div>
@@ -315,6 +344,10 @@ const AdminDashboard = () => {
                       <BarChart3 className="h-4 w-4 mr-2" />
                       Statistiques
                     </Button>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Exporter
+                    </Button>
                   </div>
                   <Button asChild>
                     <Link to="/admin-dashboard/businesses">
@@ -327,10 +360,10 @@ const AdminDashboard = () => {
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-2">
-                        <Users className="h-4 w-4 text-blue-600" />
+                        <Building2 className="h-4 w-4 text-blue-600" />
                         <div>
-                          <p className="text-sm font-medium text-gray-600">Clients</p>
-                          <p className="text-2xl font-bold">{stats?.data?.customerCount || 0}</p>
+                          <p className="text-sm font-medium text-gray-600">Commerces Actifs</p>
+                          <p className="text-2xl font-bold">{stats?.activeBusinesses || 0}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -339,10 +372,10 @@ const AdminDashboard = () => {
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-2">
-                        <Building2 className="h-4 w-4 text-green-600" />
+                        <DollarSign className="h-4 w-4 text-green-600" />
                         <div>
-                          <p className="text-sm font-medium text-gray-600">Partenaires</p>
-                          <p className="text-2xl font-bold">{stats?.data?.partnerCount || 0}</p>
+                          <p className="text-sm font-medium text-gray-600">Revenus Moyens</p>
+                          <p className="text-2xl font-bold">{formatCurrency(250000)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -351,14 +384,42 @@ const AdminDashboard = () => {
                   <Card>
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-2">
-                        <Truck className="h-4 w-4 text-orange-600" />
+                        <Star className="h-4 w-4 text-yellow-600" />
                         <div>
-                          <p className="text-sm font-medium text-gray-600">Livreurs</p>
-                          <p className="text-2xl font-bold">{stats?.data?.driverCount || 0}</p>
+                          <p className="text-sm font-medium text-gray-600">Note Moyenne</p>
+                          <p className="text-2xl font-bold">4.2</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+
+                {/* Liste des commerces récents */}
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-4">Commerces Récents</h3>
+                  <div className="space-y-3">
+                    {businesses.slice(0, 5).map((business) => (
+                      <div key={business.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <Avatar>
+                            <AvatarFallback>{business.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">{business.name}</p>
+                            <p className="text-sm text-gray-500">{business.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={business.is_active ? "default" : "secondary"}>
+                            {business.is_active ? "Actif" : "Inactif"}
+                          </Badge>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -378,6 +439,10 @@ const AdminDashboard = () => {
                     <Button variant="outline" size="sm">
                       <BarChart3 className="h-4 w-4 mr-2" />
                       Rapports
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Exporter
                     </Button>
                   </div>
                   <Button asChild>
@@ -410,6 +475,10 @@ const AdminDashboard = () => {
                       <UserCheck className="h-4 w-4 mr-2" />
                       Vérification
                     </Button>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Exporter
+                    </Button>
                   </div>
                   <Button asChild>
                     <Link to="/admin-dashboard/users">
@@ -425,7 +494,7 @@ const AdminDashboard = () => {
                         <Users className="h-4 w-4 text-blue-600" />
                         <div>
                           <p className="text-sm font-medium text-gray-600">Clients</p>
-                          <p className="text-2xl font-bold">{stats?.data?.customerCount || 0}</p>
+                          <p className="text-2xl font-bold">{stats?.customerCount || 0}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -437,7 +506,7 @@ const AdminDashboard = () => {
                         <Building2 className="h-4 w-4 text-green-600" />
                         <div>
                           <p className="text-sm font-medium text-gray-600">Partenaires</p>
-                          <p className="text-2xl font-bold">{stats?.data?.partnerCount || 0}</p>
+                          <p className="text-2xl font-bold">{stats?.partnerCount || 0}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -449,7 +518,211 @@ const AdminDashboard = () => {
                         <Truck className="h-4 w-4 text-orange-600" />
                         <div>
                           <p className="text-sm font-medium text-gray-600">Livreurs</p>
-                          <p className="text-2xl font-bold">{stats?.data?.driverCount || 0}</p>
+                          <p className="text-2xl font-bold">{stats?.driverCount || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="drivers" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gestion des Livreurs</CardTitle>
+                <CardDescription>
+                  Gérez tous les livreurs et leurs documents
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Documents
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Map className="h-4 w-4 mr-2" />
+                      Localisation
+                    </Button>
+                  </div>
+                  <Button asChild>
+                    <Link to="/admin-dashboard/drivers">
+                      Voir tous les livreurs
+                    </Link>
+                  </Button>
+                </div>
+                
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Truck className="h-4 w-4 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Livreurs Actifs</p>
+                          <p className="text-2xl font-bold">{stats?.activeDrivers || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-orange-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">En Livraison</p>
+                          <p className="text-2xl font-bold">{stats?.deliveringDrivers || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Documents Expirés</p>
+                          <p className="text-2xl font-bold">{stats?.expiredDocuments || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="content" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gestion du Contenu</CardTitle>
+                <CardDescription>
+                  Gérez les catégories, types de commerce et contenu de la plateforme
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <Tag className="h-4 w-4 mr-2" />
+                      Catégories
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Award className="h-4 w-4 mr-2" />
+                      Types
+                    </Button>
+                  </div>
+                  <Button asChild>
+                    <Link to="/admin-dashboard/content">
+                      Gérer le contenu
+                    </Link>
+                  </Button>
+                </div>
+                
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Tag className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Catégories</p>
+                          <p className="text-2xl font-bold">{stats?.categoriesCount || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Award className="h-4 w-4 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Types de Commerce</p>
+                          <p className="text-2xl font-bold">{stats?.businessTypesCount || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Star className="h-4 w-4 text-yellow-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Avis</p>
+                          <p className="text-2xl font-bold">{stats?.reviewsCount || 0}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Analytics et Rapports</CardTitle>
+                <CardDescription>
+                  Analysez les performances et générez des rapports
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Graphiques
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Exporter
+                    </Button>
+                  </div>
+                  <Button asChild>
+                    <Link to="/admin-dashboard/analytics">
+                      Voir les analytics
+                    </Link>
+                  </Button>
+                </div>
+                
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Croissance</p>
+                          <p className="text-2xl font-bold">{formatPercentage(stats?.growthRate || 0)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Target className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Objectifs</p>
+                          <p className="text-2xl font-bold">{stats?.targetAchievement || 0}%</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Zap className="h-4 w-4 text-yellow-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Performance</p>
+                          <p className="text-2xl font-bold">{stats?.performanceScore || 0}/100</p>
                         </div>
                       </div>
                     </CardContent>

@@ -1,325 +1,230 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDriverAuth } from '@/contexts/DriverAuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Truck, Smartphone, Mail, Eye, EyeOff } from 'lucide-react';
-import { DriverAuthService } from '@/lib/services/driver-auth';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  Truck, 
+  Eye, 
+  EyeOff, 
+  Mail, 
+  Lock, 
+  ArrowRight,
+  AlertCircle,
+  CheckCircle
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 const DriverLoginPage = () => {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { login, loading, error } = useDriverAuth();
   
-  // États pour la connexion par email
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [showPassword, setShowPassword] = useState(false);
-  
-  // États pour la connexion par téléphone
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [showOtp, setShowOtp] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Connexion par email/mot de passe
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setSuccess(null);
+    
+    if (!formData.email || !formData.password) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
 
+    setIsSubmitting(true);
+    
     try {
-      const { success, error } = await DriverAuthService.signInDriver(email, password);
-      
+      const { success, error: loginError } = await login({
+        email: formData.email,
+        password: formData.password
+      });
+
       if (success) {
-        setSuccess('Connexion réussie ! Redirection...');
-        setTimeout(() => {
-          navigate('/driver-dashboard');
-        }, 1500);
-      } else {
-        setError(error || 'Erreur lors de la connexion');
+        toast.success('Connexion réussie !');
+        navigate('/driver/dashboard');
+      } else if (loginError) {
+        toast.error(loginError);
       }
     } catch (err) {
-      setError('Erreur lors de la connexion');
+      toast.error('Erreur lors de la connexion');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Envoyer l'OTP
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const { success, error } = await DriverAuthService.signInDriverWithPhone(phone);
-      
-      if (success) {
-        setOtpSent(true);
-        setShowOtp(true);
-        setSuccess('Code OTP envoyé par SMS !');
-      } else {
-        setError(error || 'Erreur lors de l\'envoi du code OTP');
-      }
-    } catch (err) {
-      setError('Erreur lors de l\'envoi du code OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Vérifier l'OTP et se connecter
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const { success, error } = await DriverAuthService.verifyOTPAndSignIn(phone, otp);
-      
-      if (success) {
-        setSuccess('Connexion réussie ! Redirection...');
-        setTimeout(() => {
-          navigate('/driver-dashboard');
-        }, 1500);
-      } else {
-        setError(error || 'Code OTP incorrect');
-      }
-    } catch (err) {
-      setError('Erreur lors de la vérification du code OTP');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Réinitialiser le formulaire OTP
-  const handleResetOTP = () => {
-    setOtpSent(false);
-    setShowOtp(false);
-    setOtp('');
-    setError(null);
-    setSuccess(null);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <Skeleton className="h-8 w-48 mx-auto" />
+            <Skeleton className="h-4 w-64 mx-auto" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
         {/* Logo et titre */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
+        <div className="text-center">
+          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
             <Truck className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Espace Livreur
-          </h1>
-          <p className="text-gray-600">
-            Connectez-vous à votre espace de livraison
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+            Connexion Livreur
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Accédez à votre espace livreur
           </p>
         </div>
 
-        {/* Carte de connexion */}
-        <Card className="shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle>Connexion Livreur</CardTitle>
+        {/* Formulaire de connexion */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Se connecter</CardTitle>
             <CardDescription>
-              Accédez à vos commandes et gérez vos livraisons
+              Entrez vos identifiants pour accéder à votre compte
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="email" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="email" className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Email
-                </TabsTrigger>
-                <TabsTrigger value="phone" className="flex items-center gap-2">
-                  <Smartphone className="h-4 w-4" />
-                  Téléphone
-                </TabsTrigger>
-              </TabsList>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Email */}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="votre@email.com"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
 
-              {/* Connexion par Email */}
-              <TabsContent value="email" className="space-y-4">
-                <form onSubmit={handleEmailLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="votre.email@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Mot de passe</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Votre mot de passe"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                        disabled={isLoading}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading}
+              {/* Mot de passe */}
+              <div className="space-y-2">
+                <Label htmlFor="password">Mot de passe</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Votre mot de passe"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="pl-10 pr-10"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
                   >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Connexion...
-                      </>
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-400" />
                     ) : (
-                      'Se connecter'
+                      <Eye className="h-4 w-4 text-gray-400" />
                     )}
                   </Button>
-                </form>
-              </TabsContent>
+                </div>
+              </div>
 
-              {/* Connexion par Téléphone */}
-              <TabsContent value="phone" className="space-y-4">
-                {!otpSent ? (
-                  <form onSubmit={handleSendOTP} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Numéro de téléphone</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="+224 123 456 789"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
+              {/* Erreur */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Envoi...
-                        </>
-                      ) : (
-                        'Envoyer le code OTP'
-                      )}
-                    </Button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleVerifyOTP} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="otp">Code OTP</Label>
-                      <Input
-                        id="otp"
-                        type="text"
-                        placeholder="123456"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        required
-                        disabled={isLoading}
-                        maxLength={6}
-                      />
-                      <p className="text-sm text-gray-500">
-                        Code envoyé au {phone}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={handleResetOTP}
-                        disabled={isLoading}
-                      >
-                        Retour
-                      </Button>
-                      <Button 
-                        type="submit" 
-                        className="flex-1"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Vérification...
-                          </>
-                        ) : (
-                          'Vérifier'
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </TabsContent>
-            </Tabs>
-
-            {/* Messages d'erreur et de succès */}
-            {error && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {success && (
-              <Alert className="mt-4">
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Lien vers la page principale */}
-            <div className="mt-6 text-center">
-              <Button 
-                variant="link" 
-                onClick={() => navigate('/')}
-                className="text-gray-600"
+              {/* Bouton de connexion */}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting || loading}
               >
-                Retour à l'accueil
+                {isSubmitting ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Connexion...
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    Se connecter
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </div>
+                )}
               </Button>
+            </form>
+
+            {/* Liens utiles */}
+            <div className="mt-6 space-y-3">
+              <div className="text-center">
+                <Link
+                  to="/driver/forgot-password"
+                  className="text-sm text-blue-600 hover:text-blue-500"
+                >
+                  Mot de passe oublié ?
+                </Link>
+              </div>
+              
+              <div className="text-center">
+                <span className="text-sm text-gray-600">
+                  Pas encore de compte ?{' '}
+                </span>
+                <Link
+                  to="/driver/register"
+                  className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+                >
+                  S'inscrire
+                </Link>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Informations supplémentaires */}
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Accès réservé aux livreurs autorisés</p>
-          <p className="mt-1">
-            Contactez votre responsable pour obtenir vos identifiants
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            En vous connectant, vous acceptez nos{' '}
+            <Link to="/terms" className="text-blue-600 hover:text-blue-500">
+              conditions d'utilisation
+            </Link>{' '}
+            et notre{' '}
+            <Link to="/privacy" className="text-blue-600 hover:text-blue-500">
+              politique de confidentialité
+            </Link>
           </p>
         </div>
       </div>

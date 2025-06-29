@@ -5,6 +5,7 @@ import { DriverAuthManager } from '@/components/dashboard/DriverAuthManager';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Key, Users, Shield, AlertCircle } from 'lucide-react';
+import { useUserRole } from '@/contexts/UserRoleContext';
 
 const PartnerDriverAuth = () => {
   const { currentUser } = useAuth();
@@ -13,6 +14,7 @@ const PartnerDriverAuth = () => {
     isAuthenticated,
     currentUser: partnerCurrentUser
   } = usePartnerDashboard();
+  const { isPartner } = useUserRole();
 
   // Vérifier l'authentification
   if (!isAuthenticated) {
@@ -31,7 +33,7 @@ const PartnerDriverAuth = () => {
   }
 
   // Vérifier le rôle
-  if (partnerCurrentUser?.role !== 'partner') {
+  if (!isPartner) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Comptes Livreurs">
         <div className="flex flex-col items-center justify-center py-12">

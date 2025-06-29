@@ -5,10 +5,16 @@ export interface AuthUser {
   id: string
   email: string
   name: string
-  role: 'customer' | 'partner'
+  role: 'customer' | 'partner' | 'driver' | 'admin'
   phone_number?: string
   address?: string
   profile_image?: string
+  // Données spécifiques aux livreurs
+  driver_id?: string
+  vehicle_type?: string
+  vehicle_plate?: string
+  business_id?: number
+  business_name?: string
 }
 
 export class AuthService {
@@ -17,7 +23,7 @@ export class AuthService {
     email: string
     password: string
     name: string
-    role: 'customer' | 'partner'
+    role: 'customer' | 'partner' | 'driver'
     phone_number?: string
     address?: string
   }): Promise<{ user: AuthUser | null; error: string | null }> {
@@ -51,7 +57,7 @@ export class AuthService {
       console.log('Utilisateur auth créé avec succès:', authData.user.id)
 
       // Créer manuellement le profil utilisateur dans user_profiles
-      const roleId = userData.role === 'partner' ? 2 : 1
+      const roleId = userData.role === 'partner' ? 2 : userData.role === 'driver' ? 3 : 1
       const profileImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=random`
 
       console.log('Création du profil utilisateur...')
@@ -146,7 +152,7 @@ export class AuthService {
         
         // Si le profil n'existe pas, le créer automatiquement
         console.log('Profil non trouvé, création automatique...')
-        const roleId = authData.user.user_metadata?.role === 'partner' ? 2 : 1
+        const roleId = authData.user.user_metadata?.role === 'partner' ? 2 : authData.user.user_metadata?.role === 'driver' ? 3 : 1
         const name = authData.user.user_metadata?.name || 'Utilisateur'
         const profileImage = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
         
@@ -185,10 +191,72 @@ export class AuthService {
         profile = newProfile
       }
 
-      // Déterminer le rôle basé sur role_id
-      const role = profile.role_id === 2 ? 'partner' : 'customer'
+      // Déterminer le rôle basé sur role_id et le nom du rôle
+      let role: string = 'customer'; // par défaut
+      
+      if (profile.user_roles?.name) {
+        // Utiliser le nom du rôle depuis la table user_roles
+        role = profile.user_roles.name;
+      } else {
+        // Fallback sur role_id si le nom n'est pas disponible
+        switch (profile.role_id) {
+          case 1:
+            role = 'customer';
+            break;
+          case 2:
+            role = 'partner';
+            break;
+          case 3:
+            role = 'driver';
+            break;
+          case 4:
+            role = 'admin';
+            break;
+          default:
+            role = 'customer';
+        }
+      }
 
-      console.log('Connexion réussie pour:', profile.name)
+      // Debug: Afficher les informations de rôle
+      console.log('🔍 [AuthService] Récupération rôle:', {
+        role_id: profile.role_id,
+        role_name: profile.user_roles?.name,
+        role_determined: role,
+        profile_id: profile.id
+      });
+
+      // Si c'est un livreur, récupérer les données spécifiques
+      let driverData = null
+      if (role === 'driver') {
+        // Utiliser la relation directe driver_profiles → drivers
+        const { data: driverProfile, error: driverError } = await supabase
+          .from('driver_profiles')
+          .select(`
+            driver_id,
+            drivers!inner(
+              id,
+              name,
+              phone,
+              email,
+              vehicle_type,
+              vehicle_plate,
+              business_id,
+              businesses!inner(name)
+            )
+          `)
+          .eq('user_id', authData.user.id)
+          .single()
+
+        if (!driverError && driverProfile) {
+          driverData = {
+            driver_id: driverProfile.driver_id,
+            vehicle_type: driverProfile.drivers.vehicle_type,
+            vehicle_plate: driverProfile.drivers.vehicle_plate,
+            business_id: driverProfile.drivers.business_id,
+            business_name: driverProfile.drivers.businesses.name
+          }
+        }
+      }
 
       return { 
         user: {
@@ -198,7 +266,15 @@ export class AuthService {
           role: role,
           phone_number: profile.phone_number,
           address: profile.address,
-          profile_image: profile.profile_image
+          profile_image: profile.profile_image,
+          // Données spécifiques aux livreurs
+          ...(driverData && {
+            driver_id: driverData.driver_id,
+            vehicle_type: driverData.vehicle_type,
+            vehicle_plate: driverData.vehicle_plate,
+            business_id: driverData.business_id,
+            business_name: driverData.business_name
+          })
         }, 
         error: null 
       }
@@ -261,8 +337,72 @@ export class AuthService {
         }
       }
 
-      // Déterminer le rôle basé sur role_id
-      const role = profile.role_id === 2 ? 'partner' : 'customer'
+      // Déterminer le rôle basé sur role_id et le nom du rôle
+      let role: string = 'customer'; // par défaut
+      
+      if (profile.user_roles?.name) {
+        // Utiliser le nom du rôle depuis la table user_roles
+        role = profile.user_roles.name;
+      } else {
+        // Fallback sur role_id si le nom n'est pas disponible
+        switch (profile.role_id) {
+          case 1:
+            role = 'customer';
+            break;
+          case 2:
+            role = 'partner';
+            break;
+          case 3:
+            role = 'driver';
+            break;
+          case 4:
+            role = 'admin';
+            break;
+          default:
+            role = 'customer';
+        }
+      }
+
+      // Debug: Afficher les informations de rôle
+      console.log('🔍 [AuthService] Récupération rôle:', {
+        role_id: profile.role_id,
+        role_name: profile.user_roles?.name,
+        role_determined: role,
+        profile_id: profile.id
+      });
+
+      // Si c'est un livreur, récupérer les données spécifiques
+      let driverData = null
+      if (role === 'driver') {
+        // Utiliser la relation directe driver_profiles → drivers
+        const { data: driverProfile, error: driverError } = await supabase
+          .from('driver_profiles')
+          .select(`
+            driver_id,
+            drivers!inner(
+              id,
+              name,
+              phone,
+              email,
+              vehicle_type,
+              vehicle_plate,
+              business_id,
+              businesses!inner(name)
+            )
+          `)
+          .eq('user_id', authUser.id)
+          .single()
+
+        if (!driverError && driverProfile) {
+          driverData = {
+            driver_id: driverProfile.driver_id,
+            vehicle_type: driverProfile.drivers.vehicle_type,
+            vehicle_plate: driverProfile.drivers.vehicle_plate,
+            business_id: driverProfile.drivers.business_id,
+            business_name: driverProfile.drivers.businesses.name
+          }
+        }
+      }
 
       return { 
         user: {
@@ -272,7 +412,15 @@ export class AuthService {
           role: role,
           phone_number: profile.phone_number,
           address: profile.address,
-          profile_image: profile.profile_image
+          profile_image: profile.profile_image,
+          // Données spécifiques aux livreurs
+          ...(driverData && {
+            driver_id: driverData.driver_id,
+            vehicle_type: driverData.vehicle_type,
+            vehicle_plate: driverData.vehicle_plate,
+            business_id: driverData.business_id,
+            business_name: driverData.business_name
+          })
         }, 
         error: null 
       }
@@ -323,7 +471,32 @@ export class AuthService {
           .single()
         
         if (profile) {
-          const role = profile.role_id === 2 ? 'partner' : 'customer'
+          // Déterminer le rôle basé sur role_id et le nom du rôle
+          let role: string = 'customer'; // par défaut
+          
+          if (profile.user_roles?.name) {
+            // Utiliser le nom du rôle depuis la table user_roles
+            role = profile.user_roles.name;
+          } else {
+            // Fallback sur role_id si le nom n'est pas disponible
+            switch (profile.role_id) {
+              case 1:
+                role = 'customer';
+                break;
+              case 2:
+                role = 'partner';
+                break;
+              case 3:
+                role = 'driver';
+                break;
+              case 4:
+                role = 'admin';
+                break;
+              default:
+                role = 'customer';
+            }
+          }
+          
           callback({
             id: profile.id,
             email: profile.email,

@@ -32,6 +32,9 @@ import Layout from '@/components/Layout';
 import { Label } from '@/components/ui/label';
 import { Loader2, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
 
 const CheckoutPage = () => {
   const { cart, loading, error, clearCart } = useCart();
@@ -56,6 +59,9 @@ const CheckoutPage = () => {
     postalCode: '',
     notes: ''
   });
+  const [deliveryTimeMode, setDeliveryTimeMode] = useState<'now' | 'scheduled'>('now');
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [scheduledTime, setScheduledTime] = useState<string>('12:00');
 
   // Charger les données utilisateur et du panier
   useEffect(() => {
@@ -77,6 +83,13 @@ const CheckoutPage = () => {
   const deliveryFee = deliveryMethod === 'delivery' ? 2000 : 0; // 2000 GNF pour la livraison
   const tax = Math.round(cartTotal * 0.15); // 15% de taxe
   const grandTotal = cartTotal + deliveryFee + tax;
+
+  // Créneaux horaires disponibles (toutes les 30 min de 08:00 à 22:00)
+  const timeSlots = Array.from({ length: 28 }, (_, i) => {
+    const hour = 8 + Math.floor(i / 2);
+    const minute = i % 2 === 0 ? '00' : '30';
+    return `${hour.toString().padStart(2, '0')}:${minute}`;
+  });
 
   // Validation du formulaire
   const isFormValid = () => {
@@ -141,9 +154,35 @@ const CheckoutPage = () => {
       const tax = Math.round(cartTotal * 0.15); // 15% de taxe
       const grandTotal = cartTotal + deliveryFee + tax;
 
-      // Calculer l'heure de livraison estimée (30-45 minutes)
-      const now = new Date();
-      const estimatedDelivery = new Date(now.getTime() + (30 + Math.random() * 15) * 60000);
+      let estimatedDelivery: Date;
+      if (deliveryTimeMode === 'now') {
+        // Livraison immédiate (30-45 min après maintenant)
+        const now = new Date();
+        estimatedDelivery = new Date(now.getTime() + (30 + Math.random() * 15) * 60000);
+      } else {
+        // Livraison programmée
+        if (!scheduledDate || !scheduledTime) {
+          toast({
+            title: "Erreur",
+            description: "Veuillez choisir une date et une heure de livraison.",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+          return;
+        }
+        const [hour, minute] = scheduledTime.split(':');
+        estimatedDelivery = new Date(scheduledDate);
+        estimatedDelivery.setHours(Number(hour), Number(minute), 0, 0);
+        if (estimatedDelivery < new Date()) {
+          toast({
+            title: "Erreur",
+            description: "La date/heure de livraison doit être dans le futur.",
+            variant: "destructive",
+          });
+          setIsProcessing(false);
+          return;
+        }
+      }
 
       // Préparer les données de la commande
       const orderData: CreateOrderData = {
@@ -438,6 +477,60 @@ const CheckoutPage = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={3}
                   />
+                </CardContent>
+              </Card>
+
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle>Livraison</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Label className="mb-2 block">Date de livraison</Label>
+                    <RadioGroup
+                      value={deliveryTimeMode}
+                      onValueChange={val => setDeliveryTimeMode(val as 'now' | 'scheduled')}
+                      className="flex flex-col gap-2"
+                    >
+                      <RadioGroupItem value="now" id="now" />
+                      <Label htmlFor="now" className="ml-2 cursor-pointer">Livrer maintenant</Label>
+                      <RadioGroupItem value="scheduled" id="scheduled" className="mt-2" />
+                      <Label htmlFor="scheduled" className="ml-2 cursor-pointer">Programmer la livraison</Label>
+                    </RadioGroup>
+                    {deliveryTimeMode === 'scheduled' && (
+                      <div className="mt-4 flex flex-col md:flex-row gap-4 items-center">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full md:w-auto justify-start text-left font-normal">
+                              <Clock className="mr-2 h-4 w-4" />
+                              {scheduledDate ? format(scheduledDate, 'dd MMMM yyyy') : 'Sélectionner une date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={scheduledDate}
+                              onSelect={setScheduledDate}
+                              initialFocus
+                              disabled={date => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <div className="w-full md:w-auto">
+                          <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                            <SelectTrigger className="w-full md:w-32">
+                              <SelectValue placeholder="Heure" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeSlots.map(time => (
+                                <SelectItem key={time} value={time}>{time}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>

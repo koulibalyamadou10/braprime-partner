@@ -1,336 +1,419 @@
-import { supabase } from '../supabase';
-
-export interface DriverAuthProfile {
-  id: string;
-  user_id: string;
-  driver_id: string;
-  phone: string;
-  email?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 export interface DriverAuthData {
-  driver_id: string;
-  driver_name: string;
+  id: string;
+  email: string;
   phone: string;
-  email?: string;
+  name: string;
+  driver_type: 'independent' | 'service';
+  business_id?: number;
+  business_name?: string;
+  is_verified: boolean;
+  is_active: boolean;
+  avatar_url?: string;
   vehicle_type?: string;
   vehicle_plate?: string;
-  business_id: number;
-  business_name: string;
+  documents_count: number;
+  total_deliveries: number;
+  total_earnings: number;
+  rating: number;
+  active_sessions: number;
+  created_at: string;
+}
+
+export interface DriverRegistrationData {
+  email: string;
+  phone: string;
+  name: string;
+  password: string;
+  driver_type: 'independent' | 'service';
+  business_id?: number;
+  vehicle_type?: string;
+  vehicle_plate?: string;
+}
+
+export interface DriverLoginData {
+  email: string;
+  password: string;
+}
+
+export interface DriverUpdateData {
+  name?: string;
+  phone?: string;
+  vehicle_type?: string;
+  vehicle_plate?: string;
+  avatar_url?: string;
 }
 
 export class DriverAuthService {
-  // Récupérer le profil d'authentification du livreur connecté
-  static async getCurrentDriverProfile(): Promise<{ profile: DriverAuthProfile | null; error: string | null }> {
+  // Inscription d'un nouveau livreur
+  static async register(driverData: DriverRegistrationData): Promise<{ driver?: DriverAuthData; error?: string }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        return { profile: null, error: 'Utilisateur non connecté' };
+      // 1. Créer l'utilisateur dans Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: driverData.email,
+        password: driverData.password,
+        options: {
+          data: {
+            role: 'driver',
+            name: driverData.name,
+            phone: driverData.phone
+          }
+        }
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
       }
 
-      const { data: profile, error } = await supabase
-        .from('driver_profiles')
-        .select('*')
-        .eq('user_id', user.id)
+      if (!authData.user) {
+        throw new Error('Erreur lors de la création du compte');
+      }
+
+      // 2. Créer le profil livreur dans la table drivers
+      const { data: driverProfile, error: profileError } = await supabase
+        .from('drivers')
+        .insert({
+          id: authData.user.id,
+          name: driverData.name,
+          email: driverData.email,
+          phone: driverData.phone,
+          driver_type: driverData.driver_type,
+          business_id: driverData.business_id || null,
+          vehicle_type: driverData.vehicle_type || null,
+          vehicle_plate: driverData.vehicle_plate || null,
+          is_verified: false,
+          is_active: true,
+          total_deliveries: 0,
+          total_earnings: 0,
+          rating: 0,
+          active_sessions: 0
+        })
+        .select()
         .single();
 
-      if (error) {
-        console.error('Erreur récupération profil livreur:', error);
-        return { profile: null, error: error.message };
+      if (profileError) {
+        // Supprimer l'utilisateur créé si le profil échoue
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        throw new Error(profileError.message);
       }
 
-      return { profile, error: null };
+      // 3. Récupérer les données complètes du livreur
+      const { data: completeDriver, error: fetchError } = await this.getDriverById(authData.user.id);
+
+      if (fetchError) {
+        throw new Error(fetchError);
+      }
+
+      toast.success('Compte livreur créé avec succès ! Vérifiez votre email pour confirmer votre compte.');
+      return { driver: completeDriver };
+
     } catch (error) {
-      console.error('Erreur lors de la récupération du profil livreur:', error);
-      return { profile: null, error: 'Erreur lors de la récupération du profil livreur' };
+      console.error('Erreur lors de l\'inscription du livreur:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de l\'inscription' };
     }
   }
 
-  // Récupérer les données complètes du livreur connecté
-  static async getCurrentDriverData(): Promise<{ driver: DriverAuthData | null; error: string | null }> {
+  // Connexion d'un livreur
+  static async login(loginData: DriverLoginData): Promise<{ driver?: DriverAuthData; error?: string }> {
     try {
-      const { profile, error: profileError } = await this.getCurrentDriverProfile();
-      
-      if (profileError || !profile) {
-        return { driver: null, error: profileError || 'Profil livreur non trouvé' };
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
       }
 
+      if (!authData.user) {
+        throw new Error('Identifiants invalides');
+      }
+
+      // Vérifier que l'utilisateur est bien un livreur
+      const { data: driver, error: driverError } = await this.getDriverById(authData.user.id);
+
+      if (driverError) {
+        throw new Error('Profil livreur non trouvé');
+      }
+
+      if (!driver.is_active) {
+        throw new Error('Votre compte est désactivé. Contactez l\'administrateur.');
+      }
+
+      toast.success(`Bienvenue ${driver.name} !`);
+      return { driver };
+
+    } catch (error) {
+      console.error('Erreur lors de la connexion du livreur:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la connexion' };
+    }
+  }
+
+  // Déconnexion
+  static async logout(): Promise<{ error?: string }> {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw new Error(error.message);
+      }
+      toast.success('Déconnexion réussie');
+      return {};
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la déconnexion' };
+    }
+  }
+
+  // Récupérer le livreur connecté
+  static async getCurrentDriver(): Promise<{ driver?: DriverAuthData; error?: string }> {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        return { error: 'Utilisateur non connecté' };
+      }
+
+      return await this.getDriverById(user.id);
+    } catch (error) {
+      console.error('Erreur lors de la récupération du livreur connecté:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la récupération' };
+    }
+  }
+
+  // Récupérer un livreur par ID
+  static async getDriverById(driverId: string): Promise<{ driver?: DriverAuthData; error?: string }> {
+    try {
       const { data: driver, error } = await supabase
         .from('drivers')
         .select(`
-          id,
-          name,
-          phone,
-          email,
-          vehicle_type,
-          vehicle_plate,
-          business_id,
-          businesses!inner(name)
+          *,
+          businesses!drivers_business_id_fkey (
+            name
+          )
         `)
-        .eq('id', profile.driver_id)
+        .eq('id', driverId)
         .single();
 
       if (error) {
-        console.error('Erreur récupération données livreur:', error);
-        return { driver: null, error: error.message };
+        throw new Error(error.message);
       }
 
+      if (!driver) {
+        throw new Error('Livreur non trouvé');
+      }
+
+      // Transformer les données
       const driverData: DriverAuthData = {
-        driver_id: driver.id,
-        driver_name: driver.name,
-        phone: driver.phone,
+        id: driver.id,
         email: driver.email,
+        phone: driver.phone,
+        name: driver.name,
+        driver_type: driver.driver_type,
+        business_id: driver.business_id,
+        business_name: driver.businesses?.name,
+        is_verified: driver.is_verified,
+        is_active: driver.is_active,
+        avatar_url: driver.avatar_url,
         vehicle_type: driver.vehicle_type,
         vehicle_plate: driver.vehicle_plate,
-        business_id: driver.business_id,
-        business_name: driver.businesses.name
+        documents_count: driver.documents_count || 0,
+        total_deliveries: driver.total_deliveries || 0,
+        total_earnings: driver.total_earnings || 0,
+        rating: driver.rating || 0,
+        active_sessions: driver.active_sessions || 0,
+        created_at: driver.created_at
       };
 
-      return { driver: driverData, error: null };
+      return { driver: driverData };
     } catch (error) {
-      console.error('Erreur lors de la récupération des données livreur:', error);
-      return { driver: null, error: 'Erreur lors de la récupération des données livreur' };
-    }
-  }
-
-  // Vérifier si l'utilisateur connecté est un livreur
-  static async isDriver(): Promise<{ isDriver: boolean; error: string | null }> {
-    try {
-      const { profile, error } = await this.getCurrentDriverProfile();
-      
-      if (error) {
-        return { isDriver: false, error };
-      }
-
-      return { isDriver: !!profile, error: null };
-    } catch (error) {
-      console.error('Erreur lors de la vérification du rôle livreur:', error);
-      return { isDriver: false, error: 'Erreur lors de la vérification du rôle livreur' };
-    }
-  }
-
-  // Connexion d'un livreur avec email/téléphone
-  static async signInDriver(email: string, password: string): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        console.error('Erreur connexion livreur:', error);
-        return { success: false, error: error.message };
-      }
-
-      // Vérifier que l'utilisateur est bien un livreur
-      const { isDriver, error: roleError } = await this.isDriver();
-      
-      if (roleError || !isDriver) {
-        // Déconnecter l'utilisateur s'il n'est pas un livreur
-        await supabase.auth.signOut();
-        return { success: false, error: 'Accès réservé aux livreurs' };
-      }
-
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erreur lors de la connexion livreur:', error);
-      return { success: false, error: 'Erreur lors de la connexion' };
-    }
-  }
-
-  // Connexion d'un livreur avec téléphone (OTP)
-  static async signInDriverWithPhone(phone: string): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone
-      });
-
-      if (error) {
-        console.error('Erreur connexion livreur par téléphone:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erreur lors de la connexion livreur par téléphone:', error);
-      return { success: false, error: 'Erreur lors de la connexion par téléphone' };
-    }
-  }
-
-  // Vérifier l'OTP et connecter le livreur
-  static async verifyOTPAndSignIn(phone: string, token: string): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone,
-        token,
-        type: 'sms'
-      });
-
-      if (error) {
-        console.error('Erreur vérification OTP:', error);
-        return { success: false, error: error.message };
-      }
-
-      // Vérifier que l'utilisateur est bien un livreur
-      const { isDriver, error: roleError } = await this.isDriver();
-      
-      if (roleError || !isDriver) {
-        // Déconnecter l'utilisateur s'il n'est pas un livreur
-        await supabase.auth.signOut();
-        return { success: false, error: 'Accès réservé aux livreurs' };
-      }
-
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erreur lors de la vérification OTP:', error);
-      return { success: false, error: 'Erreur lors de la vérification OTP' };
-    }
-  }
-
-  // Déconnexion du livreur
-  static async signOutDriver(): Promise<{ success: boolean; error: string | null }> {
-    try {
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        console.error('Erreur déconnexion livreur:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, error: null };
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion livreur:', error);
-      return { success: false, error: 'Erreur lors de la déconnexion' };
+      console.error('Erreur lors de la récupération du livreur:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la récupération' };
     }
   }
 
   // Mettre à jour le profil du livreur
-  static async updateDriverProfile(updates: Partial<DriverAuthProfile>): Promise<{ success: boolean; error: string | null }> {
+  static async updateDriverProfile(driverId: string, updateData: DriverUpdateData): Promise<{ driver?: DriverAuthData; error?: string }> {
     try {
-      const { profile, error: profileError } = await this.getCurrentDriverProfile();
-      
-      if (profileError || !profile) {
-        return { success: false, error: profileError || 'Profil livreur non trouvé' };
-      }
-
-      const { error } = await supabase
-        .from('driver_profiles')
-        .update(updates)
-        .eq('id', profile.id);
+      const { data, error } = await supabase
+        .from('drivers')
+        .update(updateData)
+        .eq('id', driverId)
+        .select()
+        .single();
 
       if (error) {
-        console.error('Erreur mise à jour profil livreur:', error);
-        return { success: false, error: error.message };
+        throw new Error(error.message);
       }
 
-      return { success: true, error: null };
+      // Récupérer les données complètes mises à jour
+      return await this.getDriverById(driverId);
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du profil livreur:', error);
-      return { success: false, error: 'Erreur lors de la mise à jour du profil' };
+      console.error('Erreur lors de la mise à jour du profil:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la mise à jour' };
     }
   }
 
-  // Récupérer les commandes du livreur connecté
-  static async getDriverOrders(): Promise<{ orders: any[] | null; error: string | null }> {
+  // Changer le mot de passe
+  static async changePassword(currentPassword: string, newPassword: string): Promise<{ error?: string }> {
     try {
-      const { profile, error: profileError } = await this.getCurrentDriverProfile();
-      
-      if (profileError || !profile) {
-        return { orders: null, error: profileError || 'Profil livreur non trouvé' };
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error('Utilisateur non connecté');
       }
 
-      const { data: orders, error } = await supabase
-        .from('orders')
+      // Vérifier l'ancien mot de passe
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: currentPassword
+      });
+
+      if (signInError) {
+        throw new Error('Mot de passe actuel incorrect');
+      }
+
+      // Changer le mot de passe
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      toast.success('Mot de passe modifié avec succès');
+      return {};
+    } catch (error) {
+      console.error('Erreur lors du changement de mot de passe:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors du changement de mot de passe' };
+    }
+  }
+
+  // Réinitialiser le mot de passe
+  static async resetPassword(email: string): Promise<{ error?: string }> {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/driver/reset-password`
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      toast.success('Email de réinitialisation envoyé');
+      return {};
+    } catch (error) {
+      console.error('Erreur lors de la réinitialisation du mot de passe:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la réinitialisation' };
+    }
+  }
+
+  // Vérifier si un email existe déjà
+  static async checkEmailExists(email: string): Promise<{ exists: boolean; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw new Error(error.message);
+      }
+
+      return { exists: !!data };
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'email:', error);
+      return { exists: false, error: error instanceof Error ? error.message : 'Erreur lors de la vérification' };
+    }
+  }
+
+  // Récupérer les livreurs d'un service/commerce
+  static async getServiceDrivers(businessId: number): Promise<{ drivers?: DriverAuthData[]; error?: string }> {
+    try {
+      const { data: drivers, error } = await supabase
+        .from('drivers')
         .select(`
-          id,
-          customer_name,
-          customer_phone,
-          delivery_address,
-          status,
-          total,
-          grand_total,
-          created_at,
-          delivered_at,
-          driver_rating,
-          driver_comment
+          *,
+          businesses!drivers_business_id_fkey (
+            name
+          )
         `)
-        .eq('driver_id', profile.driver_id)
-        .order('created_at', { ascending: false });
+        .eq('business_id', businessId)
+        .eq('is_active', true)
+        .order('name');
 
       if (error) {
-        console.error('Erreur récupération commandes livreur:', error);
-        return { orders: null, error: error.message };
+        throw new Error(error.message);
       }
 
-      return { orders: orders || [], error: null };
+      const driversData: DriverAuthData[] = drivers.map(driver => ({
+        id: driver.id,
+        email: driver.email,
+        phone: driver.phone,
+        name: driver.name,
+        driver_type: driver.driver_type,
+        business_id: driver.business_id,
+        business_name: driver.businesses?.name,
+        is_verified: driver.is_verified,
+        is_active: driver.is_active,
+        avatar_url: driver.avatar_url,
+        vehicle_type: driver.vehicle_type,
+        vehicle_plate: driver.vehicle_plate,
+        documents_count: driver.documents_count || 0,
+        total_deliveries: driver.total_deliveries || 0,
+        total_earnings: driver.total_earnings || 0,
+        rating: driver.rating || 0,
+        active_sessions: driver.active_sessions || 0,
+        created_at: driver.created_at
+      }));
+
+      return { drivers: driversData };
     } catch (error) {
-      console.error('Erreur lors de la récupération des commandes livreur:', error);
-      return { orders: null, error: 'Erreur lors de la récupération des commandes' };
+      console.error('Erreur lors de la récupération des livreurs du service:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la récupération' };
     }
   }
 
-  // Mettre à jour le statut d'une commande
-  static async updateOrderStatus(orderId: string, status: string): Promise<{ success: boolean; error: string | null }> {
+  // Activer/Désactiver un livreur (admin)
+  static async toggleDriverStatus(driverId: string, isActive: boolean): Promise<{ error?: string }> {
     try {
-      const { profile, error: profileError } = await this.getCurrentDriverProfile();
-      
-      if (profileError || !profile) {
-        return { success: false, error: profileError || 'Profil livreur non trouvé' };
-      }
-
       const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .eq('driver_id', profile.driver_id);
+        .from('drivers')
+        .update({ is_active: isActive })
+        .eq('id', driverId);
 
       if (error) {
-        console.error('Erreur mise à jour statut commande:', error);
-        return { success: false, error: error.message };
+        throw new Error(error.message);
       }
 
-      return { success: true, error: null };
+      toast.success(`Livreur ${isActive ? 'activé' : 'désactivé'} avec succès`);
+      return {};
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut:', error);
-      return { success: false, error: 'Erreur lors de la mise à jour du statut' };
+      console.error('Erreur lors du changement de statut:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors du changement de statut' };
     }
   }
 
-  // Marquer une commande comme livrée
-  static async markOrderAsDelivered(orderId: string): Promise<{ success: boolean; error: string | null }> {
+  // Vérifier un livreur (admin)
+  static async verifyDriver(driverId: string): Promise<{ error?: string }> {
     try {
-      const { profile, error: profileError } = await this.getCurrentDriverProfile();
-      
-      if (profileError || !profile) {
-        return { success: false, error: profileError || 'Profil livreur non trouvé' };
-      }
-
       const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'delivered',
-          delivered_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .eq('driver_id', profile.driver_id);
+        .from('drivers')
+        .update({ is_verified: true })
+        .eq('id', driverId);
 
       if (error) {
-        console.error('Erreur marquage commande livrée:', error);
-        return { success: false, error: error.message };
+        throw new Error(error.message);
       }
 
-      return { success: true, error: null };
+      toast.success('Livreur vérifié avec succès');
+      return {};
     } catch (error) {
-      console.error('Erreur lors du marquage comme livrée:', error);
-      return { success: false, error: 'Erreur lors du marquage comme livrée' };
+      console.error('Erreur lors de la vérification:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la vérification' };
     }
   }
 } 

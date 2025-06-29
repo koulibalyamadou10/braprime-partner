@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart, Menu, X, User, LogOut, Settings, Package, Calendar, Star, Search } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Settings, Package, Calendar, Star, Search, Truck, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/hooks/use-cart';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useUserRole } from '@/contexts/UserRoleContext';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,10 +26,32 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isAuthenticated = !!currentUser;
+  // Utilisation du provider centralisé
+  const {
+    isAdmin,
+    isPartner,
+    isDriver,
+    isCustomer,
+    can,
+    role
+  } = useUserRole();
 
-  // Compter les articles dans le panier
+  const isAuthenticated = !!currentUser;
   const cartCount = cart?.item_count || 0;
+
+  // Helpers pour les liens dashboard/profile
+  const getDashboardLink = () => {
+    if (isAdmin) return '/admin-dashboard';
+    if (isPartner) return '/partner-dashboard';
+    if (isDriver) return '/driver-dashboard';
+    return '/dashboard';
+  };
+  const getProfileLink = () => {
+    if (isAdmin) return '/admin-dashboard/profile';
+    return '/dashboard/profile';
+  };
+  const shouldShowDashboard = isAdmin || isPartner || isDriver;
+  const shouldShowProfile = !isAdmin;
 
   const handleSignOut = async () => {
     await logout();
@@ -131,9 +154,9 @@ const Header = () => {
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/dashboard/reviews" className="flex items-center">
+                        <Link to="/dashboard/favorites" className="flex items-center">
                           <Star className="mr-2 h-4 w-4" />
-                          Mes avis
+                          Mes favoris
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -142,27 +165,117 @@ const Header = () => {
                   {currentUser.role === 'partner' && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link to="/dashboard/partner" className="flex items-center">
+                        <Link to="/partner-dashboard/orders" className="flex items-center">
                           <Package className="mr-2 h-4 w-4" />
-                          Tableau de bord
+                          Commandes
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/dashboard/menu" className="flex items-center">
+                        <Link to="/partner-dashboard/menu" className="flex items-center">
                           <Settings className="mr-2 h-4 w-4" />
                           Gérer le menu
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/partner-dashboard/drivers" className="flex items-center">
+                          <Truck className="mr-2 h-4 w-4" />
+                          Mes livreurs
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
+                  {currentUser.role === 'admin' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin-dashboard/orders" className="flex items-center">
+                          <Package className="mr-2 h-4 w-4" />
+                          Gérer les commandes
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin-dashboard/businesses" className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Gérer les commerces
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin-dashboard/users" className="flex items-center">
+                          <User className="mr-2 h-4 w-4" />
+                          Gérer les utilisateurs
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin-dashboard/drivers" className="flex items-center">
+                          <Truck className="mr-2 h-4 w-4" />
+                          Gérer les livreurs
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin-dashboard/content" className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Gérer le contenu
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin-dashboard/analytics" className="flex items-center">
+                          <Package className="mr-2 h-4 w-4" />
+                          Analytics
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin-dashboard/system" className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Système
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
+                  {currentUser.role === 'driver' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/driver-dashboard/orders" className="flex items-center">
+                          <Package className="mr-2 h-4 w-4" />
+                          Mes livraisons
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/driver-dashboard/history" className="flex items-center">
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Historique
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/driver-dashboard/location" className="flex items-center">
+                          <MapPin className="mr-2 h-4 w-4" />
+                          Ma position
                         </Link>
                       </DropdownMenuItem>
                     </>
                   )}
                   
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard/profile" className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      Mon profil
-                    </Link>
-                  </DropdownMenuItem>
+                  
+                  {/* Afficher Dashboard pour admin, Profile pour les autres */}
+                  {shouldShowDashboard && (
+                    <DropdownMenuItem asChild>
+                      <Link to={getDashboardLink()} className="flex items-center">
+                        <Package className="mr-2 h-4 w-4" />
+                        {isAdmin ? 'Tableau de bord' : 'Mon tableau de bord'}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  
+                  {shouldShowProfile && (
+                    <DropdownMenuItem asChild>
+                      <Link to={getProfileLink()} className="flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        Mon profil
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  
                   <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
                     Se déconnecter
@@ -251,38 +364,167 @@ const Header = () => {
                         <Calendar className="mr-3 h-5 w-5" />
                         Mes réservations
                       </Link>
+                      <Link
+                        to="/dashboard/favorites"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Star className="mr-3 h-5 w-5" />
+                        Mes favoris
+                      </Link>
                     </>
                   )}
                   
                   {currentUser.role === 'partner' && (
                     <>
                       <Link
-                        to="/dashboard/partner"
+                        to="/partner-dashboard/orders"
                         className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Package className="mr-3 h-5 w-5" />
-                        Tableau de bord
+                        Commandes
                       </Link>
                       <Link
-                        to="/dashboard/menu"
+                        to="/partner-dashboard/menu"
                         className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Settings className="mr-3 h-5 w-5" />
                         Gérer le menu
                       </Link>
+                      <Link
+                        to="/partner-dashboard/drivers"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Truck className="mr-3 h-5 w-5" />
+                        Mes livreurs
+                      </Link>
+                    </>
+                  )}
+                  
+                  {currentUser.role === 'admin' && (
+                    <>
+                      <Link
+                        to="/admin-dashboard/orders"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Package className="mr-3 h-5 w-5" />
+                        Gérer les commandes
+                      </Link>
+                      <Link
+                        to="/admin-dashboard/businesses"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Settings className="mr-3 h-5 w-5" />
+                        Gérer les commerces
+                      </Link>
+                      <Link
+                        to="/admin-dashboard/users"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <User className="mr-3 h-5 w-5" />
+                        Gérer les utilisateurs
+                      </Link>
+                      <Link
+                        to="/admin-dashboard/drivers"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Truck className="mr-3 h-5 w-5" />
+                        Gérer les livreurs
+                      </Link>
+                      <Link
+                        to="/admin-dashboard/content"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Settings className="mr-3 h-5 w-5" />
+                        Gérer le contenu
+                      </Link>
+                      <Link
+                        to="/admin-dashboard/analytics"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Package className="mr-3 h-5 w-5" />
+                        Analytics
+                      </Link>
+                      <Link
+                        to="/admin-dashboard/system"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Settings className="mr-3 h-5 w-5" />
+                        Système
+                      </Link>
+                    </>
+                  )}
+                  
+                  {currentUser.role === 'driver' && (
+                    <>
+                      <Link
+                        to="/driver-dashboard/orders"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Package className="mr-3 h-5 w-5" />
+                        Mes livraisons
+                      </Link>
+                      <Link
+                        to="/driver-dashboard/history"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <Calendar className="mr-3 h-5 w-5" />
+                        Historique
+                      </Link>
+                      <Link
+                        to="/driver-dashboard/location"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <MapPin className="mr-3 h-5 w-5" />
+                        Ma position
+                      </Link>
                     </>
                   )}
                   
                   <Link
-                    to="/dashboard/profile"
+                    to={currentUser.role === 'admin' ? "/admin-dashboard/profile" : "/dashboard/profile"}
                     className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                     onClick={closeMobileMenu}
                   >
                     <User className="mr-3 h-5 w-5" />
                     Mon profil
                   </Link>
+                  
+                  {/* Afficher Dashboard pour admin, Profile pour les autres */}
+                  {shouldShowDashboard && (
+                    <Link
+                      to={getDashboardLink()}
+                      className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={closeMobileMenu}
+                    >
+                      <Package className="mr-3 h-5 w-5" />
+                      {isAdmin ? 'Tableau de bord' : 'Mon tableau de bord'}
+                    </Link>
+                  )}
+                  
+                  {shouldShowProfile && (
+                    <Link
+                      to={getProfileLink()}
+                      className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                      onClick={closeMobileMenu}
+                    >
+                      <User className="mr-3 h-5 w-5" />
+                      Mon profil
+                    </Link>
+                  )}
                   
                   <button
                     onClick={handleSignOut}

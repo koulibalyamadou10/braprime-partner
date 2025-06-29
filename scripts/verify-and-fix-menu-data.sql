@@ -1,1 +1,0 @@
--- Script pour vérifier et corriger les données de menu

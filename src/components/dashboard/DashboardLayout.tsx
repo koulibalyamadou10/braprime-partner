@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Menu, X, LogOut, Home, ChevronRight, 
-  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck, Key, Building2, Users, BarChart3, Settings, Shield
+  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck, Key, Building2, Users, BarChart3, Settings, Shield, Package, DollarSign, TrendingUp
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -221,6 +221,34 @@ export const partnerNavItems = [
   },
 ];
 
+export const driverNavItems = [
+  {
+    href: '/driver-dashboard',
+    label: 'Tableau de bord',
+    icon: <Home className="h-5 w-5" />,
+  },
+  {
+    href: '/driver-dashboard/orders',
+    label: 'Mes Livraisons',
+    icon: <Package className="h-5 w-5" />,
+  },
+  {
+    href: '/driver-dashboard/profile',
+    label: 'Profil',
+    icon: <UserCircle className="h-5 w-5" />,
+  },
+  {
+    href: '/driver-dashboard/earnings',
+    label: 'Gains',
+    icon: <DollarSign className="h-5 w-5" />,
+  },
+  {
+    href: '/driver-dashboard/statistics',
+    label: 'Statistiques',
+    icon: <TrendingUp className="h-5 w-5" />,
+  },
+];
+
 export const adminNavItems = [
   {
     href: '/admin-dashboard',
@@ -248,8 +276,13 @@ export const adminNavItems = [
     icon: <Truck className="h-5 w-5" />,
   },
   {
-    href: '/admin-dashboard/reports',
-    label: 'Rapports',
+    href: '/admin-dashboard/content',
+    label: 'Contenu',
+    icon: <Package className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/analytics',
+    label: 'Analytics',
     icon: <BarChart3 className="h-5 w-5" />,
   },
   {

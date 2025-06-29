@@ -16,7 +16,8 @@ import {
   Search,
   XCircle,
   ClipboardList,
-  MoreHorizontal
+  MoreHorizontal,
+  Table
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import {
@@ -36,6 +37,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
 import { ReservationSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { usePartnerReservations, PartnerReservation } from '@/hooks/use-partner-reservations';
+import { AssignTableDialog } from '@/components/AssignTableDialog';
 
 // Helper function to get status color
 const getStatusColor = (status: PartnerReservation['status']) => {
@@ -108,6 +110,10 @@ const PartnerReservations = () => {
   const [selectedReservation, setSelectedReservation] = useState<PartnerReservation | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
+  // State pour l'assignation de table
+  const [isAssignTableOpen, setIsAssignTableOpen] = useState(false);
+  const [reservationForTable, setReservationForTable] = useState<PartnerReservation | null>(null);
+  
   // Filtrer les réservations
   const filteredReservations = reservations.filter((reservation) => {
     // Filtre par date
@@ -175,14 +181,16 @@ const PartnerReservations = () => {
   };
 
   // Assigner une table
-  const handleAssignTable = async (reservationId: string, tableNumber: string) => {
-    const result = await assignTable(reservationId, parseInt(tableNumber));
+  const handleAssignTable = async (reservationId: string, tableNumber: number) => {
+    const result = await assignTable(reservationId, tableNumber);
     
     if (result.success) {
       toast({
         title: "Table assignée",
         description: `La table ${tableNumber} a été assignée à cette réservation.`,
       });
+      // Rafraîchir les réservations
+      fetchPartnerReservations();
     } else {
       toast({
         title: "Erreur",
@@ -190,6 +198,18 @@ const PartnerReservations = () => {
         variant: "destructive",
       });
     }
+  };
+
+  // Ouvrir le dialogue d'assignation de table
+  const handleOpenAssignTable = (reservation: PartnerReservation) => {
+    setReservationForTable(reservation);
+    setIsAssignTableOpen(true);
+  };
+
+  // Fermer le dialogue d'assignation de table
+  const handleCloseAssignTable = () => {
+    setIsAssignTableOpen(false);
+    setReservationForTable(null);
   };
 
   // Afficher l'état de chargement
@@ -407,6 +427,10 @@ const PartnerReservations = () => {
                                 Marquer comme terminée
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem onClick={() => handleOpenAssignTable(reservation)}>
+                              <Table className="mr-2 h-4 w-4" />
+                              {reservation.table_number ? 'Modifier la table' : 'Assigner une table'}
+                            </DropdownMenuItem>
                             {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
                               <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
                                 <XCircle className="mr-2 h-4 w-4" />
@@ -490,6 +514,16 @@ const PartnerReservations = () => {
                       Marquer comme terminée
                     </Button>
                   )}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsDetailsOpen(false);
+                      handleOpenAssignTable(selectedReservation);
+                    }}
+                  >
+                    <Table className="mr-2 h-4 w-4" />
+                    {selectedReservation.table_number ? 'Modifier la table' : 'Assigner une table'}
+                  </Button>
                   {selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && (
                     <Button variant="destructive" onClick={() => handleUpdateStatus(selectedReservation.id, 'cancelled')}>
                       Annuler
@@ -501,6 +535,14 @@ const PartnerReservations = () => {
           </Dialog>
         )}
       </div>
+
+      {/* Dialogue d'assignation de table */}
+      <AssignTableDialog
+        isOpen={isAssignTableOpen}
+        onClose={handleCloseAssignTable}
+        reservation={reservationForTable}
+        onTableAssigned={handleAssignTable}
+      />
     </DashboardLayout>
   );
 };

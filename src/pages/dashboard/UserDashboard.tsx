@@ -26,6 +26,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useCustomerDashboard } from '@/hooks/use-dashboard';
 import { PageSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { useUserRole } from '@/contexts/UserRoleContext';
 
 // Composant pour afficher les statistiques
 const StatsCard = ({ 
@@ -108,6 +109,7 @@ const RecentOrdersList = ({ orders }: { orders: any[] }) => (
 const UserDashboard = () => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const { isCustomer } = useUserRole();
 
   // Utiliser les hooks pour les données dynamiques
   const { 
@@ -153,20 +155,16 @@ const UserDashboard = () => {
   }
 
   // Vérifier si l'utilisateur est un client
-  if (customerCurrentUser?.role !== 'customer') {
+  if (!isCustomer) {
     return (
       <DashboardLayout navItems={userNavItems} title="Tableau de bord">
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Accès Restreint</h3>
             <p className="text-muted-foreground mb-4">
-              Cette page est réservée aux clients. Vous êtes connecté en tant que partenaire.
+              Cette page est réservée aux clients. Vous n'avez pas le bon rôle.
             </p>
-            <Button asChild>
-              <Link to="/partner-dashboard">
-                Aller au dashboard partenaire
-              </Link>
-            </Button>
+            {/* Redirection selon le rôle si besoin */}
           </div>
         </div>
       </DashboardLayout>

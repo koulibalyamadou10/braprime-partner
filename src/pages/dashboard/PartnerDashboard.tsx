@@ -41,6 +41,7 @@ import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardService } from '@/lib/services/dashboard'
 import { toast } from 'sonner';
+import { useUserRole } from '@/contexts/UserRoleContext';
 
 // Composant de chargement
 const DashboardSkeleton = () => (
@@ -168,6 +169,7 @@ const PartnerDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isOpen, setIsOpen] = useState(true);
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year'>('month');
+  const { isPartner } = useUserRole();
 
   // Utiliser le hook pour les données dynamiques
   const { 
@@ -273,20 +275,16 @@ const PartnerDashboard = () => {
   }
 
   // Vérifier si l'utilisateur est un partenaire
-  if (partnerCurrentUser?.role !== 'partner') {
+  if (!isPartner) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Accès Restreint</h3>
             <p className="text-muted-foreground mb-4">
-              Cette page est réservée aux partenaires. Vous êtes connecté en tant que client.
+              Cette page est réservée aux partenaires. Vous n'avez pas le bon rôle.
             </p>
-            <Button asChild>
-              <Link to="/dashboard">
-                Aller au dashboard client
-              </Link>
-            </Button>
+            {/* Redirection selon le rôle si besoin */}
           </div>
         </div>
       </DashboardLayout>

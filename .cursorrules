@@ -1,0 +1,276 @@
+# BraPrime - Règles de Développement Cursor
+
+## 🎯 Vue d'ensemble du Projet
+
+BraPrime est une plateforme de livraison complète développée en React + TypeScript avec Supabase comme backend. Le projet supporte 4 rôles : clients, partenaires (commerces), chauffeurs et administrateurs.
+
+## 🏗️ Architecture Technique
+
+### Stack Technologique
+- **Frontend** : React 18 + TypeScript + Vite
+- **UI** : Shadcn/ui + Radix UI + Tailwind CSS
+- **Backend** : Supabase (PostgreSQL + Auth + Storage)
+- **State Management** : React Query (TanStack Query)
+- **Routing** : React Router DOM
+- **Forms** : React Hook Form + Zod
+- **Maps** : Leaflet + React Leaflet
+- **Charts** : Recharts
+
+### Structure des Dossiers
+```
+src/
+├── components/          # Composants réutilisables
+│   ├── ui/             # Composants Shadcn/ui
+│   ├── auth/           # Composants d'authentification
+│   └── dashboard/      # Composants du dashboard
+├── pages/              # Pages de l'application
+│   └── dashboard/      # Pages du dashboard par rôle
+├── hooks/              # Hooks personnalisés
+├── lib/                # Utilitaires et configuration
+│   ├── services/       # Services API Supabase
+│   └── types/          # Types TypeScript
+├── contexts/           # Contextes React
+└── config/             # Configuration de l'app
+```
+
+## 📝 Conventions de Code
+
+### TypeScript
+- Toujours utiliser des types stricts
+- Préférer les interfaces aux types pour les objets
+- Utiliser les types génériques pour les hooks et services
+- Documenter les types complexes avec des commentaires JSDoc
+
+### React
+- Utiliser des composants fonctionnels avec hooks
+- Préférer les hooks personnalisés pour la logique réutilisable
+- Utiliser React.memo() pour les composants lourds
+- Implémenter le lazy loading pour les pages
+
+### Styling
+- Utiliser Tailwind CSS pour tous les styles
+- Préférer les classes utilitaires aux styles personnalisés
+- Utiliser les variants de Shadcn/ui pour les variations
+- Respecter le design system établi
+
+### Naming Conventions
+- **Composants** : PascalCase (ex: `UserDashboard.tsx`)
+- **Hooks** : camelCase avec préfixe "use" (ex: `useUserProfile.ts`)
+- **Services** : camelCase (ex: `userProfile.ts`)
+- **Types** : PascalCase (ex: `UserProfile`)
+- **Constantes** : UPPER_SNAKE_CASE (ex: `API_ENDPOINTS`)
+
+## 🗄️ Base de Données (Supabase)
+
+### Conventions SQL
+- Utiliser des noms de tables au pluriel (ex: `user_profiles`)
+- Préférer les UUID pour les clés primaires
+- Utiliser des timestamps avec timezone
+- Implémenter RLS sur toutes les tables
+- Créer des index pour les colonnes fréquemment requêtées
+
+### Tables Principales
+- `user_profiles` : Profils utilisateurs
+- `businesses` : Commerces/restaurants
+- `orders` : Commandes
+- `drivers` : Chauffeurs
+- `reservations` : Réservations
+- `cart` : Panier utilisateur
+
+### Fonctions PostgreSQL
+- Créer des fonctions pour les calculs complexes
+- Utiliser des triggers pour l'historique automatique
+- Implémenter des vues pour les requêtes fréquentes
+
+## 🔐 Authentification et Sécurité
+
+### Rôles Utilisateurs
+1. **customer** : Clients finaux
+2. **partner** : Propriétaires de commerces
+3. **driver** : Chauffeurs de livraison
+4. **admin** : Administrateurs système
+
+### Politiques RLS
+- Chaque table doit avoir des politiques RLS appropriées
+- Les utilisateurs ne peuvent voir que leurs propres données
+- Les partenaires peuvent voir les données de leurs commerces
+- Les admins ont accès à toutes les données
+
+### Validation
+- Utiliser Zod pour la validation côté client
+- Implémenter la validation côté serveur avec Supabase
+- Valider tous les inputs utilisateur
+
+## 🚀 Fonctionnalités Principales
+
+### Système de Commandes
+- Panier persistant avec Supabase
+- Calcul automatique des frais de livraison
+- Suivi GPS en temps réel
+- Historique détaillé des statuts
+
+### Gestion des Chauffeurs
+- Authentification dédiée
+- Système d'offres de livraison
+- Gestion des documents
+- Sessions de travail avec calculs
+
+### Dashboard Multi-Rôles
+- Interface adaptée à chaque rôle
+- Statistiques en temps réel
+- Gestion des notifications
+- Profils utilisateurs complets
+
+## 🎨 UI/UX Guidelines
+
+### Design System
+- Utiliser les composants Shadcn/ui comme base
+- Respecter la palette de couleurs définie
+- Maintenir la cohérence visuelle
+- Optimiser pour mobile-first
+
+### Composants
+- Créer des composants réutilisables
+- Utiliser la composition plutôt que l'héritage
+- Implémenter des props avec des types stricts
+- Ajouter des tests pour les composants critiques
+
+### Responsive Design
+- Mobile-first approach
+- Utiliser les breakpoints Tailwind
+- Tester sur différents appareils
+- Optimiser les interactions tactiles
+
+## 📊 Performance
+
+### Optimisations Frontend
+- Lazy loading des pages et composants
+- Memoization des calculs coûteux
+- Optimisation des re-renders
+- Code splitting automatique avec Vite
+
+### Optimisations Backend
+- Index sur les colonnes de recherche
+- Pagination pour les listes longues
+- Mise en cache des requêtes fréquentes
+- Optimisation des requêtes SQL
+
+## 🧪 Tests et Qualité
+
+### Tests
+- Tests unitaires pour les hooks et services
+- Tests d'intégration pour les workflows critiques
+- Tests E2E pour les parcours utilisateur
+- Tests de performance pour les requêtes
+
+### Qualité de Code
+- Utiliser ESLint avec les règles TypeScript
+- Formater le code avec Prettier
+- Vérifier les types TypeScript
+- Documenter les fonctions complexes
+
+## 🔧 Configuration et Déploiement
+
+### Variables d'Environnement
+- Utiliser des variables d'environnement pour les clés API
+- Ne jamais commiter les secrets
+- Documenter les variables requises
+
+### Supabase
+- Utiliser les migrations SQL pour les changements de schéma
+- Tester les migrations sur un environnement de staging
+- Sauvegarder régulièrement la base de données
+
+## 📚 Documentation
+
+### Code Documentation
+- Commenter les fonctions complexes
+- Documenter les types personnalisés
+- Expliquer les décisions d'architecture
+- Maintenir un README à jour
+
+### API Documentation
+- Documenter les endpoints Supabase
+- Expliquer les politiques RLS
+- Documenter les fonctions PostgreSQL
+- Maintenir des exemples d'utilisation
+
+## 🚨 Bonnes Pratiques
+
+### Général
+- Toujours vérifier les permissions avant les opérations
+- Gérer les erreurs de manière appropriée
+- Utiliser des messages d'erreur informatifs
+- Implémenter le loading states
+
+### React
+- Éviter les re-renders inutiles
+- Utiliser les hooks dans le bon ordre
+- Nettoyer les effets avec useEffect
+- Préférer les callbacks stables
+
+### TypeScript
+- Utiliser des types stricts
+- Éviter les `any`
+- Utiliser les utilitaires TypeScript
+- Valider les types à la compilation
+
+### Supabase
+- Utiliser les types générés automatiquement
+- Implémenter la gestion d'erreurs
+- Utiliser les transactions pour les opérations multiples
+- Optimiser les requêtes avec des vues
+
+## 🎯 Règles Spécifiques au Projet
+
+### Gestion des États
+- Utiliser React Query pour le cache serveur
+- Utiliser les contextes pour l'état global
+- Préférer les hooks locaux pour l'état simple
+
+### Navigation
+- Utiliser React Router pour la navigation
+- Implémenter la protection des routes par rôle
+- Gérer les redirections après authentification
+
+### Formulaires
+- Utiliser React Hook Form pour tous les formulaires
+- Valider avec Zod
+- Gérer les états de soumission
+- Afficher les erreurs de validation
+
+### Notifications
+- Utiliser Sonner pour les toasts
+- Implémenter les notifications en temps réel
+- Gérer les notifications push
+
+## 🔄 Workflow de Développement
+
+### Branches
+- `main` : Code de production
+- `develop` : Branche de développement
+- `feature/*` : Nouvelles fonctionnalités
+- `fix/*` : Corrections de bugs
+
+### Commits
+- Utiliser des messages de commit descriptifs
+- Préfixer avec le type de changement
+- Référencer les issues si applicable
+
+### Code Review
+- Vérifier la sécurité des nouvelles fonctionnalités
+- Tester les migrations de base de données
+- Valider l'accessibilité
+- Vérifier la performance
+
+---
+
+## 📞 Support
+
+Pour toute question sur ces règles ou le projet :
+1. Consulter la documentation du projet
+2. Vérifier les exemples de code existants
+3. Suivre les conventions établies
+4. Demander clarification si nécessaire
+
+**Objectif** : Maintenir un code de qualité, sécurisé et maintenable pour une plateforme de livraison de niveau professionnel. 

@@ -1,14 +1,16 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth, UserRole } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/contexts/UserRoleContext';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  allowedRoles?: UserRole[];
+  allowedRoles?: string[];
 }
 
 const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) => {
-  const { isAuthenticated, currentUser, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  const { role, isAdmin, isPartner, isDriver, isCustomer } = useUserRole();
   const location = useLocation();
 
   // Show loading state while authentication status is being determined
@@ -26,16 +28,13 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   }
 
   // If roles are specified and the user doesn't have the required role
-  if (allowedRoles.length > 0 && currentUser && !allowedRoles.includes(currentUser.role)) {
-    // Redirect to the appropriate dashboard based on user role
-    switch (currentUser.role) {
-      case 'customer':
-        return <Navigate to="/dashboard" replace />;
-      case 'partner':
-        return <Navigate to="/partner-dashboard" replace />;
-      default:
-        return <Navigate to="/" replace />;
-    }
+  if (allowedRoles.length > 0 && role && !allowedRoles.includes(role)) {
+    // Redirection selon le rôle
+    if (isCustomer) return <Navigate to="/dashboard" replace />;
+    if (isPartner) return <Navigate to="/partner-dashboard" replace />;
+    if (isDriver) return <Navigate to="/driver-dashboard" replace />;
+    if (isAdmin) return <Navigate to="/admin-dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // If the user is authenticated and has the required role, render the children
