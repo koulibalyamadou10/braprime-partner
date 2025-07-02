@@ -30,7 +30,11 @@ import {
   Mail,
   AlertCircle,
   Power,
-  PowerOff
+  PowerOff,
+  Timer,
+  Truck,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { format, subDays, isToday, isYesterday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -70,6 +74,48 @@ const DashboardSkeleton = () => (
     </div>
   </div>
 );
+
+// Fonction pour obtenir la couleur du statut
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'pending': return "bg-blue-100 text-blue-800";
+    case 'confirmed': return "bg-yellow-100 text-yellow-800";
+    case 'preparing': return "bg-orange-100 text-orange-800";
+    case 'ready': return "bg-green-100 text-green-800";
+    case 'out_for_delivery': return "bg-purple-100 text-purple-800";
+    case 'delivered': return "bg-gray-100 text-gray-800";
+    case 'cancelled': return "bg-red-100 text-red-800";
+    default: return "bg-gray-100 text-gray-800";
+  }
+};
+
+// Fonction pour obtenir l'icône du statut
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'pending': return <AlertCircle className="h-4 w-4" />;
+    case 'confirmed': return <Clock className="h-4 w-4" />;
+    case 'preparing': return <Timer className="h-4 w-4" />;
+    case 'ready': return <CheckCircle className="h-4 w-4" />;
+    case 'out_for_delivery': return <Truck className="h-4 w-4" />;
+    case 'delivered': return <CheckCircle className="h-4 w-4" />;
+    case 'cancelled': return <XCircle className="h-4 w-4" />;
+    default: return <Clock className="h-4 w-4" />;
+  }
+};
+
+// Fonction pour obtenir le label du statut
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'pending': return 'En attente';
+    case 'confirmed': return 'Confirmée';
+    case 'preparing': return 'En préparation';
+    case 'ready': return 'Prête';
+    case 'out_for_delivery': return 'En livraison';
+    case 'delivered': return 'Livrée';
+    case 'cancelled': return 'Annulée';
+    default: return status;
+  }
+};
 
 // Composant pour afficher les statistiques
 const StatsCard = ({ 
@@ -141,16 +187,9 @@ const RecentOrdersTable = ({ orders }: { orders: any[] }) => (
               <TableCell className="font-medium">{order.customer_name}</TableCell>
               <TableCell>{(order.total / 1000).toFixed(0)}k GNF</TableCell>
               <TableCell>
-                <Badge variant={
-                  order.status === 'delivered' ? 'default' :
-                  order.status === 'pending' ? 'secondary' :
-                  order.status === 'cancelled' ? 'destructive' :
-                  'outline'
-                }>
-                  {order.status === 'delivered' ? 'Livrée' :
-                   order.status === 'pending' ? 'En attente' :
-                   order.status === 'cancelled' ? 'Annulée' :
-                   order.status}
+                <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1`}>
+                  {getStatusIcon(order.status)}
+                  <span className="capitalize">{getStatusLabel(order.status)}</span>
                 </Badge>
               </TableCell>
               <TableCell>
@@ -523,14 +562,9 @@ const PartnerDashboard = () => {
                         <p className="font-medium">{formatCurrency(order.grand_total)}</p>
                         <p className="text-sm text-gray-500">{order.items.length} articles</p>
                       </div>
-                      <Badge 
-                        variant={
-                          order.status === 'delivered' ? 'default' :
-                          order.status === 'pending' ? 'secondary' :
-                          order.status === 'cancelled' ? 'destructive' : 'outline'
-                        }
-                      >
-                        {order.status}
+                      <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1`}>
+                        {getStatusIcon(order.status)}
+                        <span className="capitalize">{getStatusLabel(order.status)}</span>
                       </Badge>
                       <div className="flex gap-1">
                         {order.status === 'pending' && (
