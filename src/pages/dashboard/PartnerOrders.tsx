@@ -6,10 +6,11 @@ import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../../components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
+import { ScrollArea } from '../../components/ui/scroll-area';
 import { 
   ShoppingBag, 
   Clock, 
@@ -28,7 +29,9 @@ import {
   MoreHorizontal,
   ChevronDown,
   Truck,
-  Zap
+  Zap,
+  Timer,
+  AlertCircle
 } from 'lucide-react';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
@@ -181,28 +184,29 @@ const PartnerOrders = () => {
   };
 
   // Obtenir la couleur du badge selon le statut
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'secondary';
-      case 'confirmed': return 'default';
-      case 'preparing': return 'default';
-      case 'ready': return 'default';
-      case 'out_for_delivery': return 'default';
-      case 'delivered': return 'default';
-      case 'cancelled': return 'destructive';
-      default: return 'outline';
+      case 'pending': return "bg-blue-100 text-blue-800";
+      case 'confirmed': return "bg-yellow-100 text-yellow-800";
+      case 'preparing': return "bg-orange-100 text-orange-800";
+      case 'ready': return "bg-green-100 text-green-800";
+      case 'out_for_delivery': return "bg-purple-100 text-purple-800";
+      case 'delivered': return "bg-gray-100 text-gray-800";
+      case 'cancelled': return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
   // Obtenir l'icône selon le statut
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'confirmed': return <CheckCircle className="h-4 w-4" />;
-      case 'preparing': return <Package className="h-4 w-4" />;
+      case 'pending': return <AlertCircle className="h-4 w-4" />;
+      case 'confirmed': return <Clock className="h-4 w-4" />;
+      case 'preparing': return <Timer className="h-4 w-4" />;
       case 'ready': return <CheckCircle className="h-4 w-4" />;
-      case 'out_for_delivery': return <Package className="h-4 w-4" />;
+      case 'out_for_delivery': return <Truck className="h-4 w-4" />;
       case 'delivered': return <CheckCircle className="h-4 w-4" />;
+      case 'cancelled': return <XCircle className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
     }
   };
@@ -210,11 +214,11 @@ const PartnerOrders = () => {
   // Obtenir les options de statut disponibles selon le statut actuel
   const getAvailableStatusOptions = (currentStatus: string) => {
     const statusOptions = [
-      { value: 'pending', label: 'En attente', icon: <Clock className="h-4 w-4" /> },
-      { value: 'confirmed', label: 'Confirmée', icon: <CheckCircle className="h-4 w-4" /> },
-      { value: 'preparing', label: 'En préparation', icon: <Package className="h-4 w-4" /> },
+      { value: 'pending', label: 'En attente', icon: <AlertCircle className="h-4 w-4" /> },
+      { value: 'confirmed', label: 'Confirmée', icon: <Clock className="h-4 w-4" /> },
+      { value: 'preparing', label: 'En préparation', icon: <Timer className="h-4 w-4" /> },
       { value: 'ready', label: 'Prête', icon: <CheckCircle className="h-4 w-4" /> },
-      { value: 'out_for_delivery', label: 'En livraison', icon: <Package className="h-4 w-4" /> },
+      { value: 'out_for_delivery', label: 'En livraison', icon: <Truck className="h-4 w-4" /> },
       { value: 'delivered', label: 'Livrée', icon: <CheckCircle className="h-4 w-4" /> },
       { value: 'cancelled', label: 'Annulée', icon: <XCircle className="h-4 w-4" /> }
     ];
@@ -271,10 +275,11 @@ const PartnerOrders = () => {
     const confirmed = orders.filter(order => order.status === 'confirmed').length;
     const preparing = orders.filter(order => order.status === 'preparing').length;
     const ready = orders.filter(order => order.status === 'ready').length;
+    const delivering = orders.filter(order => order.status === 'out_for_delivery').length;
     const delivered = orders.filter(order => order.status === 'delivered').length;
     const cancelled = orders.filter(order => order.status === 'cancelled').length;
 
-    return { total, pending, confirmed, preparing, ready, delivered, cancelled };
+    return { total, pending, confirmed, preparing, ready, delivering, delivered, cancelled };
   };
 
   const stats = getOrderStats();
@@ -357,121 +362,77 @@ const PartnerOrders = () => {
           </Button>
         </div>
 
+        {/* Filtres et recherche */}
+        <div className="flex flex-col gap-4 md:flex-row">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input 
+                type="search" 
+                placeholder="Rechercher par client ou ID commande..." 
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            <Select 
+              value={filterStatus} 
+              onValueChange={setFilterStatus}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrer par statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les commandes</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="confirmed">Confirmée</SelectItem>
+                <SelectItem value="preparing">En préparation</SelectItem>
+                <SelectItem value="ready">Prête</SelectItem>
+                <SelectItem value="out_for_delivery">En livraison</SelectItem>
+                <SelectItem value="delivered">Livrée</SelectItem>
+                <SelectItem value="cancelled">Annulée</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Statistiques */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total</CardTitle>
-              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
+            <CardContent className="p-4 flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-500">Nouvelles commandes</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.pending}</h3>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">En Attente</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pending}</div>
+            <CardContent className="p-4 flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-500">En préparation</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.preparing}</h3>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Confirmées</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.confirmed}</div>
+            <CardContent className="p-4 flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-500">Prêtes</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.ready}</h3>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">En Préparation</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.preparing}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Prêtes</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.ready}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Livrées</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.delivered}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Annulées</CardTitle>
-              <XCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.cancelled}</div>
+            <CardContent className="p-4 flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-500">En livraison</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.delivering}</h3>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filtres et recherche */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filtres</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="flex-1">
-                <Label htmlFor="search">Rechercher</Label>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="search"
-                    placeholder="Rechercher par client, téléphone ou ID commande..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="status-filter">Statut</Label>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger id="status-filter" className="w-[180px]">
-                    <SelectValue placeholder="Tous les statuts" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="pending">En attente</SelectItem>
-                    <SelectItem value="confirmed">Confirmée</SelectItem>
-                    <SelectItem value="preparing">En préparation</SelectItem>
-                    <SelectItem value="ready">Prête</SelectItem>
-                    <SelectItem value="out_for_delivery">En livraison</SelectItem>
-                    <SelectItem value="delivered">Livrée</SelectItem>
-                    <SelectItem value="cancelled">Annulée</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Liste des commandes */}
         <Card>
           <CardHeader>
-            <CardTitle>Commandes ({filteredOrders.length})</CardTitle>
+            <CardTitle>Commandes récentes</CardTitle>
             <CardDescription>
-              Liste de toutes les commandes de votre business
+              Gérez les commandes de vos clients et mettez à jour leur statut.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -479,193 +440,73 @@ const PartnerOrders = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>ID Commande</TableHead>
                     <TableHead>Client</TableHead>
-                    <TableHead>Montant</TableHead>
-                    <TableHead>Statut</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Statut</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell className="font-mono text-sm">
-                        {order.id.slice(0, 8)}...
-                      </TableCell>
+                      <TableCell className="font-medium">{order.id.slice(0, 8)}...</TableCell>
+                      <TableCell>{order.customer_name}</TableCell>
+                      <TableCell>{formatDate(order.created_at)}</TableCell>
+                      <TableCell>{formatCurrency(order.grand_total)}</TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{order.customer_name}</p>
-                          <p className="text-sm text-gray-500">{order.customer_phone}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{formatCurrency(order.grand_total)}</p>
-                          <p className="text-sm text-gray-500">{order.items.length} articles</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(order.status)}>
+                        <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1`}>
                           {getStatusIcon(order.status)}
-                          <span className="ml-1">{getStatusLabel(order.status)}</span>
+                          <span className="capitalize">{getStatusLabel(order.status)}</span>
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm">{formatDate(order.created_at)}</p>
-                      </TableCell>
-                      <TableCell>
                         <div className="flex items-center gap-2">
-                          {/* Debug: Afficher le statut et les options disponibles */}
-                          <div className="text-xs text-gray-500">
-                            Statut: {order.status} | Options: {getAvailableStatusOptions(order.status).length}
-                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleOrderSelect(order)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">Voir les détails</span>
+                          </Button>
                           
-                          {/* Bouton d'assignation de livreur pour les commandes prêtes */}
-                          {order.status === 'ready' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAssignDriver(order)}
-                              className="flex items-center gap-1"
-                            >
-                              <Truck className="h-4 w-4" />
-                              Assigner livreur
-                            </Button>
-                          )}
-                          
-                          {/* Menu déroulant pour changer le statut - toujours affiché */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                Changer statut
-                                <ChevronDown className="h-4 w-4 ml-1" />
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Plus d'options</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {getAvailableStatusOptions(order.status).length > 0 ? (
-                                getAvailableStatusOptions(order.status).map((option) => (
-                                  <DropdownMenuItem
-                                    key={option.value}
-                                    onClick={() => handleStatusChange(order.id, option.value as OrderStatus)}
-                                    className="flex items-center gap-2"
-                                  >
-                                    {option.icon}
-                                    {option.label}
-                                  </DropdownMenuItem>
-                                ))
-                              ) : (
-                                <DropdownMenuItem disabled>
-                                  Aucune action disponible
+                              {order.status === 'pending' && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'confirmed')}>
+                                  Confirmer la commande
+                                </DropdownMenuItem>
+                              )}
+                              {order.status === 'confirmed' && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'preparing')}>
+                                  Commencer la préparation
+                                </DropdownMenuItem>
+                              )}
+                              {order.status === 'preparing' && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'ready')}>
+                                  Marquer comme prête
+                                </DropdownMenuItem>
+                              )}
+                              {order.status === 'ready' && (
+                                <DropdownMenuItem onClick={() => handleAssignDriver(order)}>
+                                  Assigner un livreur
+                                </DropdownMenuItem>
+                              )}
+                              {(order.status === 'pending' || order.status === 'confirmed' || order.status === 'preparing') && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(order.id, 'cancelled')}>
+                                  Annuler la commande
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>
-                          
-                          {/* Bouton pour voir les détails */}
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleOrderSelect(order)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Détails de la commande</DialogTitle>
-                                <DialogDescription>
-                                  Commande #{order.id.slice(0, 8)}...
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                {/* Informations client */}
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <h4 className="font-medium mb-2">Client</h4>
-                                    <div className="space-y-1">
-                                      <p className="text-sm flex items-center gap-2">
-                                        <User className="h-4 w-4" />
-                                        {order.customer_name}
-                                      </p>
-                                      <p className="text-sm flex items-center gap-2">
-                                        <Phone className="h-4 w-4" />
-                                        {order.customer_phone}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium mb-2">Livraison</h4>
-                                    <div className="space-y-1">
-                                      <p className="text-sm flex items-center gap-2">
-                                        <MapPin className="h-4 w-4" />
-                                        {order.delivery_address}
-                                      </p>
-                                      {order.delivery_instructions && (
-                                        <p className="text-sm text-gray-500">
-                                          {order.delivery_instructions}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Articles */}
-                                <div>
-                                  <h4 className="font-medium mb-2">Articles</h4>
-                                  <div className="space-y-2">
-                                    {order.items.map((item: any, index: number) => (
-                                      <div key={index} className="flex justify-between items-center p-2 border rounded">
-                                        <div>
-                                          <p className="font-medium">{item.name}</p>
-                                          <p className="text-sm text-gray-500">
-                                            Quantité: {item.quantity}
-                                          </p>
-                                        </div>
-                                        <p className="font-medium">
-                                          {formatCurrency(item.price * item.quantity)}
-                                        </p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Résumé */}
-                                <div className="border-t pt-4">
-                                  <div className="space-y-2">
-                                    <div className="flex justify-between">
-                                      <span>Sous-total:</span>
-                                      <span>{formatCurrency(order.total)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Frais de livraison:</span>
-                                      <span>{formatCurrency(order.delivery_fee)}</span>
-                                    </div>
-                                    <div className="flex justify-between font-bold">
-                                      <span>Total:</span>
-                                      <span>{formatCurrency(order.grand_total)}</span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Actions dans la modal */}
-                                <div className="flex gap-2">
-                                  {getAvailableStatusOptions(order.status).map((option) => (
-                                    <Button
-                                      key={option.value}
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleStatusChange(order.id, option.value as OrderStatus)}
-                                    >
-                                      {option.label}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -673,19 +514,196 @@ const PartnerOrders = () => {
                 </TableBody>
               </Table>
             ) : (
-              <div className="text-center py-8">
-                <ShoppingBag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">
-                  {searchQuery || filterStatus !== 'all' 
-                    ? 'Aucune commande ne correspond aux critères de recherche'
-                    : 'Aucune commande trouvée'
-                  }
-                </p>
+              <div className="flex flex-col items-center justify-center h-64">
+                <p className="text-gray-500 mb-2">Aucune commande trouvée</p>
+                {searchQuery && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setSearchQuery("")}
+                  >
+                    Effacer la recherche
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+      
+      {/* Dialogue de détails de commande */}
+      {selectedOrder && (
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Commande {selectedOrder.id.slice(0, 8)}...</span>
+                <Badge className={`${getStatusColor(selectedOrder.status)} flex items-center gap-1`}>
+                  {getStatusIcon(selectedOrder.status)}
+                  <span className="capitalize">{getStatusLabel(selectedOrder.status)}</span>
+                </Badge>
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-medium">Articles de la commande</h3>
+                    <div className="mt-2 border rounded-md">
+                      <ScrollArea className="h-64">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Article</TableHead>
+                              <TableHead className="text-right">Qté</TableHead>
+                              <TableHead className="text-right">Prix</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedOrder.items.map((item: any, index: number) => (
+                              <TableRow key={index}>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium">{item.name}</p>
+                                    {item.special_instructions && (
+                                      <p className="text-xs text-gray-500 mt-1">{item.special_instructions}</p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">{item.quantity}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.price * item.quantity)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                      <div className="p-4 border-t">
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Sous-total:</span>
+                            <span>{formatCurrency(selectedOrder.total)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Frais de livraison:</span>
+                            <span>{formatCurrency(selectedOrder.delivery_fee)}</span>
+                          </div>
+                          <div className="flex justify-between font-medium">
+                            <span>Total:</span>
+                            <span>{formatCurrency(selectedOrder.grand_total)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-4 border-t">
+                    <h3 className="text-lg font-medium mb-2">Mettre à jour le statut</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {getAvailableStatusOptions(selectedOrder.status).map((option) => (
+                        <Button
+                          key={option.value}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStatusChange(selectedOrder.id, option.value as OrderStatus)}
+                        >
+                          {option.icon}
+                          <span className="ml-1">{option.label}</span>
+                        </Button>
+                      ))}
+                      {selectedOrder.status === 'ready' && (
+                        <Button
+                          onClick={() => handleAssignDriver(selectedOrder)}
+                          className="flex items-center gap-1"
+                        >
+                          <Truck className="h-4 w-4" />
+                          Assigner livreur
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="border rounded-md p-4">
+                  <h3 className="text-lg font-medium mb-2">Informations client</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <User className="h-4 w-4 mt-0.5 text-gray-500" />
+                      <div>
+                        <p className="font-medium">{selectedOrder.customer_name}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Phone className="h-4 w-4 mt-0.5 text-gray-500" />
+                      <div>
+                        <p>{selectedOrder.customer_phone}</p>
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs mt-1">
+                          Appeler le client
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-md p-4">
+                  <h3 className="text-lg font-medium mb-2">Détails de la commande</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Date de commande:</span>
+                      <span>{formatDate(selectedOrder.created_at)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Méthode de paiement:</span>
+                      <span>{selectedOrder.payment_method || 'Non spécifié'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Type de livraison:</span>
+                      <span className="capitalize">{selectedOrder.delivery_method || 'livraison'}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-md p-4">
+                  <h3 className="text-lg font-medium mb-2">Informations de livraison</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 mt-0.5 text-gray-500" />
+                      <div>
+                        <p className="font-medium">Adresse de livraison</p>
+                        <p className="text-sm">{selectedOrder.delivery_address}</p>
+                      </div>
+                    </div>
+                    
+                    {selectedOrder.delivery_instructions && (
+                      <div>
+                        <p className="font-medium text-sm">Instructions de livraison</p>
+                        <p className="text-sm text-gray-600">{selectedOrder.delivery_instructions}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+                Fermer
+              </Button>
+              {(selectedOrder.status === 'pending' || selectedOrder.status === 'confirmed' || selectedOrder.status === 'preparing') && (
+                <Button variant="destructive" onClick={() => {
+                  handleStatusChange(selectedOrder.id, 'cancelled');
+                  setIsDetailsOpen(false);
+                }}>
+                  Annuler la commande
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Dialogue d'assignation de livreur */}
       {orderToAssign && (
