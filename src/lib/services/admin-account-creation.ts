@@ -35,7 +35,19 @@ export class AdminAccountCreationService {
         throw new Error('Aucun utilisateur créé');
       }
 
-      // 2. Créer le profil utilisateur
+      // 2. Récupérer l'ID du rôle dynamiquement
+      const roleName = data.role === 'partner' ? 'partner' : 'driver';
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('name', roleName)
+        .single();
+
+      if (roleError || !roleData) {
+        throw new Error(`Rôle ${roleName} non trouvé dans la base de données`);
+      }
+
+      // 3. Créer le profil utilisateur
       const { error: profileError } = await supabase
         .from('user_profiles')
         .insert({
@@ -43,7 +55,7 @@ export class AdminAccountCreationService {
           name: data.name,
           email: data.email,
           phone_number: data.phone_number || null,
-          role_id: data.role === 'partner' ? 2 : 4, // 2 = partner, 4 = driver
+          role_id: roleData.id, // Utiliser l'ID récupéré dynamiquement
           is_active: true,
           is_verified: true,
           created_at: new Date().toISOString(),
@@ -57,7 +69,7 @@ export class AdminAccountCreationService {
         throw new Error(`Erreur lors de la création du profil: ${profileError.message}`);
       }
 
-      // 3. Si c'est un partenaire, créer le profil business
+      // 4. Si c'est un partenaire, créer le profil business
       if (data.role === 'partner') {
         const { error: businessError } = await supabase
           .from('businesses')
@@ -77,7 +89,7 @@ export class AdminAccountCreationService {
         }
       }
 
-      // 4. Si c'est un chauffeur, créer le profil driver (comme les autres services)
+      // 5. Si c'est un chauffeur, créer le profil driver (comme les autres services)
       if (data.role === 'driver') {
         const { error: driverError } = await supabase
           .from('drivers')
@@ -102,7 +114,7 @@ export class AdminAccountCreationService {
         }
       }
 
-      // 5. Marquer la demande comme traitée (optionnel)
+      // 6. Marquer la demande comme traitée (optionnel)
       const { error: updateError } = await supabase
         .from('requests')
         .update({
