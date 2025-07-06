@@ -102,8 +102,10 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
       return;
     }
 
-    if (selectedDriver.current_order_id) {
-      toast.error('Ce livreur a déjà une commande en cours');
+    // Vérifier le nombre de commandes actives (maximum 3)
+    const activeOrdersCount = selectedDriver.active_orders_count || 0;
+    if (activeOrdersCount >= 3) {
+      toast.error('Ce livreur a déjà 3 commandes en cours');
       return;
     }
 

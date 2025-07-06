@@ -63,6 +63,7 @@ const UserNotifications = lazy(() => import("./pages/dashboard/UserNotifications
 const UserReservations = lazy(() => import("./pages/dashboard/UserReservations"));
 const UserFavorites = lazy(() => import("./pages/dashboard/UserFavorites"));
 
+
 const PartnerDashboard = lazy(() => import("./pages/dashboard/PartnerDashboard"));
 const PartnerOrders = lazy(() => import("./pages/dashboard/PartnerOrders"));
 const PartnerMenu = lazy(() => import("./pages/dashboard/PartnerMenu"));
@@ -73,6 +74,7 @@ const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
 const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
 const PartnerRegistrationPage = lazy(() => import("./pages/PartnerRegistrationPage"));
+const RequestsPage = lazy(() => import("./pages/RequestsPage"));
 
 // Admin Dashboard Pages
 const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
@@ -154,6 +156,7 @@ const App = () => (
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} />
                 <Route path="/devenir-chauffeur" element={<DriverRegistrationPage />} />
+                <Route path="/requests" element={<RequestsPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
                 <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
@@ -204,6 +207,7 @@ const App = () => (
                     <UserFavorites />
                   </ProtectedRoute>
                 } />
+
                 
                 {/* Partner Dashboard Routes */}
                 <Route path="/partner-dashboard" element={

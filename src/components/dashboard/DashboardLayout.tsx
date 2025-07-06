@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Menu, X, LogOut, Home, ChevronRight, 
-  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck, Key, Building2, Users, BarChart3, Settings, Shield, Package, DollarSign, TrendingUp
+  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck, Key, Building2, Users, BarChart3, Settings, Shield, Package, DollarSign, TrendingUp, FileText
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -171,6 +171,7 @@ export const userNavItems = [
     label: 'Notifications',
     icon: <Bell className="h-5 w-5" />,
   },
+
 ];
 
 export const partnerNavItems = [
@@ -270,6 +271,11 @@ export const adminNavItems = [
     href: '/admin-dashboard/drivers',
     label: 'Livreurs',
     icon: <Truck className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/requests',
+    label: 'Demandes',
+    icon: <FileText className="h-5 w-5" />,
   },
   {
     href: '/admin-dashboard/content',

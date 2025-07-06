@@ -23,6 +23,7 @@ import {
   DialogTrigger 
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import DashboardLayout, { adminNavItems } from '@/components/dashboard/DashboardLayout';
 import { 
   Building2, 
   Truck, 
@@ -43,13 +44,17 @@ import {
   Mail,
   MapPin,
   Car,
-  User
+  User,
+  Key,
+  Copy,
+  Check
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAdminRequests } from '@/hooks/use-admin-requests';
 import { Request, RequestFilters } from '@/lib/types';
 import { toast } from 'sonner';
+import { AdminAccountCreationService } from '@/lib/services/admin-account-creation';
 
 const AdminRequests = () => {
   const [filters, setFilters] = useState<RequestFilters>({});
@@ -58,6 +63,10 @@ const AdminRequests = () => {
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'review'>('approve');
   const [adminNotes, setAdminNotes] = useState('');
+  const [isCreateAccountDialogOpen, setIsCreateAccountDialogOpen] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [isPasswordCopied, setIsPasswordCopied] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   const {
     requests,
@@ -134,49 +143,117 @@ const AdminRequests = () => {
     }
   };
 
+  // Générer un mot de passe sécurisé
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setGeneratedPassword(password);
+    setIsPasswordCopied(false);
+  };
+
+  // Copier le mot de passe
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedPassword);
+      setIsPasswordCopied(true);
+      setTimeout(() => setIsPasswordCopied(false), 2000);
+    } catch (error) {
+      console.error('Erreur lors de la copie:', error);
+    }
+  };
+
+  // Créer le compte utilisateur
+  const handleCreateAccount = async () => {
+    if (!selectedRequest || !generatedPassword) return;
+
+    setIsCreatingAccount(true);
+    try {
+      // Vérifier si l'email existe déjà
+      const emailExists = await AdminAccountCreationService.checkEmailExists(selectedRequest.user_email);
+      if (emailExists) {
+        toast.error('Un compte avec cet email existe déjà');
+        return;
+      }
+
+      // Créer le compte utilisateur
+      const result = await AdminAccountCreationService.createUserAccount({
+        email: selectedRequest.user_email,
+        password: generatedPassword,
+        name: selectedRequest.user_name,
+        phone_number: selectedRequest.user_phone !== 'Non renseigné' ? selectedRequest.user_phone : undefined,
+        role: selectedRequest.type,
+        requestId: selectedRequest.id
+      });
+
+      // Envoyer l'email avec les informations de connexion
+      await AdminAccountCreationService.sendLoginCredentials(
+        selectedRequest.user_email,
+        generatedPassword,
+        selectedRequest.user_name,
+        selectedRequest.type
+      );
+
+      toast.success(`Compte ${selectedRequest.type} créé avec succès ! Un email a été envoyé à ${selectedRequest.user_email}`);
+      setIsCreateAccountDialogOpen(false);
+      setGeneratedPassword('');
+      refetch();
+    } catch (error) {
+      console.error('Erreur lors de la création du compte:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la création du compte');
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
   if (isLoading) {
     return (
+      <DashboardLayout navItems={adminNavItems} title="Administration">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Gestion des Demandes</h1>
+              <p className="text-muted-foreground">Gérez les demandes de partenaires et chauffeurs</p>
+            </div>
+          </div>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout navItems={adminNavItems} title="Administration">
       <div className="space-y-6">
+        {/* En-tête */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Gestion des Demandes</h1>
             <p className="text-muted-foreground">Gérez les demandes de partenaires et chauffeurs</p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Exporter
+            </Button>
+          </div>
         </div>
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Gestion des Demandes</h1>
-          <p className="text-muted-foreground">Gérez les demandes de partenaires et chauffeurs</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Exporter
-          </Button>
-        </div>
-      </div>
 
       {/* Statistiques */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
@@ -258,12 +335,12 @@ const AdminRequests = () => {
             </div>
             <div>
               <label className="text-sm font-medium">Type</label>
-              <Select value={filters.type || ''} onValueChange={(value) => handleFilterChange('type', value)}>
+              <Select value={filters.type || 'all'} onValueChange={(value) => handleFilterChange('type', value === 'all' ? '' : value)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Tous les types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tous les types</SelectItem>
+                  <SelectItem value="all">Tous les types</SelectItem>
                   <SelectItem value="partner">Partenaires</SelectItem>
                   <SelectItem value="driver">Chauffeurs</SelectItem>
                 </SelectContent>
@@ -271,12 +348,12 @@ const AdminRequests = () => {
             </div>
             <div>
               <label className="text-sm font-medium">Statut</label>
-              <Select value={filters.status || ''} onValueChange={(value) => handleFilterChange('status', value)}>
+              <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value === 'all' ? '' : value)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Tous les statuts" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tous les statuts</SelectItem>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
                   <SelectItem value="pending">En attente</SelectItem>
                   <SelectItem value="approved">Approuvées</SelectItem>
                   <SelectItem value="rejected">Rejetées</SelectItem>
@@ -399,6 +476,19 @@ const AdminRequests = () => {
                               <XCircle className="h-4 w-4 text-red-600" />
                             </Button>
                           </>
+                        )}
+                        {request.status === 'approved' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              setIsCreateAccountDialogOpen(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <Key className="h-4 w-4" />
+                          </Button>
                         )}
                         <Button
                           variant="outline"
@@ -565,7 +655,100 @@ const AdminRequests = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Dialog de création de compte */}
+      <Dialog open={isCreateAccountDialogOpen} onOpenChange={setIsCreateAccountDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Créer le compte de connexion</DialogTitle>
+            <DialogDescription>
+              Générez un mot de passe et créez le compte pour {selectedRequest?.user_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                {selectedRequest?.user_email}
+              </p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">Mot de passe</label>
+              <div className="flex gap-2">
+                <Input
+                  value={generatedPassword}
+                  onChange={(e) => setGeneratedPassword(e.target.value)}
+                  placeholder="Cliquez sur Générer pour créer un mot de passe"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={generatePassword}
+                  className="whitespace-nowrap"
+                >
+                  <Key className="h-4 w-4 mr-1" />
+                  Générer
+                </Button>
+                {generatedPassword && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={copyPassword}
+                    className="whitespace-nowrap"
+                  >
+                    {isPasswordCopied ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
+              {generatedPassword && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Mot de passe généré : {generatedPassword}
+                </p>
+              )}
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-700">
+                  <p className="font-medium">Important :</p>
+                  <p>Envoyez ces informations par email à l'utilisateur. Le mot de passe ne sera pas visible après la création.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateAccountDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleCreateAccount}
+              disabled={isCreatingAccount || !generatedPassword}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isCreatingAccount ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Création...
+                </>
+              ) : (
+                <>
+                  <User className="h-4 w-4 mr-2" />
+                  Créer le compte
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </div>
+    </DashboardLayout>
   );
 };
 

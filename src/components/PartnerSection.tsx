@@ -85,7 +85,7 @@ export function PartnerSection() {
   const navigate = useNavigate()
 
   const handleBecomePartner = () => {
-    navigate('/devenir-partenaire')
+    navigate('/requests')
   }
 
   return (

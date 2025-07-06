@@ -156,34 +156,135 @@ Le composant `RequestStatusBadge` affiche le statut de la demande en cours dans 
 1. Utilisateur soumet une demande via le formulaire
 2. Demande créée avec statut "pending"
 3. Admin examine la demande
-4. Admin approuve → Profil partenaire créé automatiquement
-5. Admin rejette → Demande marquée comme rejetée
+4. Admin approuve → Demande marquée comme approuvée
+5. Admin crée le compte → Profil partenaire et business créés
+6. Email envoyé avec les informations de connexion
+7. Utilisateur peut se connecter avec email/mot de passe
 
 ### Demande chauffeur
 1. Utilisateur soumet une demande via le formulaire
 2. Demande créée avec statut "pending"
 3. Admin examine la demande
-4. Admin approuve → Profil chauffeur créé automatiquement
-5. Admin rejette → Demande marquée comme rejetée
+4. Admin approuve → Demande marquée comme approuvée
+5. Admin crée le compte → Profil chauffeur créé
+6. Email envoyé avec les informations de connexion
+7. Utilisateur peut se connecter avec email/mot de passe
+
+## 🔐 Création de Comptes
+
+### Fonctionnalité de création de comptes
+Après approbation d'une demande, l'administrateur peut créer le compte de connexion :
+
+1. **Bouton "Créer le compte"** : Apparaît pour les demandes approuvées
+2. **Génération de mot de passe** : Bouton "Générer" pour créer un mot de passe sécurisé
+3. **Copie du mot de passe** : Bouton pour copier le mot de passe dans le presse-papiers
+4. **Création automatique** : Le système crée :
+   - Compte Supabase Auth
+   - Profil utilisateur dans `user_profiles`
+   - Profil business (pour les partenaires)
+   - Profil driver (pour les chauffeurs)
+5. **Envoi d'email** : Les informations de connexion sont envoyées automatiquement
+
+### Service de création de comptes
+```typescript
+import { AdminAccountCreationService } from '@/lib/services/admin-account-creation';
+
+// Créer un compte partenaire
+const result = await AdminAccountCreationService.createUserAccount({
+  email: 'partenaire@example.com',
+  password: 'MotDePasse123!',
+  name: 'Nom du Partenaire',
+  phone_number: '+224123456789',
+  role: 'partner',
+  requestId: 'request-uuid'
+});
+
+// Envoyer les informations de connexion
+await AdminAccountCreationService.sendLoginCredentials(
+  'partenaire@example.com',
+  'MotDePasse123!',
+  'Nom du Partenaire',
+  'partner'
+);
+```
+
+### Permissions requises
+Exécuter le script de configuration des permissions :
+```bash
+psql -d your_database -f scripts/setup-account-creation-permissions.sql
+```
+
+### Sécurité et bonnes pratiques
+
+#### Génération de mots de passe
+- Mots de passe de 12 caractères avec majuscules, minuscules, chiffres et symboles
+- Génération côté client pour éviter l'exposition en transit
+- Copie sécurisée dans le presse-papiers
+
+#### Validation des données
+- Vérification de l'unicité des emails avant création
+- Validation des rôles et permissions
+- Gestion des erreurs avec rollback automatique
+
+#### Envoi d'emails
+- Template d'email professionnel avec informations de connexion
+- Instructions claires pour la première connexion
+- Recommandation de changement de mot de passe
+
+#### Audit et traçabilité
+- Toutes les créations de comptes sont tracées dans les notes admin
+- Horodatage des actions
+- Logs des erreurs pour le debugging
 
 ## 🚀 Installation
 
-### 1. Créer la table
+### Installation automatique (recommandée)
+```bash
+# Exécuter le script d'installation complet
+psql -d your_database -f scripts/install-requests-complete.sql
+```
+
+### Installation manuelle (alternative)
+
+Si vous préférez exécuter les scripts séparément :
+
+#### 1. Corriger les rôles utilisateurs
+```bash
+# Corriger les rôles manquants dans user_roles
+psql -d your_database -f scripts/fix-user-roles.sql
+```
+
+#### 2. Créer la table des demandes
 ```bash
 # Exécuter le script SQL
 psql -d your_database -f scripts/create-requests-table.sql
 ```
 
-### 2. Tester le système
+#### 3. Tester le système
 ```bash
 # Créer des données de test
 psql -d your_database -f scripts/test-requests-system.sql
 ```
 
-### 3. Vérifier l'installation
+### 4. Vérifier l'installation
 - Vérifier que la table `requests` existe
 - Vérifier que les politiques RLS sont actives
 - Vérifier que la fonction `create_request` fonctionne
+
+### 5. Ajouter des demandes de test (optionnel)
+```bash
+# Ajouter des demandes détaillées avec données réalistes
+psql -d your_database -f scripts/add-test-requests.sql
+
+# Ou ajouter des demandes rapides pour tests
+psql -d your_database -f scripts/quick-add-requests.sql
+```
+
+### 6. Nettoyer les demandes de test (si nécessaire)
+```bash
+# Supprimer toutes les demandes de test
+psql -d your_database -f scripts/clean-test-requests.sql
+```
 - Tester la création de demandes via l'interface
 
 ## 📝 API
@@ -278,22 +379,117 @@ VALUES ('invalid_type', 'user-id', 'Test', 'test@test.com', '+224123456789', 'in
 ## 🆘 Support
 
 ### Problèmes courants
-1. **Demande non créée** : Vérifier les contraintes et l'authentification
-2. **Statut non mis à jour** : Vérifier les permissions RLS
-3. **Profil non créé** : Vérifier la fonction `createProfileFromRequest`
 
-### Debug
+#### 1. Erreur de clé étrangère sur user_roles
+```
+ERROR: insert or update on table "user_profiles" violates foreign key constraint "user_profiles_role_id_fkey"
+DETAIL: Key (role_id)=(1) is not present in table "user_roles".
+```
+
+**Solution :**
+```bash
+# Exécuter le script de correction des rôles
+psql -d your_database -f scripts/fix-user-roles.sql
+```
+
+#### 2. Erreur de colonne inexistante current_order_id
+```
+ERROR: column drivers.current_order_id does not exist
+```
+
+**Solution :**
+```bash
+# Exécuter le script de suppression de la colonne
+psql -d your_database -f scripts/remove-current-order-id.sql
+```
+
+**Explication :** Cette colonne a été supprimée car les drivers peuvent maintenant gérer plusieurs commandes simultanément (jusqu'à 3). Le système utilise maintenant `active_orders_count` pour suivre les commandes actives.
+
+#### 2. Demande non créée
+**Causes possibles :**
+- Contraintes de base de données non respectées
+- Problème d'authentification
+- Politiques RLS trop restrictives
+
+**Solution :**
 ```sql
--- Vérifier les demandes d'un utilisateur
-SELECT * FROM requests WHERE user_id = 'user-id';
-
--- Vérifier les politiques RLS
-SELECT * FROM pg_policies WHERE tablename = 'requests';
-
 -- Vérifier les contraintes
 SELECT conname, contype, pg_get_constraintdef(oid) 
 FROM pg_constraint 
 WHERE conrelid = 'requests'::regclass;
+
+-- Vérifier l'authentification
+SELECT auth.uid();
+```
+
+#### 3. Statut non mis à jour
+**Causes possibles :**
+- Permissions RLS insuffisantes
+- Utilisateur non admin
+
+**Solution :**
+```sql
+-- Vérifier les politiques RLS
+SELECT * FROM pg_policies WHERE tablename = 'requests';
+
+-- Vérifier le rôle de l'utilisateur
+SELECT up.role_id, ur.name 
+FROM user_profiles up 
+JOIN user_roles ur ON up.role_id = ur.id 
+WHERE up.id = auth.uid();
+```
+
+#### 4. Profil non créé lors de l'approbation
+**Causes possibles :**
+- Fonction `createProfileFromRequest` échoue
+- Données manquantes dans la demande
+
+**Solution :**
+```sql
+-- Vérifier la fonction
+SELECT routine_name, routine_type 
+FROM information_schema.routines 
+WHERE routine_name = 'createProfileFromRequest';
+
+-- Vérifier les données de la demande
+SELECT * FROM requests WHERE id = 'request-id';
+```
+
+### Debug
+
+#### Vérifier les demandes d'un utilisateur
+```sql
+SELECT * FROM requests WHERE user_id = 'user-id';
+```
+
+#### Vérifier les politiques RLS
+```sql
+SELECT * FROM pg_policies WHERE tablename = 'requests';
+```
+
+#### Vérifier les contraintes
+```sql
+SELECT conname, contype, pg_get_constraintdef(oid) 
+FROM pg_constraint 
+WHERE conrelid = 'requests'::regclass;
+```
+
+#### Vérifier les rôles utilisateurs
+```sql
+SELECT id, name FROM user_roles ORDER BY id;
+```
+
+#### Vérifier les utilisateurs et leurs rôles
+```sql
+SELECT 
+    up.id,
+    up.name,
+    up.email,
+    up.role_id,
+    ur.name as role_name
+FROM user_profiles up
+LEFT JOIN user_roles ur ON up.role_id = ur.id
+ORDER BY up.created_at DESC;
 ```
 
 ---

@@ -8,7 +8,6 @@ export interface Driver {
   business_id: number;
   is_active: boolean;
   current_location?: any;
-  current_order_id?: string;
   rating: number;
   total_deliveries: number;
   vehicle_type?: string;
@@ -193,7 +192,6 @@ export class DriverService {
       const { error } = await supabase
         .from('drivers')
         .update({ 
-          current_order_id: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', driverId);

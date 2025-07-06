@@ -293,7 +293,6 @@ export interface Driver {
     lat: number;
     lng: number;
   };
-  current_order_id?: string;
   rating: number;
   total_deliveries: number;
   vehicle_type?: 'car' | 'motorcycle' | 'bike';

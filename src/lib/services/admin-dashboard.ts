@@ -81,7 +81,6 @@ export interface AdminDriver {
   total_earnings: number;
   vehicle_type?: string;
   vehicle_plate?: string;
-  current_order_id?: string;
   created_at: string;
   documents_count: number;
   active_sessions: number;
@@ -460,7 +459,6 @@ export class AdminDashboardService {
           total_earnings,
           vehicle_type,
           vehicle_plate,
-          current_order_id,
           created_at,
           business_id
         `, { count: 'exact' });
@@ -518,7 +516,6 @@ export class AdminDashboardService {
             total_earnings: driver.total_earnings || 0,
             vehicle_type: driver.vehicle_type,
             vehicle_plate: driver.vehicle_plate,
-            current_order_id: driver.current_order_id,
             created_at: driver.created_at,
             documents_count: documentsCount || 0,
             active_sessions: activeSessions || 0,

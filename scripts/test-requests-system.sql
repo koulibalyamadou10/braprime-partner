@@ -36,7 +36,7 @@ VALUES (
     'Test Partner',
     'test.partner@example.com',
     '+224123456789',
-    1, -- customer role
+    1, -- customer role (sera mis à jour lors de l'approbation)
     true,
     false
 ) ON CONFLICT (id) DO NOTHING;
@@ -48,7 +48,7 @@ VALUES (
     'Test Driver',
     'test.driver@example.com',
     '+224987654321',
-    1, -- customer role
+    1, -- customer role (sera mis à jour lors de l'approbation)
     true,
     false
 ) ON CONFLICT (id) DO NOTHING;

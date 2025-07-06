@@ -42,7 +42,6 @@ export interface DriverProfile {
     lat: number;
     lng: number;
   };
-  current_order_id?: string;
   rating: number;
   total_deliveries: number;
   created_at: string;
@@ -82,7 +81,6 @@ export class DriverDashboardService {
         business_name: profile.businesses.name,
         is_active: profile.is_active,
         current_location: profile.current_location,
-        current_order_id: profile.current_order_id,
         rating: profile.rating,
         total_deliveries: profile.total_deliveries,
         created_at: profile.created_at,
@@ -332,11 +330,10 @@ export class DriverDashboardService {
         return { success: false, error: orderError.message };
       }
 
-      // Mettre à jour le livreur avec la commande actuelle
+      // Mettre à jour le livreur
       const { error: driverUpdateError } = await supabase
         .from('drivers')
         .update({ 
-          current_order_id: orderId,
           updated_at: new Date().toISOString()
         })
         .eq('id', driver.id);
@@ -386,11 +383,10 @@ export class DriverDashboardService {
         return { success: false, error: orderError.message };
       }
 
-      // Libérer le livreur
+      // Mettre à jour le livreur
       const { error: driverUpdateError } = await supabase
         .from('drivers')
         .update({ 
-          current_order_id: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', driver.id);

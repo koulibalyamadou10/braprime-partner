@@ -1,69 +1,66 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useRequests } from '@/hooks/use-requests';
 
-interface RequestStatusBadgeProps {
-  className?: string;
-}
+const RequestStatusBadge = () => {
+  const { currentRequestStatus, hasPendingRequest } = useRequests();
 
-const RequestStatusBadge: React.FC<RequestStatusBadgeProps> = ({ className }) => {
-  const { currentRequestStatus, loadingStatus } = useRequests();
-
-  if (loadingStatus) {
-    return (
-      <Badge variant="outline" className={className}>
-        <div className="animate-pulse h-3 w-16 bg-gray-200 rounded"></div>
-      </Badge>
-    );
-  }
-
-  if (!currentRequestStatus) {
+  // Ne pas afficher le badge pour les utilisateurs connectés
+  // Le badge n'est utile que pour les visiteurs non connectés
+  if (!hasPendingRequest) {
     return null;
   }
 
   const getStatusConfig = (status: string) => {
-    const configs = {
-      pending: {
-        label: 'Demande en cours',
-        variant: 'secondary' as const,
-        icon: Clock,
-        color: 'text-yellow-600'
-      },
-      under_review: {
-        label: 'En révision',
-        variant: 'outline' as const,
-        icon: AlertCircle,
-        color: 'text-blue-600'
-      },
-      approved: {
-        label: 'Approuvée',
-        variant: 'default' as const,
-        icon: CheckCircle,
-        color: 'text-green-600'
-      },
-      rejected: {
-        label: 'Rejetée',
-        variant: 'destructive' as const,
-        icon: XCircle,
-        color: 'text-red-600'
-      }
-    };
-
-    return configs[status as keyof typeof configs] || {
-      label: 'Demande',
-      variant: 'outline' as const,
-      icon: FileText,
-      color: 'text-gray-600'
-    };
+    switch (status) {
+      case 'pending':
+        return {
+          icon: Clock,
+          label: 'Demande en cours',
+          variant: 'secondary' as const,
+          className: 'bg-yellow-50 text-yellow-700 border-yellow-200'
+        };
+      case 'under_review':
+        return {
+          icon: AlertCircle,
+          label: 'En révision',
+          variant: 'secondary' as const,
+          className: 'bg-blue-50 text-blue-700 border-blue-200'
+        };
+      case 'approved':
+        return {
+          icon: CheckCircle,
+          label: 'Approuvée',
+          variant: 'default' as const,
+          className: 'bg-green-50 text-green-700 border-green-200'
+        };
+      case 'rejected':
+        return {
+          icon: XCircle,
+          label: 'Rejetée',
+          variant: 'destructive' as const,
+          className: 'bg-red-50 text-red-700 border-red-200'
+        };
+      default:
+        return {
+          icon: Clock,
+          label: 'En attente',
+          variant: 'secondary' as const,
+          className: 'bg-gray-50 text-gray-700 border-gray-200'
+        };
+    }
   };
 
-  const config = getStatusConfig(currentRequestStatus);
+  const statusConfig = getStatusConfig(currentRequestStatus);
 
   return (
-    <Badge variant={config.variant} className={`flex items-center gap-1 ${className}`}>
-      <config.icon className={`h-3 w-3 ${config.color}`} />
-      {config.label}
+    <Badge 
+      variant={statusConfig.variant}
+      className={`flex items-center gap-1 px-3 py-1 text-xs font-medium ${statusConfig.className}`}
+    >
+      <statusConfig.icon className="h-3 w-3" />
+      {statusConfig.label}
     </Badge>
   );
 };
