@@ -85,7 +85,7 @@ export const usePartnerDashboard = () => {
   // Mutations pour les actions
   const updateOrderStatusMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
-      PartnerDashboardService.updateOrderStatus(orderId, status),
+      PartnerDashboardService.updateOrderStatus(orderId, status, business?.id),
     onSuccess: () => {
       // Invalider les requêtes liées aux commandes
       queryClient.invalidateQueries({ queryKey: ['partner-recent-orders'] })

@@ -38,6 +38,7 @@ import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-da
 import { toast } from 'sonner';
 import { AssignDriverDialog } from '@/components/AssignDriverDialog';
 import { PartnerOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -52,6 +53,7 @@ const PartnerOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState<DashboardOrder | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDeliveryType, setFilterDeliveryType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +107,11 @@ const PartnerOrders = () => {
       filtered = filtered.filter(order => order.status === filterStatus);
     }
 
+    // Filtrer par type de livraison
+    if (filterDeliveryType !== "all") {
+      filtered = filtered.filter(order => order.delivery_type === filterDeliveryType);
+    }
+
     // Filtrer par recherche
     if (searchQuery) {
       filtered = filtered.filter(order => 
@@ -115,7 +122,7 @@ const PartnerOrders = () => {
     }
 
     setFilteredOrders(filtered);
-  }, [orders, filterStatus, searchQuery]);
+  }, [orders, filterStatus, filterDeliveryType, searchQuery]);
 
   // Gérer le changement de statut
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
@@ -387,6 +394,20 @@ const PartnerOrders = () => {
                 <SelectItem value="cancelled">Annulée</SelectItem>
               </SelectContent>
             </Select>
+            
+            <Select 
+              value={filterDeliveryType} 
+              onValueChange={setFilterDeliveryType}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Type de livraison" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                <SelectItem value="asap">Rapide</SelectItem>
+                <SelectItem value="scheduled">Programmée</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -434,6 +455,7 @@ const PartnerOrders = () => {
                     <TableHead>ID Commande</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Livraison</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Actions</TableHead>
@@ -445,6 +467,16 @@ const PartnerOrders = () => {
                       <TableCell className="font-medium">{order.id.slice(0, 8)}...</TableCell>
                       <TableCell>{order.customer_name}</TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
+                      <TableCell>
+                        <DeliveryInfoBadge
+                          deliveryType={order.delivery_type}
+                          preferredDeliveryTime={order.preferred_delivery_time}
+                          scheduledWindowStart={order.scheduled_delivery_window_start}
+                          scheduledWindowEnd={order.scheduled_delivery_window_end}
+                          estimatedDeliveryTime={order.estimated_delivery_time}
+                          actualDeliveryTime={order.actual_delivery_time}
+                        />
+                      </TableCell>
                       <TableCell>{formatCurrency(order.grand_total)}</TableCell>
                       <TableCell>
                         <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1`}>
@@ -674,6 +706,59 @@ const PartnerOrders = () => {
                         <p className="text-sm text-gray-600">{selectedOrder.delivery_instructions}</p>
                       </div>
                     )}
+
+                    {/* Informations détaillées de livraison */}
+                    <div className="pt-3 border-t">
+                      <DeliveryInfoBadge
+                        deliveryType={selectedOrder.delivery_type}
+                        preferredDeliveryTime={selectedOrder.preferred_delivery_time}
+                        scheduledWindowStart={selectedOrder.scheduled_delivery_window_start}
+                        scheduledWindowEnd={selectedOrder.scheduled_delivery_window_end}
+                        estimatedDeliveryTime={selectedOrder.estimated_delivery_time}
+                        actualDeliveryTime={selectedOrder.actual_delivery_time}
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Informations supplémentaires */}
+                    <div className="space-y-2 text-sm">
+                      {selectedOrder.delivery_type === 'scheduled' && selectedOrder.preferred_delivery_time && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Heure préférée:</span>
+                          <span>{formatDate(selectedOrder.preferred_delivery_time)}</span>
+                        </div>
+                      )}
+                      
+                      {selectedOrder.delivery_type === 'scheduled' && selectedOrder.scheduled_delivery_window_start && selectedOrder.scheduled_delivery_window_end && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Fenêtre de livraison:</span>
+                          <span>
+                            {formatDate(selectedOrder.scheduled_delivery_window_start)} - {formatDate(selectedOrder.scheduled_delivery_window_end)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {selectedOrder.estimated_delivery_time && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Livraison estimée:</span>
+                          <span>{formatDate(selectedOrder.estimated_delivery_time)}</span>
+                        </div>
+                      )}
+                      
+                      {selectedOrder.actual_delivery_time && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Livré à:</span>
+                          <span>{formatDate(selectedOrder.actual_delivery_time)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Disponible pour les chauffeurs:</span>
+                        <span className={selectedOrder.available_for_drivers ? "text-green-600" : "text-red-600"}>
+                          {selectedOrder.available_for_drivers ? "Oui" : "Non"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

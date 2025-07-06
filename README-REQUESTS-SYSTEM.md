@@ -4,6 +4,58 @@
 
 Le système de gestion des demandes permet aux utilisateurs de soumettre des demandes pour devenir partenaires (commerces) ou chauffeurs sur la plateforme BraPrime. Les administrateurs peuvent ensuite examiner, approuver ou rejeter ces demandes.
 
+## 🚀 Fonctionnalités Principales
+
+### Système de Commandes
+- Panier persistant avec Supabase
+- Calcul automatique des frais de livraison
+- Suivi GPS en temps réel
+- Historique détaillé des statuts
+- **Gestion des types de livraison :**
+  - **ASAP** : Livraison rapide (par défaut)
+  - **Scheduled** : Livraison programmée avec fenêtres horaires
+  - Heures préférées et fenêtres de livraison
+  - Disponibilité pour les chauffeurs
+  - Suivi des heures estimées et réelles
+
+### Types de Livraison
+
+#### Livraison ASAP
+- **Définition** : Livraison rapide, dès que possible
+- **Champs utilisés** :
+  - `delivery_type: 'asap'`
+  - `estimated_delivery_time` : Heure estimée de livraison
+  - `actual_delivery_time` : Heure réelle de livraison
+  - `available_for_drivers` : Si la commande est disponible pour les chauffeurs
+
+#### Livraison Programmée
+- **Définition** : Livraison à une heure spécifique ou dans une fenêtre horaire
+- **Champs utilisés** :
+  - `delivery_type: 'scheduled'`
+  - `preferred_delivery_time` : Heure préférée du client
+  - `scheduled_delivery_window_start` : Début de la fenêtre de livraison
+  - `scheduled_delivery_window_end` : Fin de la fenêtre de livraison
+  - `estimated_delivery_time` : Heure estimée dans la fenêtre
+  - `actual_delivery_time` : Heure réelle de livraison
+
+### Interface Partenaire
+
+#### Filtres de Commandes
+- **Filtre par statut** : En attente, confirmée, en préparation, etc.
+- **Filtre par type de livraison** : ASAP, Programmée, Tous les types
+- **Recherche** : Par client, ID commande, téléphone
+
+#### Affichage des Commandes
+- **Colonne "Livraison"** : Badge visuel avec type et informations
+- **Badge ASAP** : Orange avec icône ⚡
+- **Badge Programmée** : Bleu avec icône 📅
+- **Informations détaillées** : Heures, fenêtres, disponibilité
+
+#### Dialogue de Détails
+- **Section livraison complète** : Toutes les informations de livraison
+- **Badge DeliveryInfoBadge** : Affichage visuel du type
+- **Informations supplémentaires** : Heures, fenêtres, statut chauffeur
+
 ## 🏗️ Architecture
 
 ### Base de données
@@ -535,4 +587,119 @@ ORDER BY up.created_at DESC;
 
 ---
 
-**Note** : Ce système est intégré dans l'application BraPrime et suit les conventions de développement établies pour le projet. 
+**Note** : Ce système est intégré dans l'application BraPrime et suit les conventions de développement établies pour le projet.
+
+## 🚚 Tests des Types de Livraison
+
+### Scripts de Test
+
+#### Ajouter des commandes de test avec types de livraison
+```bash
+# Exécuter le script de test des types de livraison
+psql -d your_database -f scripts/add-test-orders-with-delivery-types.sql
+```
+
+Ce script ajoute :
+- **3 commandes ASAP** : Livraison rapide avec heures estimées
+- **3 commandes programmées** : Livraison à des heures spécifiques
+- **Données variées** : Différents statuts, montants, adresses
+
+#### Vérifier les types de livraison
+```sql
+-- Voir toutes les commandes avec leur type de livraison
+SELECT 
+  id,
+  business_name,
+  delivery_type,
+  status,
+  grand_total,
+  preferred_delivery_time,
+  scheduled_delivery_window_start,
+  scheduled_delivery_window_end,
+  available_for_drivers,
+  estimated_delivery_time
+FROM orders 
+ORDER BY created_at DESC;
+
+-- Statistiques par type de livraison
+SELECT 
+  delivery_type,
+  COUNT(*) as total_orders,
+  COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_orders,
+  AVG(grand_total) as average_order_value
+FROM orders 
+GROUP BY delivery_type;
+```
+
+### Interface de Test
+
+#### Dashboard Partenaire
+1. **Connectez-vous** en tant que partenaire
+2. **Allez dans "Commandes"** dans le dashboard
+3. **Vérifiez les filtres** :
+   - Filtre par statut (En attente, Confirmée, etc.)
+   - **Nouveau filtre par type de livraison** (ASAP, Programmée, Tous)
+4. **Observez la colonne "Livraison"** :
+   - Badge orange ⚡ pour ASAP
+   - Badge bleu 📅 pour programmée
+   - Informations détaillées au survol
+
+#### Dialogue de Détails
+1. **Cliquez sur une commande** pour voir les détails
+2. **Vérifiez la section "Informations de livraison"** :
+   - Badge DeliveryInfoBadge avec type et icône
+   - Heures préférées pour les commandes programmées
+   - Fenêtres de livraison
+   - Statut de disponibilité pour les chauffeurs
+
+### Composants Créés
+
+#### DeliveryInfoBadge
+- **Fichier** : `src/components/DeliveryInfoBadge.tsx`
+- **Fonctionnalités** :
+  - Affichage visuel du type de livraison
+  - Badges colorés (orange pour ASAP, bleu pour programmée)
+  - Informations détaillées selon le type
+  - Formatage des heures et dates
+
+#### Interface PartnerOrder
+- **Fichier** : `src/lib/services/partner-dashboard.ts`
+- **Nouveaux champs** :
+  - `delivery_type: 'asap' | 'scheduled'`
+  - `preferred_delivery_time?: string`
+  - `scheduled_delivery_window_start?: string`
+  - `scheduled_delivery_window_end?: string`
+  - `available_for_drivers: boolean`
+  - `estimated_delivery_time?: string`
+  - `actual_delivery_time?: string`
+
+### Utilisation
+
+#### Pour les Partenaires
+- **Filtrer les commandes** par type de livraison
+- **Prioriser les commandes ASAP** qui nécessitent une préparation rapide
+- **Planifier les commandes programmées** selon les fenêtres horaires
+- **Gérer la disponibilité** pour les chauffeurs
+
+#### Pour les Chauffeurs (Mobile App)
+- **Voir les commandes disponibles** selon `available_for_drivers`
+- **Prioriser les commandes ASAP** pour des gains rapides
+- **Accepter les commandes programmées** selon leur planning
+- **Respecter les fenêtres horaires** pour les livraisons programmées
+
+### Avantages
+
+#### Pour les Clients
+- **Choix flexible** : ASAP pour l'urgence, programmée pour la planification
+- **Transparence** : Heures estimées et fenêtres de livraison claires
+- **Convenance** : Livraison à l'heure souhaitée
+
+#### Pour les Partenaires
+- **Gestion optimisée** : Distinction claire entre types de commandes
+- **Planification** : Préparation selon les priorités
+- **Efficacité** : Interface adaptée aux différents workflows
+
+#### Pour les Chauffeurs
+- **Flexibilité** : Choix selon disponibilité et préférences
+- **Optimisation** : Gestion des trajets selon les fenêtres
+- **Gains** : Possibilité de combiner commandes ASAP et programmées 

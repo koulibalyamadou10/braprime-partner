@@ -671,7 +671,8 @@ export class AdminDashboardService {
         .select(`
           id,
           name,
-          business_type,
+          business_type_id,
+          business_types(name),
           category,
           is_active
         `)
@@ -680,7 +681,16 @@ export class AdminDashboardService {
 
       if (error) throw error;
 
-      return { data, error: null };
+      // Transformer les données pour correspondre à l'interface
+      const transformedData = data?.map(business => ({
+        id: business.id,
+        name: business.name,
+        business_type: business.business_types?.name || 'Non défini',
+        category: business.category || 'Non défini',
+        is_active: business.is_active
+      }));
+
+      return { data: transformedData, error: null };
     } catch (error) {
       console.error('Erreur lors de la récupération des commerces disponibles:', error);
       return { data: null, error: 'Erreur lors de la récupération des commerces disponibles' };

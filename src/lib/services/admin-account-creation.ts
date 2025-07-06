@@ -71,26 +71,45 @@ export class AdminAccountCreationService {
 
       // 4. Si c'est un partenaire, créer le profil business
       if (data.role === 'partner') {
-        const { error: businessError } = await supabase
-          .from('businesses')
-          .insert({
-            name: data.name, // Nom temporaire, sera mis à jour
-            description: 'Commerce créé via demande approuvée',
-            address: 'Adresse à compléter',
-            phone: data.phone_number || null,
-            email: data.email,
-            owner_id: authData.user.id,
-            is_active: true,
-            is_open: true,
-            delivery_time: '30-45 min',
-            delivery_fee: 5000,
-            rating: 0,
-            review_count: 0
-          });
+        try {
+          // Récupérer un business_type_id par défaut (restaurant)
+          const { data: defaultBusinessType } = await supabase
+            .from('business_types')
+            .select('id')
+            .eq('name', 'restaurant')
+            .single();
 
-        if (businessError) {
+          const { data: businessData, error: businessError } = await supabase
+            .from('businesses')
+            .insert({
+              name: data.name, // Nom temporaire, sera mis à jour
+              description: 'Commerce créé via demande approuvée',
+              address: 'Adresse à compléter',
+              phone: data.phone_number || null,
+              email: data.email,
+              owner_id: authData.user.id,
+              business_type_id: defaultBusinessType?.id || 1, // Valeur par défaut
+              category_id: 1, // Valeur par défaut
+              is_active: true,
+              is_open: true,
+              delivery_time: '30-45 min',
+              delivery_fee: 5000,
+              rating: 0,
+              review_count: 0
+            })
+            .select()
+            .single();
+
+          if (businessError) {
+            console.error('Erreur lors de la création du business:', businessError);
+            throw new Error(`Erreur lors de la création du business: ${businessError.message}`);
+          }
+
+          console.log('Business créé avec succès:', businessData);
+        } catch (businessError) {
           console.error('Erreur lors de la création du business:', businessError);
           // Ne pas faire échouer la création du compte pour cette erreur
+          // mais logguer l'erreur pour le debugging
         }
       }
 

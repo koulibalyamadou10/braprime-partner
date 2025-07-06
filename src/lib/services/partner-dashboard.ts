@@ -59,6 +59,14 @@ export interface PartnerOrder {
   estimated_delivery?: string
   driver_name?: string
   driver_phone?: string
+  // Nouveaux champs pour la gestion des livraisons ASAP/Scheduled
+  delivery_type: 'asap' | 'scheduled'
+  preferred_delivery_time?: string
+  scheduled_delivery_window_start?: string
+  scheduled_delivery_window_end?: string
+  available_for_drivers: boolean
+  estimated_delivery_time?: string
+  actual_delivery_time?: string
 }
 
 export interface PartnerMenuItem {
@@ -105,7 +113,7 @@ export class PartnerDashboardService {
       }
 
       // Requête optimisée avec jointure et sélection ciblée
-      const { data: business, error } = await supabase
+      const { data: businesses, error } = await supabase
         .from('businesses')
         .select(`
           id,
@@ -126,20 +134,23 @@ export class PartnerDashboardService {
           owner_id,
           created_at,
           updated_at,
-          business_types!inner(name)
+          business_types(name)
         `)
         .eq('owner_id', user.id)
         .eq('is_active', true)
-        .single()
+        .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Erreur récupération business:', error)
         return { business: null, error: error.message }
       }
 
-      if (!business) {
+      if (!businesses || businesses.length === 0) {
         return { business: null, error: 'Aucun business trouvé pour ce partenaire' }
       }
+
+      // Prendre le business le plus récent
+      const business = businesses[0]
 
       const partnerBusiness: PartnerBusiness = {
         id: business.id,
@@ -323,7 +334,14 @@ export class PartnerDashboardService {
           updated_at,
           estimated_delivery,
           driver_name,
-          driver_phone
+          driver_phone,
+          delivery_type,
+          preferred_delivery_time,
+          scheduled_delivery_window_start,
+          scheduled_delivery_window_end,
+          available_for_drivers,
+          estimated_delivery_time,
+          actual_delivery_time
         `)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
@@ -381,7 +399,15 @@ export class PartnerDashboardService {
           updated_at: order.updated_at,
           estimated_delivery: order.estimated_delivery,
           driver_name: order.driver_name,
-          driver_phone: order.driver_phone
+          driver_phone: order.driver_phone,
+          // Nouveaux champs de livraison
+          delivery_type: order.delivery_type || 'asap',
+          preferred_delivery_time: order.preferred_delivery_time,
+          scheduled_delivery_window_start: order.scheduled_delivery_window_start,
+          scheduled_delivery_window_end: order.scheduled_delivery_window_end,
+          available_for_drivers: order.available_for_drivers || false,
+          estimated_delivery_time: order.estimated_delivery_time,
+          actual_delivery_time: order.actual_delivery_time
         }
       })
 
@@ -466,9 +492,10 @@ export class PartnerDashboardService {
     }
   }
 
-  // Mettre à jour le statut d'une commande (optimisé)
-  static async updateOrderStatus(orderId: string, status: string): Promise<{ success: boolean; error: string | null }> {
+  // Mettre à jour le statut d'une commande (optimisé avec gestion des types de livraison)
+  static async updateOrderStatus(orderId: string, status: string, businessId?: number): Promise<{ success: boolean; error: string | null }> {
     try {
+      // Mise à jour basique du statut
       const { error } = await supabase
         .from('orders')
         .update({ 
@@ -480,6 +507,17 @@ export class PartnerDashboardService {
       if (error) {
         console.error('Erreur mise à jour statut commande:', error)
         return { success: false, error: error.message }
+      }
+
+      // Si on a le businessId, gérer la logique spécifique aux types de livraison
+      if (businessId && (status === 'ready' || status === 'out_for_delivery')) {
+        const { DeliveryManagementService } = await import('./delivery-management')
+        const result = await DeliveryManagementService.handleOrderStatusChange(orderId, status, businessId)
+        
+        if (!result.success) {
+          console.warn('Erreur gestion livraison:', result.error)
+          // Ne pas faire échouer la mise à jour du statut pour cette erreur
+        }
       }
 
       return { success: true, error: null }

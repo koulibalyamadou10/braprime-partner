@@ -23,8 +23,8 @@ CREATE TABLE public.available_orders (
   expires_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT available_orders_pkey PRIMARY KEY (id),
-  CONSTRAINT available_orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
-  CONSTRAINT available_orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT available_orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT available_orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
 );
 CREATE TABLE public.business_types (
   id integer NOT NULL DEFAULT nextval('business_types_id_seq'::regclass),
@@ -173,8 +173,8 @@ CREATE TABLE public.driver_profiles (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT driver_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT driver_profiles_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id),
-  CONSTRAINT driver_profiles_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.user_profiles(id)
+  CONSTRAINT driver_profiles_user_profile_id_fkey FOREIGN KEY (user_profile_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT driver_profiles_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id)
 );
 CREATE TABLE public.drivers (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -356,6 +356,30 @@ CREATE TABLE public.payments (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT payments_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  type character varying NOT NULL CHECK (type::text = ANY (ARRAY['partner'::character varying, 'driver'::character varying]::text[])),
+  status character varying NOT NULL DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying, 'under_review'::character varying]::text[])),
+  user_id uuid,
+  user_name character varying NOT NULL,
+  user_email character varying NOT NULL,
+  user_phone character varying NOT NULL,
+  business_name character varying,
+  business_type character varying,
+  business_address text,
+  vehicle_type character varying,
+  vehicle_plate character varying,
+  documents jsonb DEFAULT '[]'::jsonb,
+  notes text,
+  admin_notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  reviewed_at timestamp with time zone,
+  reviewed_by uuid,
+  CONSTRAINT requests_pkey PRIMARY KEY (id),
+  CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.user_profiles(id),
+  CONSTRAINT requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
 );
 CREATE TABLE public.reservation_statuses (
   id integer NOT NULL DEFAULT nextval('reservation_statuses_id_seq'::regclass),
