@@ -9,7 +9,7 @@ export interface Reservation {
   date: string;
   time: string;
   guests: number;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   special_requests?: string;
   table_number?: number;
   created_at: string;
@@ -33,7 +33,7 @@ export interface CreateReservationData {
 }
 
 export interface UpdateReservationData {
-  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
   table_number?: number;
   special_requests?: string;
 }

@@ -39,7 +39,7 @@ import {
   Camera
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ProfileSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { UserProfileSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 // Schémas de validation
 const profileFormSchema = z.object({
@@ -275,7 +275,7 @@ const UserProfile = () => {
   if (isLoading) {
     return (
       <DashboardLayout navItems={userNavItems} title="Mon Profil">
-        <ProfileSkeleton />
+        <UserProfileSkeleton />
       </DashboardLayout>
     );
   }

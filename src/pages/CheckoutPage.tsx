@@ -24,7 +24,8 @@ import {
   User,
   Phone,
   Mail,
-  MessageSquare
+  MessageSquare,
+  Trash2
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -188,8 +189,8 @@ const CheckoutPage = () => {
       const orderData: CreateOrderData = {
         id: crypto.randomUUID(), // Générer un UUID unique
         user_id: currentUser.id,
-        business_id: cart.business_id || 1, // Utiliser l'ID du commerce du panier
-        business_name: cart.business_name || 'Commerce',
+        business_id: cart.business_id, // Utiliser l'ID du commerce du panier
+        business_name: cart.business_name, // Utiliser le nom du commerce du panier
         items: cart.items,
         status: 'pending',
         total: cartTotal,
@@ -202,6 +203,17 @@ const CheckoutPage = () => {
         payment_method: paymentMethod,
         payment_status: 'pending'
       };
+
+      // Vérifier que le panier a les bonnes informations du commerce
+      if (!cart.business_id || !cart.business_name || cart.business_name === 'Commerce') {
+        toast({
+          title: "Erreur",
+          description: "Informations du commerce manquantes. Veuillez vider votre panier et recommencer.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
 
       // Créer la commande via le service
       const { order, error } = await OrderService.createOrder(orderData);
@@ -237,6 +249,12 @@ const CheckoutPage = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Gérer le vidage du panier et recommencer
+  const handleClearCartAndRestart = async () => {
+    await clearCart();
+    navigate('/categories');
   };
 
   // Rediriger vers le panier si pas d'articles
@@ -284,6 +302,38 @@ const CheckoutPage = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Vérifier que le panier a les bonnes informations du commerce
+  if (!loading && cart && (!cart.business_id || !cart.business_name || cart.business_name === 'Commerce')) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 py-12">
+          <div className="container mx-auto px-4">
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
+                <h2 className="text-2xl font-bold mb-2">Informations du commerce manquantes</h2>
+                <p className="text-muted-foreground text-center mb-6">
+                  Votre panier ne contient pas les bonnes informations du commerce. 
+                  Veuillez vider votre panier et recommencer vos achats.
+                </p>
+                <div className="flex gap-4">
+                  <Button onClick={handleClearCartAndRestart} className="gap-2">
+                    <Trash2 className="h-4 w-4" />
+                    Vider le panier et recommencer
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate('/cart')} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" />
+                    Retour au panier
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </Layout>

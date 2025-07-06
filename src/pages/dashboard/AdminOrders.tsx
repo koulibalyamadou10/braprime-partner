@@ -32,9 +32,9 @@ import {
   Edit, 
   Trash2, 
   ShoppingBag, 
-  Clock,
-  CheckCircle,
-  XCircle,
+  Clock, 
+  CheckCircle, 
+  XCircle, 
   Truck,
   DollarSign,
   User,
@@ -86,7 +86,7 @@ const AdminOrders = () => {
       out_for_delivery: { label: 'En livraison', variant: 'default' as const, icon: Truck },
       delivered: { label: 'Livrée', variant: 'default' as const, icon: CheckCircle },
       cancelled: { label: 'Annulée', variant: 'destructive' as const, icon: XCircle }
-    };
+  };
 
     const config = statusConfig[status as keyof typeof statusConfig] || { 
       label: status, 
@@ -220,7 +220,7 @@ const AdminOrders = () => {
             </CardContent>
           </Card>
           
-          <Card>
+        <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
                 <Truck className="h-4 w-4 text-purple-600" />
@@ -261,19 +261,19 @@ const AdminOrders = () => {
             <div className="flex gap-2">
               <Select value={statusFilter} onValueChange={handleStatusChange}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les statuts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="confirmed">Confirmée</SelectItem>
-                  <SelectItem value="preparing">En préparation</SelectItem>
-                  <SelectItem value="ready">Prête</SelectItem>
-                  <SelectItem value="out_for_delivery">En livraison</SelectItem>
-                  <SelectItem value="delivered">Livrée</SelectItem>
-                  <SelectItem value="cancelled">Annulée</SelectItem>
-                </SelectContent>
-              </Select>
+                    <SelectValue placeholder="Tous les statuts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="confirmed">Confirmée</SelectItem>
+                    <SelectItem value="preparing">En préparation</SelectItem>
+                    <SelectItem value="ready">Prête</SelectItem>
+                    <SelectItem value="out_for_delivery">En livraison</SelectItem>
+                    <SelectItem value="delivered">Livrée</SelectItem>
+                    <SelectItem value="cancelled">Annulée</SelectItem>
+                  </SelectContent>
+                </Select>
               <Button 
                 variant="outline" 
                 onClick={() => {
@@ -281,9 +281,9 @@ const AdminOrders = () => {
                   handleOrdersStatusFilter('all');
                 }}
               >
-                <Filter className="h-4 w-4 mr-2" />
-                Réinitialiser
-              </Button>
+                    <Filter className="h-4 w-4 mr-2" />
+                    Réinitialiser
+                  </Button>
             </div>
           </CardContent>
         </Card>
@@ -394,10 +394,10 @@ const AdminOrders = () => {
                           </Button>
                           <Button variant="ghost" size="sm">
                             <Edit className="h-4 w-4" />
-                          </Button>
+                            </Button>
                           <Button variant="ghost" size="sm" className="text-red-600">
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                              </Button>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderService, type Order, CreateOrderData } from '@/lib/services/orders';
+import { CartService, type Cart } from '@/lib/services/cart';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
 export type DeliveryMethod = 'delivery' | 'pickup';
@@ -37,13 +38,11 @@ export interface LocalOrder {
 }
 
 interface OrderContextType {
-  cart: OrderItem[];
-  currentRestaurantId: number | null;
-  currentRestaurantName: string | null;
+  cart: Cart | null;
   orders: LocalOrder[];
   deliveryMethod: DeliveryMethod;
   setDeliveryMethod: (method: DeliveryMethod) => void;
-  addToCart: (item: OrderItem, restaurantId: number, restaurantName: string) => void;
+  addToCart: (item: OrderItem, businessId: number, businessName: string) => void;
   removeFromCart: (itemId: number) => void;
   updateQuantity: (itemId: number, quantity: number) => void;
   clearCart: () => void;
@@ -53,52 +52,36 @@ interface OrderContextType {
   getOrderById: (orderId: string) => LocalOrder | undefined;
   cancelOrder: (orderId: string) => Promise<void>;
   loadUserOrders: () => Promise<void>;
+  refreshCart: () => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  const [cart, setCart] = useState<OrderItem[]>([]);
+  const [cart, setCart] = useState<Cart | null>(null);
   const [orders, setOrders] = useState<LocalOrder[]>([]);
-  const [currentRestaurantId, setCurrentRestaurantId] = useState<number | null>(null);
-  const [currentRestaurantName, setCurrentRestaurantName] = useState<string | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('delivery');
   const { toast } = useToast();
   const { currentUser } = useAuth();
 
-  // Load cart from localStorage on initial load
+  // Load delivery method from localStorage on initial load
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    const savedRestaurantId = localStorage.getItem('restaurantId');
-    const savedRestaurantName = localStorage.getItem('restaurantName');
     const savedDeliveryMethod = localStorage.getItem('deliveryMethod');
-    
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
-    if (savedRestaurantId) {
-      setCurrentRestaurantId(JSON.parse(savedRestaurantId));
-    }
-    if (savedRestaurantName) {
-      setCurrentRestaurantName(JSON.parse(savedRestaurantName));
-    }
     if (savedDeliveryMethod) {
       setDeliveryMethod(JSON.parse(savedDeliveryMethod) as DeliveryMethod);
     }
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  // Save delivery method to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-    localStorage.setItem('restaurantId', JSON.stringify(currentRestaurantId));
-    localStorage.setItem('restaurantName', JSON.stringify(currentRestaurantName));
     localStorage.setItem('deliveryMethod', JSON.stringify(deliveryMethod));
-  }, [cart, currentRestaurantId, currentRestaurantName, deliveryMethod]);
+  }, [deliveryMethod]);
 
   // Load user orders when user is authenticated
   useEffect(() => {
     if (currentUser) {
       loadUserOrders();
+      refreshCart();
     }
   }, [currentUser]);
 
@@ -109,16 +92,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       const { orders: userOrders, error } = await OrderService.getUserOrders(currentUser.id);
       
       if (error) {
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger vos commandes",
-          variant: "destructive",
-        });
+        console.error('Erreur lors du chargement des commandes:', error);
         return;
       }
 
       // Convertir les commandes Supabase vers le format local
-      const convertedOrders: LocalOrder[] = userOrders.map(order => ({
+      const localOrders: LocalOrder[] = userOrders.map(order => ({
         id: order.id,
         restaurantId: order.business_id,
         restaurantName: order.business_name,
@@ -137,14 +116,30 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         driverLocation: order.driver_location as { lat: number; lng: number } | undefined
       }));
 
-      setOrders(convertedOrders);
+      setOrders(localOrders);
     } catch (error) {
       console.error('Erreur lors du chargement des commandes:', error);
     }
   };
 
-  const addToCart = (item: OrderItem, restaurantId: number, restaurantName: string) => {
-    // Only allow adding to cart if user is logged in as customer
+  const refreshCart = async () => {
+    if (!currentUser) return;
+
+    try {
+      const { cart: userCart, error } = await CartService.getCart(currentUser.id);
+      
+      if (error) {
+        console.error('Erreur lors du chargement du panier:', error);
+        return;
+      }
+
+      setCart(userCart);
+    } catch (error) {
+      console.error('Erreur lors du chargement du panier:', error);
+    }
+  };
+
+  const addToCart = async (item: OrderItem, businessId: number, businessName: string) => {
     if (!currentUser || currentUser.role !== 'customer') {
       toast({
         title: "Connexion requise",
@@ -154,77 +149,142 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // If adding from a different restaurant, clear cart first
-    if (currentRestaurantId !== null && currentRestaurantId !== restaurantId) {
-      toast({
-        title: "Panier vidé",
-        description: "Vous ne pouvez commander que d'un restaurant à la fois.",
-      });
-      setCart([item]);
-      setCurrentRestaurantId(restaurantId);
-      setCurrentRestaurantName(restaurantName);
-      return;
-    }
+    try {
+      const { success, error } = await CartService.addToCart(
+        currentUser.id,
+        {
+          menu_item_id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image
+        },
+        businessId,
+        businessName
+      );
 
-    setCart(prev => {
-      const existingItemIndex = prev.findIndex(i => i.id === item.id);
-      if (existingItemIndex >= 0) {
-        const updatedCart = [...prev];
-        updatedCart[existingItemIndex].quantity += item.quantity;
-        return updatedCart;
-      } else {
-        return [...prev, item];
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error,
+          variant: "destructive",
+        });
+        return;
       }
-    });
 
-    if (currentRestaurantId === null) {
-      setCurrentRestaurantId(restaurantId);
-      setCurrentRestaurantName(restaurantName);
-    }
-
-    toast({
-      title: "Ajouté au panier",
-      description: `${item.name} a été ajouté à votre panier.`,
-    });
-  };
-
-  const removeFromCart = (itemId: number) => {
-    setCart(prev => prev.filter(item => item.id !== itemId));
-    if (cart.length === 1) {
-      setCurrentRestaurantId(null);
-      setCurrentRestaurantName(null);
+      if (success) {
+        await refreshCart();
+        toast({
+          title: "Ajouté au panier",
+          description: `${item.name} a été ajouté à votre panier.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'ajout au panier.",
+        variant: "destructive",
+      });
     }
   };
 
-  const updateQuantity = (itemId: number, quantity: number) => {
+  const removeFromCart = async (itemId: string) => {
+    if (!currentUser) return;
+
+    try {
+      const { success, error } = await CartService.removeFromCart(itemId);
+      
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (success) {
+        await refreshCart();
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la suppression.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateQuantity = async (itemId: string, quantity: number) => {
+    if (!currentUser) return;
+
     if (quantity <= 0) {
-      removeFromCart(itemId);
+      await removeFromCart(itemId);
       return;
     }
 
-    setCart(prev => 
-      prev.map(item => 
-        item.id === itemId ? { ...item, quantity } : item
-      )
-    );
+    try {
+      const { success, error } = await CartService.updateQuantity(itemId, quantity);
+      
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (success) {
+        await refreshCart();
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la mise à jour.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const clearCart = () => {
-    setCart([]);
-    setCurrentRestaurantId(null);
-    setCurrentRestaurantName(null);
+  const clearCart = async () => {
+    if (!currentUser) return;
+
+    try {
+      const { success, error } = await CartService.clearCart(currentUser.id);
+      
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (success) {
+        await refreshCart();
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors du vidage du panier.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    if (!cart || !cart.items) return 0;
+    return cart.items.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
   const getCartCount = () => {
-    return cart.reduce((count, item) => count + item.quantity, 0);
+    if (!cart || !cart.items) return 0;
+    return cart.items.reduce((count, item) => count + item.quantity, 0);
   };
 
   const generateOrderId = () => {
-    // Générer un UUID valide
     return crypto.randomUUID();
   };
 
@@ -238,10 +298,23 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       return "";
     }
 
-    if (cart.length === 0 || !currentRestaurantId || !currentRestaurantName) {
+    if (!cart || cart.items.length === 0) {
       toast({
         title: "Erreur",
-        description: "Votre panier est vide ou le restaurant n'est pas spécifié.",
+        description: "Votre panier est vide.",
+        variant: "destructive",
+      });
+      return "";
+    }
+
+    // Récupérer les informations du commerce depuis le panier
+    const businessId = cart.business_id;
+    const businessName = cart.business_name;
+
+    if (!businessId || !businessName) {
+      toast({
+        title: "Erreur",
+        description: "Informations du commerce manquantes.",
         variant: "destructive",
       });
       return "";
@@ -256,12 +329,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const now = new Date();
     const estimatedDelivery = new Date(now.getTime() + (30 + Math.random() * 15) * 60000);
 
+    // Convertir les articles du panier vers le format de commande
+    const orderItems = cart.items.map(item => ({
+      id: item.menu_item_id || item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image
+    }));
+
     const orderData: CreateOrderData = {
       id: generateOrderId(),
       user_id: currentUser.id,
-      business_id: currentRestaurantId,
-      business_name: currentRestaurantName,
-      items: cart,
+      business_id: businessId,
+      business_name: businessName,
+      items: orderItems,
       status: 'pending',
       total: subtotal,
       delivery_fee: deliveryFee,
@@ -311,11 +393,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         setOrders(prev => [localOrder, ...prev]);
 
         // Vider le panier
-        clearCart();
+        await clearCart();
 
         toast({
           title: "Commande passée",
-          description: `Votre commande #${order.id} a été confirmée.`,
+          description: `Votre commande #${order.id.substring(0, 8)} a été confirmée.`,
         });
 
         return order.id;
@@ -373,8 +455,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const value = {
     cart,
-    currentRestaurantId,
-    currentRestaurantName,
     orders,
     deliveryMethod,
     setDeliveryMethod,
@@ -387,7 +467,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     getCartCount,
     getOrderById,
     cancelOrder,
-    loadUserOrders
+    loadUserOrders,
+    refreshCart
   };
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;

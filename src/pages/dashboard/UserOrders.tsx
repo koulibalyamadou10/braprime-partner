@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { format } from 'date-fns';
 import { useDashboardOrders, type DashboardOrder } from '@/hooks/use-dashboard-orders';
 import { type Order as SupabaseOrder } from '@/lib/services/orders';
-import { TableSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { UserOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 // Define the Order type
 type OrderStatus = SupabaseOrder['status'];
@@ -51,25 +51,25 @@ interface LocalOrder {
   estimatedDelivery?: Date;
 }
 
-// Helper function to get status badge color
-const getStatusColor = (status: OrderStatus) => {
+// Helper function to get status badge color and label
+const getStatusBadge = (status: OrderStatus) => {
   switch (status) {
     case 'pending':
-      return 'bg-blue-50 text-blue-600';
+      return { color: 'bg-blue-100 text-blue-800', label: 'En attente', icon: <Clock className="h-4 w-4 mr-1" /> };
     case 'confirmed':
-      return 'bg-amber-50 text-amber-600';
+      return { color: 'bg-amber-100 text-amber-800', label: 'Confirmée', icon: <Package className="h-4 w-4 mr-1" /> };
     case 'preparing':
-      return 'bg-yellow-50 text-yellow-600';
+      return { color: 'bg-yellow-100 text-yellow-800', label: 'Préparation', icon: <Clock className="h-4 w-4 mr-1" /> };
     case 'ready':
-      return 'bg-green-50 text-green-600';
+      return { color: 'bg-green-100 text-green-800', label: 'Prête', icon: <Package className="h-4 w-4 mr-1" /> };
     case 'picked_up':
-      return 'bg-purple-50 text-purple-600';
+      return { color: 'bg-purple-100 text-purple-800', label: 'En livraison', icon: <Truck className="h-4 w-4 mr-1" /> };
     case 'delivered':
-      return 'bg-green-50 text-green-600';
+      return { color: 'bg-green-200 text-green-900', label: 'Livrée', icon: <Tag className="h-4 w-4 mr-1" /> };
     case 'cancelled':
-      return 'bg-red-50 text-red-600';
+      return { color: 'bg-red-100 text-red-800', label: 'Annulée', icon: <Tag className="h-4 w-4 mr-1" /> };
     default:
-      return 'bg-gray-50 text-gray-600';
+      return { color: 'bg-gray-100 text-gray-800', label: status, icon: <Clock className="h-4 w-4 mr-1" /> };
   }
 };
 
@@ -210,17 +210,7 @@ const UserOrders = () => {
   if (loading) {
     return (
       <DashboardLayout navItems={userNavItems} title="Order History">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Vos Commandes</h2>
-            <p className="text-muted-foreground">Chargement de vos commandes...</p>
-          </div>
-          <Card>
-            <CardContent>
-              <TableSkeleton rows={6} />
-            </CardContent>
-          </Card>
-        </div>
+        <UserOrdersSkeleton />
       </DashboardLayout>
     );
   }
@@ -365,15 +355,9 @@ const UserOrders = () => {
                 {/* Order Status */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <StatusIcon status={selectedOrder.status} />
-                    <span className={`text-sm px-2 py-1 rounded-full ${getStatusColor(selectedOrder.status)}`}>
-                      {selectedOrder.status === 'pending' && 'En attente'}
-                      {selectedOrder.status === 'confirmed' && 'Confirmée'}
-                      {selectedOrder.status === 'preparing' && 'En préparation'}
-                      {selectedOrder.status === 'ready' && 'Prête'}
-                      {selectedOrder.status === 'picked_up' && 'En livraison'}
-                      {selectedOrder.status === 'delivered' && 'Livrée'}
-                      {selectedOrder.status === 'cancelled' && 'Annulée'}
+                    <span className={`flex items-center text-sm px-3 py-1 rounded-full font-semibold ${getStatusBadge(selectedOrder.status).color}`}>
+                      {getStatusBadge(selectedOrder.status).icon}
+                      {getStatusBadge(selectedOrder.status).label}
                     </span>
                   </div>
                   <p className="font-semibold text-lg">Total: {formatCurrency(selectedOrder.total)}</p>
@@ -476,15 +460,9 @@ const OrdersTable = ({
               <TableCell>{format(order.date, 'dd MMM yyyy')}</TableCell>
               <TableCell>
                 <div className="flex items-center">
-                  <StatusIcon status={order.status} />
-                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>
-                    {order.status === 'pending' && 'En attente'}
-                    {order.status === 'confirmed' && 'Confirmée'}
-                    {order.status === 'preparing' && 'En préparation'}
-                    {order.status === 'ready' && 'Prête'}
-                    {order.status === 'picked_up' && 'En livraison'}
-                    {order.status === 'delivered' && 'Livrée'}
-                    {order.status === 'cancelled' && 'Annulée'}
+                  <span className={`flex items-center text-xs px-2 py-1 rounded-full font-medium ${getStatusBadge(order.status).color}`}>
+                    {getStatusBadge(order.status).icon}
+                    {getStatusBadge(order.status).label}
                   </span>
                 </div>
               </TableCell>

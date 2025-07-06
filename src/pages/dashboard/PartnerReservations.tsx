@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Calendar as CalendarIcon,
   Check,
@@ -17,7 +18,8 @@ import {
   XCircle,
   ClipboardList,
   MoreHorizontal,
-  Table
+  Table,
+  X
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import {
@@ -38,6 +40,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { ReservationSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { usePartnerReservations, PartnerReservation } from '@/hooks/use-partner-reservations';
 import { AssignTableDialog } from '@/components/AssignTableDialog';
+import { fr } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 // Helper function to get status color
 const getStatusColor = (status: PartnerReservation['status']) => {
@@ -50,6 +54,8 @@ const getStatusColor = (status: PartnerReservation['status']) => {
       return 'bg-red-100 text-red-800 hover:bg-red-100';
     case 'completed':
       return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
+    case 'no_show':
+      return 'bg-orange-100 text-orange-800 hover:bg-orange-100';
     default:
       return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
   }
@@ -66,6 +72,8 @@ const getStatusIcon = (status: PartnerReservation['status']) => {
       return <XCircle className="mr-1 h-3 w-3" />;
     case 'completed':
       return <Check className="mr-1 h-3 w-3" />;
+    case 'no_show':
+      return <XCircle className="mr-1 h-3 w-3" />;
     default:
       return null;
   }
@@ -81,6 +89,8 @@ const getStatusLabel = (status: PartnerReservation['status']) => {
       return 'Annulée';
     case 'completed':
       return 'Terminée';
+    case 'no_show':
+      return 'Absent';
     default:
       return status;
   }
@@ -102,9 +112,10 @@ const PartnerReservations = () => {
   } = usePartnerReservations();
   
   // State pour les filtres et la recherche
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [dateFilterType, setDateFilterType] = useState<'none' | 'today' | 'week' | 'custom'>('none');
   
   // State pour la réservation sélectionnée
   const [selectedReservation, setSelectedReservation] = useState<PartnerReservation | null>(null);
@@ -117,7 +128,16 @@ const PartnerReservations = () => {
   // Filtrer les réservations
   const filteredReservations = reservations.filter((reservation) => {
     // Filtre par date
-    if (selectedDate) {
+    if (dateFilterType === 'today') {
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      if (reservation.date !== todayStr) return false;
+    } else if (dateFilterType === 'week') {
+      const today = new Date();
+      const endOfWeek = new Date(today);
+      endOfWeek.setDate(today.getDate() + 7);
+      const reservationDate = new Date(reservation.date);
+      if (reservationDate < today || reservationDate > endOfWeek) return false;
+    } else if (dateFilterType === 'custom' && selectedDate) {
       const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
       if (reservation.date !== selectedDateStr) return false;
     }
@@ -141,9 +161,37 @@ const PartnerReservations = () => {
     return true;
   });
 
+  // Debug: Afficher les informations de débogage
+  console.log('Debug PartnerReservations:', {
+    totalReservations: reservations.length,
+    filteredReservations: filteredReservations.length,
+    selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'none',
+    selectedStatus,
+    searchQuery,
+    reservations: reservations.map(r => ({
+      id: r.id,
+      date: r.date,
+      status: r.status,
+      customer_name: r.customer_name
+    }))
+  });
+
   // Gérer le changement de date
   const handleDateChange = (date: Date | undefined) => {
     setSelectedDate(date);
+    setDateFilterType(date ? 'custom' : 'none');
+  };
+
+  // Gérer le filtre "Aujourd'hui"
+  const handleTodayFilter = () => {
+    setSelectedDate(undefined);
+    setDateFilterType('today');
+  };
+
+  // Gérer le filtre "Cette semaine"
+  const handleWeekFilter = () => {
+    setSelectedDate(undefined);
+    setDateFilterType('week');
   };
 
   // Gérer le changement de statut
@@ -251,24 +299,62 @@ const PartnerReservations = () => {
 
   const stats = getReservationStats();
 
+  // Calculer les statistiques des réservations filtrées
+  const filteredStats = {
+    total: filteredReservations.length,
+    confirmed: filteredReservations.filter(res => res.status === 'confirmed').length,
+    pending: filteredReservations.filter(res => res.status === 'pending').length,
+    completed: filteredReservations.filter(res => res.status === 'completed').length,
+    cancelled: filteredReservations.filter(res => res.status === 'cancelled').length,
+    no_show: filteredReservations.filter(res => res.status === 'no_show').length,
+  };
+
+  // Vérifier si des filtres sont actifs
+  const hasActiveFilters = dateFilterType !== 'none' || selectedStatus !== 'all' || searchQuery;
+
+  // Obtenir le texte du filtre de date actif
+  const getDateFilterText = () => {
+    switch (dateFilterType) {
+      case 'today':
+        return 'Aujourd\'hui';
+      case 'week':
+        return 'Cette semaine';
+      case 'custom':
+        return selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '';
+      default:
+        return '';
+    }
+  };
+
   return (
     <DashboardLayout navItems={partnerNavItems} title="Réservations">
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
           <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
+          {hasActiveFilters && (
+            <div className="mt-2">
+              <Badge variant="secondary" className="text-xs">
+                Filtres actifs: {filteredReservations.length} sur {reservations.length} réservations
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Statistiques */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {hasActiveFilters ? 'Filtrées' : 'Total'}
+              </CardTitle>
               <ClipboardList className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">Réservations</p>
+              <div className="text-2xl font-bold">{filteredStats.total}</div>
+              <p className="text-xs text-muted-foreground">
+                {hasActiveFilters ? 'Réservations filtrées' : 'Réservations'}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -277,7 +363,7 @@ const PartnerReservations = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pending}</div>
+              <div className="text-2xl font-bold">{filteredStats.pending}</div>
               <p className="text-xs text-muted-foreground">À confirmer</p>
             </CardContent>
           </Card>
@@ -287,7 +373,7 @@ const PartnerReservations = () => {
               <Check className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.confirmed}</div>
+              <div className="text-2xl font-bold">{filteredStats.confirmed}</div>
               <p className="text-xs text-muted-foreground">Validées</p>
             </CardContent>
           </Card>
@@ -297,8 +383,18 @@ const PartnerReservations = () => {
               <Check className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.completed}</div>
+              <div className="text-2xl font-bold">{filteredStats.completed}</div>
               <p className="text-xs text-muted-foreground">Aujourd'hui</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Absents</CardTitle>
+              <XCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{filteredStats.no_show}</div>
+              <p className="text-xs text-muted-foreground">No-show</p>
             </CardContent>
           </Card>
         </div>
@@ -338,19 +434,93 @@ const PartnerReservations = () => {
                     <SelectItem value="confirmed">Confirmée</SelectItem>
                     <SelectItem value="completed">Terminée</SelectItem>
                     <SelectItem value="cancelled">Annulée</SelectItem>
+                    <SelectItem value="no_show">Absent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="sm:w-48">
                 <Label>Date</Label>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateChange}
-                  className="rounded-md border"
-                />
+                <div className="space-y-2">
+                  {/* Options rapides */}
+                  <div className="flex gap-1">
+                    <Button
+                      variant={dateFilterType === 'today' ? "default" : "outline"}
+                      size="sm"
+                      onClick={handleTodayFilter}
+                      className="text-xs px-2"
+                    >
+                      Aujourd'hui
+                    </Button>
+                    <Button
+                      variant={dateFilterType === 'week' ? "default" : "outline"}
+                      size="sm"
+                      onClick={handleWeekFilter}
+                      className="text-xs px-2"
+                    >
+                      Cette semaine
+                    </Button>
+                  </div>
+                  
+                  {/* Sélecteur de date */}
+                  <div className="flex gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          size={"sm"}
+                          className={cn(
+                            "w-[200px] justify-start text-left font-normal",
+                            !selectedDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {selectedDate ? (
+                            format(selectedDate, "dd/MM/yyyy")
+                          ) : (
+                            <span>Sélectionner une date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={handleDateChange}
+                          initialFocus
+                          locale={fr}
+                          disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {selectedDate && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedDate(undefined)}
+                        className="px-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
+            {hasActiveFilters && (
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSelectedDate(undefined);
+                    setSelectedStatus('all');
+                    setSearchQuery('');
+                  }}
+                >
+                  Effacer tous les filtres
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -367,11 +537,39 @@ const PartnerReservations = () => {
               <div className="text-center py-8">
                 <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">Aucune réservation</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery || selectedStatus !== 'all' || selectedDate
-                    ? 'Aucune réservation ne correspond à vos critères.'
+                <p className="text-muted-foreground mb-4">
+                  {hasActiveFilters 
+                    ? `Aucune réservation ne correspond à vos critères de filtrage.`
                     : 'Aucune réservation pour le moment.'}
                 </p>
+                {hasActiveFilters && (
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>Filtres actifs :</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {selectedDate && (
+                        <li>Date : {format(selectedDate, 'dd/MM/yyyy')}</li>
+                      )}
+                      {selectedStatus !== 'all' && (
+                        <li>Statut : {getStatusLabel(selectedStatus as any)}</li>
+                      )}
+                      {searchQuery && (
+                        <li>Recherche : "{searchQuery}"</li>
+                      )}
+                    </ul>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setSelectedDate(undefined);
+                        setSelectedStatus('all');
+                        setSearchQuery('');
+                      }}
+                      className="mt-4"
+                    >
+                      Effacer tous les filtres
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -422,16 +620,22 @@ const PartnerReservations = () => {
                               </DropdownMenuItem>
                             )}
                             {reservation.status === 'confirmed' && (
-                              <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'completed')}>
-                                <Check className="mr-2 h-4 w-4" />
-                                Marquer comme terminée
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'completed')}>
+                                  <Check className="mr-2 h-4 w-4" />
+                                  Marquer comme terminée
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'no_show')}>
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Marquer comme absent
+                                </DropdownMenuItem>
+                              </>
                             )}
                             <DropdownMenuItem onClick={() => handleOpenAssignTable(reservation)}>
                               <Table className="mr-2 h-4 w-4" />
                               {reservation.table_number ? 'Modifier la table' : 'Assigner une table'}
                             </DropdownMenuItem>
-                            {reservation.status !== 'cancelled' && reservation.status !== 'completed' && (
+                            {reservation.status !== 'cancelled' && reservation.status !== 'completed' && reservation.status !== 'no_show' && (
                               <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Annuler
@@ -510,9 +714,17 @@ const PartnerReservations = () => {
                     </Button>
                   )}
                   {selectedReservation.status === 'confirmed' && (
-                    <Button onClick={() => handleUpdateStatus(selectedReservation.id, 'completed')}>
-                      Marquer comme terminée
-                    </Button>
+                    <>
+                      <Button onClick={() => handleUpdateStatus(selectedReservation.id, 'completed')}>
+                        Marquer comme terminée
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => handleUpdateStatus(selectedReservation.id, 'no_show')}
+                      >
+                        Marquer comme absent
+                      </Button>
+                    </>
                   )}
                   <Button 
                     variant="outline" 
@@ -524,7 +736,7 @@ const PartnerReservations = () => {
                     <Table className="mr-2 h-4 w-4" />
                     {selectedReservation.table_number ? 'Modifier la table' : 'Assigner une table'}
                   </Button>
-                  {selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && (
+                  {selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && selectedReservation.status !== 'no_show' && (
                     <Button variant="destructive" onClick={() => handleUpdateStatus(selectedReservation.id, 'cancelled')}>
                       Annuler
                     </Button>

@@ -51,7 +51,7 @@ const StatsDisplay = ({ stats }: { stats: any }) => {
           <ShoppingBag className="h-5 w-5 text-guinea-red" />
         </div>
         <div className="text-lg font-bold text-gray-900">{formatNumber(stats.totalRestaurants)}</div>
-        <div className="text-xs text-gray-600">Restaurants</div>
+        <div className="text-xs text-gray-600">Services</div>
       </div>
       
       <div className="flex flex-col items-center text-center">

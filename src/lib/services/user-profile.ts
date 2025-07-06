@@ -53,7 +53,7 @@ export interface CreateAddressData {
 
 export const UserProfileService = {
   // Récupérer le profil de l'utilisateur connecté
-  getCurrentUserProfile: async (): Promise<{ data: UserProfile | null; error: string | null }> => {
+  getProfile: async (): Promise<{ data: UserProfile | null; error: string | null }> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -61,7 +61,10 @@ export const UserProfileService = {
         return { data: null, error: 'Utilisateur non authentifié' };
       }
 
-      const { data: profile, error } = await supabase
+      console.log('🔍 [UserProfile] Récupération du profil pour:', user.id);
+
+      // Première tentative : récupérer le profil existant
+      let { data: profile, error } = await supabase
         .from('user_profiles')
         .select(`
           *,
@@ -70,8 +73,48 @@ export const UserProfileService = {
         .eq('id', user.id)
         .single();
 
-      if (error) {
-        console.error('Erreur lors de la récupération du profil:', error);
+      // Si le profil n'existe pas, le créer automatiquement
+      if (error && error.code === 'PGRST116') {
+        console.log('⚠️ [UserProfile] Profil non trouvé, création automatique...');
+        
+        // Récupérer les métadonnées de l'utilisateur auth
+        const userMetadata = user.user_metadata || {};
+        const role = userMetadata.role || 'customer';
+        
+        // Déterminer le role_id
+        let roleId = 1; // customer par défaut
+        if (role === 'partner') roleId = 2;
+        else if (role === 'driver') roleId = 3;
+        else if (role === 'admin') roleId = 4;
+        
+        // Créer le profil
+        const { data: newProfile, error: createError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: user.id,
+            name: userMetadata.name || user.email?.split('@')[0] || 'Utilisateur',
+            email: user.email || '',
+            role_id: roleId,
+            phone_number: userMetadata.phone_number,
+            address: userMetadata.address,
+            profile_image: `https://ui-avatars.com/api/?name=${encodeURIComponent(userMetadata.name || user.email?.split('@')[0] || 'Utilisateur')}&background=random`,
+            is_active: true
+          })
+          .select(`
+            *,
+            user_roles!inner(name, description)
+          `)
+          .single();
+          
+        if (createError) {
+          console.error('❌ [UserProfile] Erreur création profil:', createError);
+          return { data: null, error: `Erreur lors de la création du profil: ${createError.message}` };
+        }
+        
+        console.log('✅ [UserProfile] Profil créé avec succès');
+        profile = newProfile;
+      } else if (error) {
+        console.error('❌ [UserProfile] Erreur lors de la récupération du profil:', error);
         return { data: null, error: error.message };
       }
 
@@ -82,9 +125,15 @@ export const UserProfileService = {
         role_description: profile.user_roles?.description
       } : null;
 
+      console.log('✅ [UserProfile] Profil récupéré:', {
+        id: transformedProfile?.id,
+        name: transformedProfile?.name,
+        role: transformedProfile?.role_name
+      });
+
       return { data: transformedProfile, error: null };
     } catch (error) {
-      console.error('Erreur lors de la récupération du profil:', error);
+      console.error('❌ [UserProfile] Erreur lors de la récupération du profil:', error);
       return { data: null, error: 'Erreur de connexion' };
     }
   },

@@ -71,6 +71,7 @@ import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import ImageUpload from '@/components/ui/image-upload';
 import { UploadService } from '@/lib/services/upload';
 import { useToast } from '@/hooks/use-toast';
+import { PartnerMenuSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 // Schema de validation pour les articles de menu
 const menuItemSchema = z.object({
@@ -348,17 +349,7 @@ const PartnerMenu = () => {
   if (profileLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
-        <div className="space-y-6">
-          <div className="flex items-center space-x-4">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-8 w-32" />
-          </div>
-          <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 w-full" />
-            ))}
-          </div>
-        </div>
+        <PartnerMenuSkeleton />
       </DashboardLayout>
     );
   }

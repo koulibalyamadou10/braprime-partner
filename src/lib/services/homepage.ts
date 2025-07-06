@@ -136,9 +136,14 @@ export class HomepageService {
         throw error;
       }
 
+      // Filtrer les doublons par nom et ID
+      const uniqueCategories = (data || []).filter((category, index, self) => 
+        index === self.findIndex(c => c.id === category.id && c.name === category.name)
+      );
+
       // Ajouter le compteur de restaurants pour chaque catégorie
       const categoriesWithCounts = await Promise.all(
-        (data || []).map(async (category) => {
+        uniqueCategories.map(async (category) => {
           const { count, error: countError } = await supabase
             .from('businesses')
             .select('*', { count: 'exact', head: true })

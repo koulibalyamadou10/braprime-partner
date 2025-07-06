@@ -132,18 +132,24 @@ export class DriverAuthService {
       }
 
       // Vérifier que l'utilisateur est bien un livreur
-      const { data: driver, error: driverError } = await this.getDriverById(authData.user.id);
+      const { driver: driverData, error: driverError } = await this.getDriverById(authData.user.id);
 
       if (driverError) {
         throw new Error('Profil livreur non trouvé');
       }
 
-      if (!driver.is_active) {
+      if (!driverData) {
+        throw new Error('Profil livreur non trouvé');
+      }
+
+      console.log('🔍 Driver récupéré pour connexion:', driverData);
+
+      if (driverData.is_active === false) {
         throw new Error('Votre compte est désactivé. Contactez l\'administrateur.');
       }
 
-      toast.success(`Bienvenue ${driver.name} !`);
-      return { driver };
+      toast.success(`Bienvenue ${driverData.name} !`);
+      return { driver: driverData };
 
     } catch (error) {
       console.error('Erreur lors de la connexion du livreur:', error);
@@ -170,7 +176,7 @@ export class DriverAuthService {
   static async getCurrentDriver(): Promise<{ driver?: DriverAuthData; error?: string }> {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-
+      
       if (authError || !user) {
         return { error: 'Utilisateur non connecté' };
       }
@@ -182,26 +188,119 @@ export class DriverAuthService {
     }
   }
 
-  // Récupérer un livreur par ID
-  static async getDriverById(driverId: string): Promise<{ driver?: DriverAuthData; error?: string }> {
+  // Récupérer un livreur par ID (auth.users ID)
+  static async getDriverById(authUserId: string): Promise<{ driver?: DriverAuthData; error?: string }> {
     try {
-      const { data: driver, error } = await supabase
+      console.log('🔍 Recherche du driver avec auth user ID:', authUserId);
+      
+      // D'abord, vérifier si l'ID est valide
+      if (!authUserId || typeof authUserId !== 'string') {
+        throw new Error('ID de driver invalide');
+      }
+
+      // Vérifier si l'ID est un UUID valide
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(authUserId)) {
+        throw new Error('Format d\'ID invalide (UUID attendu)');
+      }
+
+      // Récupérer le profil utilisateur pour obtenir l'email
+      const { data: userProfile, error: userError } = await supabase
+        .from('user_profiles')
+        .select(`
+          id,
+          name,
+          email,
+          phone_number,
+          role_id,
+          user_roles (
+            name
+          )
+        `)
+        .eq('id', authUserId)
+        .single();
+
+      if (userError || !userProfile) {
+        console.error('❌ Erreur user_profiles:', userError);
+        throw new Error('Profil utilisateur non trouvé');
+      }
+
+      console.log('✅ Profil utilisateur trouvé:', userProfile.name, userProfile.email);
+      console.log('📋 Rôle utilisateur:', userProfile.user_roles?.name);
+
+      // Vérifier que c'est bien un driver OU qu'il existe dans la table drivers
+      const isDriverRole = userProfile.user_roles?.name === 'driver';
+      
+      if (!isDriverRole) {
+        console.log('⚠️ Rôle non-driver détecté, vérification dans la table drivers...');
+      }
+
+      // Récupérer le driver directement par email
+      const { data: driver, error: driverError } = await supabase
         .from('drivers')
         .select(`
-          *,
+          id,
+          name,
+          email,
+          phone,
+          driver_type,
+          business_id,
+          is_active,
+          is_verified,
+          vehicle_type,
+          vehicle_plate,
+          rating,
+          total_deliveries,
+          total_earnings,
+          documents_count,
+          active_sessions,
+          avatar_url,
+          created_at,
           businesses!drivers_business_id_fkey (
             name
           )
         `)
-        .eq('id', driverId)
+        .eq('email', userProfile.email)
         .single();
 
-      if (error) {
-        throw new Error(error.message);
+      if (driverError || !driver) {
+        console.error('❌ Aucun driver trouvé par email:', userProfile.email);
+        if (!isDriverRole) {
+          throw new Error('Utilisateur non autorisé (rôle driver requis et non trouvé dans la table drivers)');
+        } else {
+          throw new Error('Profil livreur non trouvé');
+        }
       }
 
-      if (!driver) {
-        throw new Error('Livreur non trouvé');
+      console.log('✅ Driver trouvé par email:', driver.name, driver.email);
+
+      // Si le rôle n'était pas correct, on peut le corriger automatiquement
+      if (!isDriverRole) {
+        console.log('🔄 Correction automatique du rôle utilisateur...');
+        try {
+          // Trouver l'ID du rôle driver
+          const { data: driverRole, error: roleError } = await supabase
+            .from('user_roles')
+            .select('id')
+            .eq('name', 'driver')
+            .single();
+
+          if (!roleError && driverRole) {
+            // Mettre à jour le rôle de l'utilisateur
+            const { error: updateError } = await supabase
+              .from('user_profiles')
+              .update({ role_id: driverRole.id })
+              .eq('id', authUserId);
+
+            if (!updateError) {
+              console.log('✅ Rôle utilisateur corrigé automatiquement');
+            } else {
+              console.warn('⚠️ Impossible de corriger le rôle:', updateError);
+            }
+          }
+        } catch (roleUpdateError) {
+          console.warn('⚠️ Erreur lors de la correction du rôle:', roleUpdateError);
+        }
       }
 
       // Transformer les données
@@ -210,11 +309,11 @@ export class DriverAuthService {
         email: driver.email,
         phone: driver.phone,
         name: driver.name,
-        driver_type: driver.driver_type,
+        driver_type: driver.driver_type || 'independent',
         business_id: driver.business_id,
         business_name: driver.businesses?.name,
-        is_verified: driver.is_verified,
-        is_active: driver.is_active,
+        is_verified: driver.is_verified || false,
+        is_active: driver.is_active !== false,
         avatar_url: driver.avatar_url,
         vehicle_type: driver.vehicle_type,
         vehicle_plate: driver.vehicle_plate,
@@ -228,7 +327,7 @@ export class DriverAuthService {
 
       return { driver: driverData };
     } catch (error) {
-      console.error('Erreur lors de la récupération du livreur:', error);
+      console.error('❌ Erreur lors de la récupération du livreur:', error);
       return { error: error instanceof Error ? error.message : 'Erreur lors de la récupération' };
     }
   }
@@ -297,7 +396,7 @@ export class DriverAuthService {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/driver/reset-password`
       });
-
+      
       if (error) {
         throw new Error(error.message);
       }
@@ -307,7 +406,7 @@ export class DriverAuthService {
     } catch (error) {
       console.error('Erreur lors de la réinitialisation du mot de passe:', error);
       return { error: error instanceof Error ? error.message : 'Erreur lors de la réinitialisation' };
-    }
+      }
   }
 
   // Vérifier si un email existe déjà
@@ -318,7 +417,7 @@ export class DriverAuthService {
         .select('id')
         .eq('email', email)
         .single();
-
+      
       if (error && error.code !== 'PGRST116') {
         throw new Error(error.message);
       }
@@ -342,23 +441,22 @@ export class DriverAuthService {
           )
         `)
         .eq('business_id', businessId)
-        .eq('is_active', true)
-        .order('name');
+        .eq('is_active', true);
 
       if (error) {
         throw new Error(error.message);
       }
 
-      const driversData: DriverAuthData[] = drivers.map(driver => ({
+      const driverData: DriverAuthData[] = (drivers || []).map(driver => ({
         id: driver.id,
         email: driver.email,
         phone: driver.phone,
         name: driver.name,
-        driver_type: driver.driver_type,
+        driver_type: driver.driver_type || 'service',
         business_id: driver.business_id,
         business_name: driver.businesses?.name,
-        is_verified: driver.is_verified,
-        is_active: driver.is_active,
+        is_verified: driver.is_verified || false,
+        is_active: driver.is_active !== false,
         avatar_url: driver.avatar_url,
         vehicle_type: driver.vehicle_type,
         vehicle_plate: driver.vehicle_plate,
@@ -370,21 +468,66 @@ export class DriverAuthService {
         created_at: driver.created_at
       }));
 
-      return { drivers: driversData };
+      return { drivers: driverData };
     } catch (error) {
       console.error('Erreur lors de la récupération des livreurs du service:', error);
       return { error: error instanceof Error ? error.message : 'Erreur lors de la récupération' };
     }
   }
 
-  // Activer/Désactiver un livreur (admin)
+  // Récupérer tous les livreurs (pour l'admin)
+  static async getAllDrivers(): Promise<{ drivers?: DriverAuthData[]; error?: string }> {
+    try {
+      const { data: drivers, error } = await supabase
+        .from('drivers')
+        .select(`
+          *,
+          businesses!drivers_business_id_fkey (
+            name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const driverData: DriverAuthData[] = (drivers || []).map(driver => ({
+        id: driver.id,
+        email: driver.email,
+        phone: driver.phone,
+        name: driver.name,
+        driver_type: driver.driver_type || 'independent',
+        business_id: driver.business_id,
+        business_name: driver.businesses?.name,
+        is_verified: driver.is_verified || false,
+        is_active: driver.is_active !== false,
+        avatar_url: driver.avatar_url,
+        vehicle_type: driver.vehicle_type,
+        vehicle_plate: driver.vehicle_plate,
+        documents_count: driver.documents_count || 0,
+        total_deliveries: driver.total_deliveries || 0,
+        total_earnings: driver.total_earnings || 0,
+        rating: driver.rating || 0,
+        active_sessions: driver.active_sessions || 0,
+        created_at: driver.created_at
+      }));
+
+      return { drivers: driverData };
+    } catch (error) {
+      console.error('Erreur lors de la récupération de tous les livreurs:', error);
+      return { error: error instanceof Error ? error.message : 'Erreur lors de la récupération' };
+    }
+  }
+
+  // Activer/Désactiver un livreur
   static async toggleDriverStatus(driverId: string, isActive: boolean): Promise<{ error?: string }> {
     try {
       const { error } = await supabase
         .from('drivers')
         .update({ is_active: isActive })
         .eq('id', driverId);
-
+      
       if (error) {
         throw new Error(error.message);
       }
@@ -397,7 +540,7 @@ export class DriverAuthService {
     }
   }
 
-  // Vérifier un livreur (admin)
+  // Vérifier un livreur
   static async verifyDriver(driverId: string): Promise<{ error?: string }> {
     try {
       const { error } = await supabase
@@ -416,4 +559,4 @@ export class DriverAuthService {
       return { error: error instanceof Error ? error.message : 'Erreur lors de la vérification' };
     }
   }
-} 
+}

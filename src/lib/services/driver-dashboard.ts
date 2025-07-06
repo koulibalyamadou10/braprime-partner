@@ -59,12 +59,10 @@ export class DriverDashboardService {
         return { profile: null, error: 'Utilisateur non connecté' };
       }
 
+      // Récupérer directement le driver par user_id
       const { data: profile, error } = await supabase
         .from('drivers')
-        .select(`
-          *,
-          businesses!inner(name)
-        `)
+        .select(`*, businesses!inner(name)`)
         .eq('user_id', user.id)
         .single();
 
@@ -107,13 +105,35 @@ export class DriverDashboardService {
         return { orders: [], error: 'Utilisateur non connecté' };
       }
 
+      // Récupérer directement le driver par user_id
+      const { data: driver, error: driverError } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (driverError || !driver) {
+        console.error('Erreur récupération driver:', driverError);
+        return { orders: [], error: 'Driver non trouvé' };
+      }
+
+      // Maintenant récupérer les commandes avec l'ID du driver
       const { data: orders, error } = await supabase
         .from('orders')
         .select(`
-          *,
+          id,
+          user_id,
+          delivery_address,
+          total,
+          delivery_fee,
+          status,
+          created_at,
+          estimated_delivery,
+          actual_delivery,
+          items,
           businesses!inner(name)
         `)
-        .eq('driver_id', user.id)
+        .eq('driver_id', driver.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -121,20 +141,38 @@ export class DriverDashboardService {
         return { orders: [], error: error.message };
       }
 
-      const driverOrders: DriverOrder[] = (orders || []).map(order => ({
-        id: order.id,
-        customer_name: order.customer_name || 'Client',
-        customer_address: order.delivery_address,
-        customer_phone: order.customer_phone || '',
-        business_name: order.businesses.name,
-        total_amount: order.total,
-        delivery_fee: order.delivery_fee,
-        status: order.status,
-        created_at: order.created_at,
-        estimated_delivery: order.estimated_delivery,
-        actual_delivery: order.actual_delivery,
-        items: order.items || []
-      }));
+      // Récupérer les informations des clients pour toutes les commandes
+      const userIds = [...new Set((orders || []).map(order => order.user_id).filter(Boolean))];
+      let userProfiles: any[] = [];
+      
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, name, phone_number')
+          .in('id', userIds);
+        
+        if (!profilesError) {
+          userProfiles = profiles || [];
+        }
+      }
+
+      const driverOrders: DriverOrder[] = (orders || []).map(order => {
+        const userProfile = userProfiles.find(profile => profile.id === order.user_id);
+        return {
+          id: order.id,
+          customer_name: userProfile?.name || 'Client',
+          customer_address: order.delivery_address,
+          customer_phone: userProfile?.phone_number || '',
+          business_name: order.businesses.name,
+          total_amount: order.total,
+          delivery_fee: order.delivery_fee,
+          status: order.status,
+          created_at: order.created_at,
+          estimated_delivery: order.estimated_delivery,
+          actual_delivery: order.actual_delivery,
+          items: order.items || []
+        };
+      });
 
       return { orders: driverOrders, error: null };
     } catch (error) {
@@ -229,13 +267,24 @@ export class DriverDashboardService {
         return { success: false, error: 'Utilisateur non connecté' };
       }
 
+      // Récupérer directement le driver par user_id
+      const { data: driver, error: driverError } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (driverError || !driver) {
+        return { success: false, error: 'Driver non trouvé' };
+      }
+
       const { error } = await supabase
         .from('drivers')
         .update({ 
           current_location: { lat, lng },
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', user.id);
+        .eq('id', driver.id);
 
       if (error) {
         console.error('Erreur mise à jour localisation:', error);
@@ -258,11 +307,22 @@ export class DriverDashboardService {
         return { success: false, error: 'Utilisateur non connecté' };
       }
 
+      // Récupérer directement le driver par user_id
+      const { data: driver, error: driverError } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (driverError || !driver) {
+        return { success: false, error: 'Driver non trouvé' };
+      }
+
       // Mettre à jour la commande avec l'ID du livreur
       const { error: orderError } = await supabase
         .from('orders')
         .update({ 
-          driver_id: user.id,
+          driver_id: driver.id,
           status: 'picked_up',
           updated_at: new Date().toISOString()
         })
@@ -273,22 +333,22 @@ export class DriverDashboardService {
       }
 
       // Mettre à jour le livreur avec la commande actuelle
-      const { error: driverError } = await supabase
+      const { error: driverUpdateError } = await supabase
         .from('drivers')
         .update({ 
           current_order_id: orderId,
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', user.id);
+        .eq('id', driver.id);
 
-      if (driverError) {
-        return { success: false, error: driverError.message };
+      if (driverUpdateError) {
+        return { success: false, error: driverUpdateError.message };
       }
 
       return { success: true, error: null };
     } catch (error) {
-      console.error('Erreur lors de l\'acceptation de la commande:', error);
-      return { success: false, error: 'Erreur lors de l\'acceptation de la commande' };
+      console.error("Erreur lors de l'acceptation de la commande:", error);
+      return { success: false, error: "Erreur lors de l'acceptation de la commande" };
     }
   }
 
@@ -299,6 +359,17 @@ export class DriverDashboardService {
       
       if (!user) {
         return { success: false, error: 'Utilisateur non connecté' };
+      }
+
+      // Récupérer directement le driver par user_id
+      const { data: driver, error: driverError } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (driverError || !driver) {
+        return { success: false, error: 'Driver non trouvé' };
       }
 
       // Mettre à jour la commande
@@ -316,16 +387,16 @@ export class DriverDashboardService {
       }
 
       // Libérer le livreur
-      const { error: driverError } = await supabase
+      const { error: driverUpdateError } = await supabase
         .from('drivers')
         .update({ 
           current_order_id: null,
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', user.id);
+        .eq('id', driver.id);
 
-      if (driverError) {
-        return { success: false, error: driverError.message };
+      if (driverUpdateError) {
+        return { success: false, error: driverUpdateError.message };
       }
 
       return { success: true, error: null };

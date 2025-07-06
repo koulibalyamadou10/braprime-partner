@@ -29,9 +29,10 @@ import {
   Loader2,
   Home,
   Building,
-  Navigation
+  Navigation,
+  Check
 } from 'lucide-react';
-import { AddressSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { UserAddressesSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 // Schéma de validation pour les adresses
 const addressFormSchema = z.object({
@@ -53,6 +54,13 @@ const addressFormSchema = z.object({
 });
 
 type AddressFormValues = z.infer<typeof addressFormSchema>;
+
+// Ajout fonction utilitaire pour l'icône dynamique
+const getAddressIcon = (label: string) => {
+  if (label.toLowerCase().includes('domicile')) return <Home className="h-5 w-5 text-primary" />;
+  if (label.toLowerCase().includes('bureau') || label.toLowerCase().includes('travail')) return <Building className="h-5 w-5 text-blue-500" />;
+  return <MapPin className="h-5 w-5 text-muted-foreground" />;
+};
 
 const UserAddresses = () => {
   const { toast } = useToast();
@@ -194,27 +202,7 @@ const UserAddresses = () => {
   if (isLoading) {
     return (
       <DashboardLayout navItems={userNavItems} title="Mes Adresses">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Mes Adresses</h2>
-            <p className="text-gray-500">Gérez vos adresses de livraison pour faciliter vos commandes.</p>
-          </div>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Adresses de livraison</CardTitle>
-                  <CardDescription>
-                    Vos adresses enregistrées pour la livraison.
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <AddressSkeleton />
-            </CardContent>
-          </Card>
-        </div>
+        <UserAddressesSkeleton />
       </DashboardLayout>
     );
   }
@@ -259,7 +247,7 @@ const UserAddresses = () => {
           <CardContent>
             {addresses.length === 0 ? (
               <div className="text-center py-12">
-                <MapPin className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <MapPin className="h-16 w-16 text-primary mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune adresse enregistrée</h3>
                 <p className="text-gray-500 mb-6">Ajoutez votre première adresse pour faciliter vos commandes.</p>
                 <Button onClick={handleCreateAddress}>
@@ -270,23 +258,20 @@ const UserAddresses = () => {
             ) : (
               <div className="grid gap-4">
                 {addresses.map((address) => (
-                  <div key={address.id} className="border rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <div key={address.id} className="border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow bg-white">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-3">
-                          <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-                            {address.is_default ? (
-                              <Home className="h-5 w-5 text-blue-600" />
-                            ) : (
-                              <Building className="h-5 w-5 text-gray-600" />
-                            )}
+                          <div className="flex items-center justify-center w-10 h-10 bg-blue-50 rounded-full">
+                            {getAddressIcon(address.label)}
                           </div>
                           <div>
                             <h4 className="font-semibold text-lg">{address.label}</h4>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 mt-1">
                               {address.is_default && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Adresse par défaut
+                                <Badge className="bg-green-100 text-green-700 border-green-200 text-xs flex items-center">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Par défaut
                                 </Badge>
                               )}
                               <Badge variant="outline" className="text-xs">
@@ -306,7 +291,7 @@ const UserAddresses = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex space-x-2 ml-4">
+                      <div className="flex gap-2 ml-4 mt-2">
                         {!address.is_default && (
                           <Button
                             variant="outline"
@@ -332,9 +317,9 @@ const UserAddresses = () => {
                         </Button>
                       </div>
                     </div>
-                            </div>
+                  </div>
                 ))}
-                            </div>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -269,4 +269,614 @@ export const PageSkeleton = () => (
       </CardContent>
     </Card>
   </div>
+);
+
+// ===== NOUVEAUX SKELETONS SPÉCIALISÉS =====
+
+// Skeleton pour le dashboard partenaire
+export const PartnerDashboardSkeleton = () => (
+  <div className="space-y-6">
+    {/* Header */}
+    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <Skeleton className="h-8 w-48 mb-2" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-9 w-24" />
+        <Skeleton className="h-9 w-20" />
+      </div>
+    </div>
+
+    {/* Business Info Card */}
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-40" />
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-3">
+              <Skeleton className="h-4 w-4" />
+              <div>
+                <Skeleton className="h-4 w-16 mb-1" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-4">
+          <Skeleton className="h-6 w-16 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Stats Cards */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <StatsCardSkeleton key={index} />
+      ))}
+    </div>
+
+    {/* Recent Orders */}
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32" />
+      </CardHeader>
+      <CardContent>
+        <TableSkeleton rows={5} />
+      </CardContent>
+    </Card>
+  </div>
+);
+
+// Skeleton pour les commandes utilisateur
+export const UserOrdersSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Search and Filter */}
+    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <Skeleton className="h-10 w-72" />
+      <div className="flex gap-2 w-full sm:w-auto">
+        <Skeleton className="h-10 w-[180px]" />
+      </div>
+    </div>
+
+    {/* Tabs */}
+    <div className="space-y-4">
+      <div className="flex space-x-1">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} className="h-10 w-20" />
+        ))}
+      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <TableSkeleton rows={6} />
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
+
+// Skeleton pour les commandes partenaire
+export const PartnerOrdersSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Filters */}
+    <div className="flex flex-wrap gap-4">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <Skeleton key={index} className="h-10 w-32" />
+      ))}
+    </div>
+
+    {/* Orders List */}
+    <div className="space-y-4">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+          <div className="flex items-center justify-between mt-4">
+            <Skeleton className="h-4 w-24" />
+            <div className="flex space-x-2">
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Skeleton pour le menu partenaire
+export const PartnerMenuSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Add Item Button */}
+    <div className="flex justify-between items-center">
+      <Skeleton className="h-10 w-32" />
+    </div>
+
+    {/* Categories */}
+    <div className="space-y-4">
+      {Array.from({ length: 3 }).map((_, categoryIndex) => (
+        <Card key={categoryIndex}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-8 w-8" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, itemIndex) => (
+                <div key={itemIndex} className="flex items-center space-x-4 p-4 border rounded-lg">
+                  <Skeleton className="h-20 w-20 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <div className="flex space-x-2">
+                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </div>
+);
+
+// Skeleton pour les réservations
+export const ReservationsSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Filters */}
+    <div className="flex flex-wrap gap-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Skeleton key={index} className="h-10 w-28" />
+      ))}
+    </div>
+
+    {/* Reservations List */}
+    <div className="space-y-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-32" />
+            <div className="flex space-x-2">
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Skeleton pour les revenus partenaire
+export const PartnerRevenueSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Date Filter */}
+    <div className="flex items-center gap-4">
+      <Skeleton className="h-10 w-32" />
+      <Skeleton className="h-10 w-32" />
+      <Skeleton className="h-10 w-24" />
+    </div>
+
+    {/* Revenue Stats */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <StatsCardSkeleton key={index} />
+      ))}
+    </div>
+
+    {/* Chart */}
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-80 w-full rounded-lg" />
+      </CardContent>
+    </Card>
+
+    {/* Revenue Table */}
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32" />
+      </CardHeader>
+      <CardContent>
+        <TableSkeleton rows={8} />
+      </CardContent>
+    </Card>
+  </div>
+);
+
+// Skeleton pour le profil utilisateur
+export const UserProfileSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    <div className="grid gap-6 md:grid-cols-2">
+      {/* Profile Info */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-16 w-16 rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index}>
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Security Settings */}
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-8 w-20" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+);
+
+// Skeleton pour les notifications utilisateur
+export const UserNotificationsSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Filter Tabs */}
+    <div className="flex space-x-1">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <Skeleton key={index} className="h-10 w-24" />
+      ))}
+    </div>
+
+    {/* Notifications List */}
+    <div className="space-y-3">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div key={index} className="flex items-start space-x-3 p-4 border rounded-lg">
+          <Skeleton className="h-10 w-10 rounded-full mt-1" />
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Skeleton pour les favoris utilisateur
+export const UserFavoritesSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Search */}
+    <Skeleton className="h-10 w-72" />
+
+    {/* Favorites Grid */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Card key={index}>
+          <CardContent className="p-4">
+            <div className="space-y-3">
+              <Skeleton className="h-32 w-full rounded-lg" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-24" />
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-8 w-8" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </div>
+);
+
+// Skeleton pour les adresses utilisateur
+export const UserAddressesSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Add Address Button */}
+    <Skeleton className="h-10 w-32" />
+
+    {/* Addresses List */}
+    <div className="space-y-4">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="border rounded-lg p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-3 mb-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div>
+                  <Skeleton className="h-5 w-24 mb-1" />
+                  <div className="flex space-x-2">
+                    <Skeleton className="h-4 w-16 rounded-full" />
+                    <Skeleton className="h-4 w-12 rounded-full" />
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-8" />
+              <Skeleton className="h-8 w-8" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Skeleton pour le dashboard admin
+export const AdminDashboardSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Stats Overview */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <StatsCardSkeleton key={index} />
+      ))}
+    </div>
+
+    {/* Charts Row */}
+    <div className="grid gap-4 md:grid-cols-2">
+      <ChartSkeleton />
+      <ChartSkeleton />
+    </div>
+
+    {/* Recent Activity */}
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="flex items-center space-x-3">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <div className="flex-1 space-y-1">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
+
+// Skeleton pour les chauffeurs
+export const DriversSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Actions */}
+    <div className="flex items-center gap-4">
+      <Skeleton className="h-10 w-32" />
+      <Skeleton className="h-10 w-32" />
+    </div>
+
+    {/* Drivers Grid */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Card key={index}>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4 mb-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+            </div>
+            <div className="flex space-x-2 mt-4">
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </div>
+);
+
+// Skeleton pour le dashboard chauffeur
+export const DriverDashboardSkeleton = () => (
+  <div className="space-y-6">
+    <div>
+      <Skeleton className="h-8 w-48 mb-2" />
+      <Skeleton className="h-4 w-64" />
+    </div>
+
+    {/* Driver Stats */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <StatsCardSkeleton key={index} />
+      ))}
+    </div>
+
+    {/* Current Session */}
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Skeleton className="h-4 w-16 mb-1" />
+              <Skeleton className="h-6 w-20" />
+            </div>
+            <div>
+              <Skeleton className="h-4 w-20 mb-1" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
+    {/* Available Orders */}
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-32" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  </div>
 ); 

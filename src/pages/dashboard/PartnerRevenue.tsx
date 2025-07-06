@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { partnerNavItems } from './PartnerOrders';
+import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter 
@@ -16,7 +15,8 @@ import {
   Users,
   Calendar,
   Download,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import {
   Select,
@@ -28,7 +28,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
-import { useTopItems, useRevenueData } from '@/hooks/use-dashboard';
+import { usePartnerRevenue } from '@/hooks/use-partner-revenue';
 import { formatCurrency } from '@/lib/utils';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import RealTimeStats from '@/components/dashboard/RealTimeStats';
@@ -41,8 +41,14 @@ const PartnerRevenue = () => {
   const [compareEnabled, setCompareEnabled] = useState(false);
   
   // Utiliser les hooks pour les données dynamiques
-  const { data: topItems, isLoading: topItemsLoading } = useTopItems('month');
-  const { data: revenueData, isLoading: revenueLoading } = useRevenueData('monthly');
+  const { 
+    revenueData, 
+    topItems, 
+    stats, 
+    isLoading, 
+    error, 
+    refetch 
+  } = usePartnerRevenue(period);
 
   // Formater les montants
   const formatCurrencyDisplay = (amount: number) => {
@@ -55,9 +61,11 @@ const PartnerRevenue = () => {
   };
 
   // Calculer les statistiques globales
-  const totalRevenue = revenueData?.reduce((sum, item) => sum + item.revenue, 0) || 0;
-  const totalOrders = revenueData?.reduce((sum, item) => sum + item.orders, 0) || 0;
-  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const totalRevenue = stats?.totalRevenue || 0;
+  const totalOrders = stats?.totalOrders || 0;
+  const averageOrderValue = stats?.averageOrderValue || 0;
+  const periodRevenue = stats?.periodRevenue || 0;
+  const periodOrders = stats?.periodOrders || 0;
 
   return (
     <DashboardLayout navItems={partnerNavItems} title="Analyses des Revenus">
@@ -81,6 +89,20 @@ const PartnerRevenue = () => {
               </SelectContent>
             </Select>
             
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {isLoading ? 'Chargement...' : 'Actualiser'}
+            </Button>
+            
             <Button variant="outline" className="flex items-center gap-2">
               <Download className="h-4 w-4" /> Exporter
             </Button>
@@ -100,6 +122,27 @@ const PartnerRevenue = () => {
             setPeriod(periodMap[newPeriod]);
           }}
         />
+
+        {/* Affichage des erreurs */}
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-red-600">
+                <span className="text-sm font-medium">Erreur de chargement des données:</span>
+                <span className="text-sm">{error.message}</span>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetch()}
+                className="mt-2"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Réessayer
+              </Button>
+            </CardContent>
+          </Card>
+        )}
         
         <Tabs defaultValue="revenue" className="space-y-4">
           <TabsList>
@@ -109,17 +152,26 @@ const PartnerRevenue = () => {
           </TabsList>
           
           <TabsContent value="revenue" className="space-y-4">
-            <RevenueChart 
-              period={period === 'yearly' ? 'monthly' : period}
-              onPeriodChange={(newPeriod) => {
-                const periodMap = {
-                  'daily': 'daily',
-                  'weekly': 'weekly',
-                  'monthly': 'monthly'
-                } as const;
-                setPeriod(periodMap[newPeriod]);
-              }}
-            />
+            {isLoading ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Chargement des données de revenus...</span>
+                </CardContent>
+              </Card>
+            ) : (
+              <RevenueChart 
+                period={period === 'yearly' ? 'monthly' : period}
+                onPeriodChange={(newPeriod) => {
+                  const periodMap = {
+                    'daily': 'daily',
+                    'weekly': 'weekly',
+                    'monthly': 'monthly'
+                  } as const;
+                  setPeriod(periodMap[newPeriod]);
+                }}
+              />
+            )}
           </TabsContent>
           
           <TabsContent value="top-items" className="space-y-4">
@@ -131,7 +183,7 @@ const PartnerRevenue = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {topItemsLoading ? (
+                {isLoading ? (
                   <div className="space-y-4">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className="animate-pulse">
@@ -188,22 +240,22 @@ const PartnerRevenue = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                       <div>
-                        <p className="text-sm font-medium text-green-700">Croissance des revenus</p>
-                        <p className="text-xs text-green-600">Par rapport à la période précédente</p>
+                        <p className="text-sm font-medium text-green-700">Revenus de la période</p>
+                        <p className="text-xs text-green-600">Revenus générés cette période</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-green-700">+15.2%</p>
+                        <p className="text-lg font-bold text-green-700">{formatCurrencyDisplay(periodRevenue)}</p>
                         <TrendingUp className="h-4 w-4 text-green-600 ml-auto" />
                       </div>
                     </div>
                     
                     <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                       <div>
-                        <p className="text-sm font-medium text-blue-700">Augmentation des commandes</p>
-                        <p className="text-xs text-blue-600">Volume de commandes</p>
+                        <p className="text-sm font-medium text-blue-700">Commandes de la période</p>
+                        <p className="text-xs text-blue-600">Nombre de commandes cette période</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-blue-700">+8.7%</p>
+                        <p className="text-lg font-bold text-blue-700">{periodOrders}</p>
                         <ArrowUpRight className="h-4 w-4 text-blue-600 ml-auto" />
                       </div>
                     </div>

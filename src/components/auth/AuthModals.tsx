@@ -21,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth, type User } from '@/contexts/AuthContext';
 import { Loader2, Building2, MapPin, Phone, Clock, Truck, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAvailableServiceTypes } from '@/hooks/use-dashboard';
+import { BusinessService, type BusinessType } from '@/lib/services/business';
 
 interface AuthModalsProps {
   isLoginOpen: boolean;
@@ -45,8 +45,9 @@ export const AuthModals = ({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   
-  // Récupérer les types de services disponibles
-  const { data: serviceTypes } = useAvailableServiceTypes();
+  // Récupérer les types de business disponibles
+  const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
+  const [isLoadingBusinessTypes, setIsLoadingBusinessTypes] = useState(false);
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -61,19 +62,51 @@ export const AuthModals = ({
   const [signupPhone, setSignupPhone] = useState('');
   const [signupAddress, setSignupAddress] = useState('');
 
-  // Service form state (pour les partenaires)
-  const [serviceName, setServiceName] = useState('');
-  const [serviceDescription, setServiceDescription] = useState('');
-  const [serviceTypeId, setServiceTypeId] = useState<string>('');
-  const [serviceAddress, setServiceAddress] = useState('');
-  const [servicePhone, setServicePhone] = useState('');
-  const [serviceOpeningHours, setServiceOpeningHours] = useState('');
-  const [serviceDeliveryTime, setServiceDeliveryTime] = useState('');
-  const [serviceDeliveryFee, setServiceDeliveryFee] = useState('');
-  const [serviceCoverImage, setServiceCoverImage] = useState('');
+  // Business form state (pour les partenaires)
+  const [businessName, setBusinessName] = useState('');
+  const [businessDescription, setBusinessDescription] = useState('');
+  const [businessTypeId, setBusinessTypeId] = useState<string>('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [businessPhone, setBusinessPhone] = useState('');
+  const [businessOpeningHours, setBusinessOpeningHours] = useState('');
+  const [businessDeliveryTime, setBusinessDeliveryTime] = useState('');
+  const [businessDeliveryFee, setBusinessDeliveryFee] = useState('');
+  const [businessCoverImage, setBusinessCoverImage] = useState('');
 
   // Form validation state
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Charger les types de business quand le modal s'ouvre
+  const loadBusinessTypes = async () => {
+    if (businessTypes.length > 0) return; // Déjà chargés
+    
+    setIsLoadingBusinessTypes(true);
+    try {
+      const { data, error } = await BusinessService.getBusinessTypes();
+      if (error) {
+        console.error('Erreur lors du chargement des types de business:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les types de business.",
+          variant: "destructive",
+        });
+      } else if (data) {
+        setBusinessTypes(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des types de business:', error);
+    } finally {
+      setIsLoadingBusinessTypes(false);
+    }
+  };
+
+  // Charger les types de business quand le rôle partenaire est sélectionné
+  const handleRoleChange = (role: User['role']) => {
+    setSignupRole(role);
+    if (role === 'partner') {
+      loadBusinessTypes();
+    }
+  };
   
   // Handle login submission
   const handleLogin = async (e: React.FormEvent) => {
@@ -135,14 +168,14 @@ export const AuthModals = ({
     
     // Validation spécifique pour les partenaires
     if (signupRole === 'partner') {
-      if (!serviceName) errors.serviceName = 'Le nom du service est requis';
-      if (!serviceDescription) errors.serviceDescription = 'La description du service est requise';
-      if (!serviceTypeId) errors.serviceTypeId = 'Le type de service est requis';
-      if (!serviceAddress) errors.serviceAddress = 'L\'adresse du service est requise';
-      if (!servicePhone) errors.servicePhone = 'Le téléphone du service est requis';
-      if (!serviceOpeningHours) errors.serviceOpeningHours = 'Les heures d\'ouverture sont requises';
-      if (!serviceDeliveryTime) errors.serviceDeliveryTime = 'Le temps de livraison est requis';
-      if (!serviceDeliveryFee) errors.serviceDeliveryFee = 'Les frais de livraison sont requis';
+      if (!businessName) errors.businessName = 'Le nom du business est requis';
+      if (!businessDescription) errors.businessDescription = 'La description du business est requise';
+      if (!businessTypeId) errors.businessTypeId = 'Le type de business est requis';
+      if (!businessAddress) errors.businessAddress = 'L\'adresse du business est requise';
+      if (!businessPhone) errors.businessPhone = 'Le téléphone du business est requis';
+      if (!businessOpeningHours) errors.businessOpeningHours = 'Les heures d\'ouverture sont requises';
+      if (!businessDeliveryTime) errors.businessDeliveryTime = 'Le temps de livraison est requis';
+      if (!businessDeliveryFee) errors.businessDeliveryFee = 'Les frais de livraison sont requis';
     }
     
     if (Object.keys(errors).length > 0) {
@@ -164,37 +197,43 @@ export const AuthModals = ({
       const success = await signup(userData, signupPassword);
       
       if (success) {
-        // Si c'est un partenaire, créer le service
+        // Si c'est un partenaire, créer le business
         if (signupRole === 'partner') {
           try {
-            // Import dynamique pour éviter les erreurs de dépendance circulaire
-            const { DashboardService } = await import('@/lib/services/dashboard');
-            
-            const serviceData = {
-              name: serviceName,
-              description: serviceDescription,
-              service_type_id: parseInt(serviceTypeId),
-              cover_image: serviceCoverImage || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
-              delivery_time: serviceDeliveryTime,
-              delivery_fee: parseInt(serviceDeliveryFee),
-              address: serviceAddress,
-              phone: servicePhone,
-              opening_hours: serviceOpeningHours,
-              is_active: true
+            const businessData = {
+              name: businessName,
+              description: businessDescription,
+              business_type_id: parseInt(businessTypeId),
+              cover_image: businessCoverImage || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
+              delivery_time: businessDeliveryTime,
+              delivery_fee: parseInt(businessDeliveryFee),
+              address: businessAddress,
+              phone: businessPhone,
+              opening_hours: businessOpeningHours,
+              owner_id: '' // Sera rempli par le service
             };
             
-            await DashboardService.createService(serviceData);
+            const { data: business, error: businessError } = await BusinessService.createBusiness(businessData);
             
+            if (businessError) {
+              console.error('Erreur lors de la création du business:', businessError);
+              toast({
+                title: 'Compte créé, business en attente',
+                description: 'Votre compte a été créé mais la création du business a échoué. Vous pourrez le créer plus tard.',
+                variant: 'default'
+              });
+            } else {
             toast({
               title: 'Inscription réussie',
-              description: 'Votre compte partenaire et votre service ont été créés avec succès.',
+                description: 'Votre compte partenaire et votre business ont été créés avec succès.',
               variant: 'default'
             });
-          } catch (serviceError) {
-            console.error('Erreur lors de la création du service:', serviceError);
+            }
+          } catch (businessError) {
+            console.error('Erreur lors de la création du business:', businessError);
             toast({
-              title: 'Compte créé, service en attente',
-              description: 'Votre compte a été créé mais la création du service a échoué. Vous pourrez le créer plus tard.',
+              title: 'Compte créé, business en attente',
+              description: 'Votre compte a été créé mais la création du business a échoué. Vous pourrez le créer plus tard.',
               variant: 'default'
             });
           }
@@ -241,15 +280,15 @@ export const AuthModals = ({
     setSignupRole('customer');
     setSignupPhone('');
     setSignupAddress('');
-    setServiceName('');
-    setServiceDescription('');
-    setServiceTypeId('');
-    setServiceAddress('');
-    setServicePhone('');
-    setServiceOpeningHours('');
-    setServiceDeliveryTime('');
-    setServiceDeliveryFee('');
-    setServiceCoverImage('');
+    setBusinessName('');
+    setBusinessDescription('');
+    setBusinessTypeId('');
+    setBusinessAddress('');
+    setBusinessPhone('');
+    setBusinessOpeningHours('');
+    setBusinessDeliveryTime('');
+    setBusinessDeliveryFee('');
+    setBusinessCoverImage('');
     setFormErrors({});
   };
   
@@ -413,7 +452,7 @@ export const AuthModals = ({
                     <Label htmlFor="role">Type de compte</Label>
                     <Select 
                       value={signupRole} 
-                      onValueChange={(value) => setSignupRole(value as User['role'])}
+                      onValueChange={handleRoleChange}
                     >
                       <SelectTrigger id="role">
                         <SelectValue placeholder="Sélectionner le type de compte" />
@@ -447,155 +486,155 @@ export const AuthModals = ({
                 </div>
               </div>
               
-              {/* Informations du service (pour les partenaires) */}
+              {/* Informations du business (pour les partenaires) */}
               {signupRole === 'partner' && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2 flex items-center gap-2">
                     <Building2 className="h-5 w-5" />
-                    Informations du service
+                    Informations du business
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="serviceName">Nom du service</Label>
+                      <Label htmlFor="businessName">Nom du business</Label>
                       <Input
-                        id="serviceName"
-                        value={serviceName}
-                        onChange={(e) => setServiceName(e.target.value)}
+                        id="businessName"
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
                         placeholder="Mon Restaurant"
-                        className={formErrors.serviceName ? 'border-red-500' : ''}
+                        className={formErrors.businessName ? 'border-red-500' : ''}
                       />
-                      {formErrors.serviceName && (
-                        <p className="text-sm text-red-500">{formErrors.serviceName}</p>
+                      {formErrors.businessName && (
+                        <p className="text-sm text-red-500">{formErrors.businessName}</p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="serviceType">Type de service</Label>
+                      <Label htmlFor="businessType">Type de business</Label>
                       <Select 
-                        value={serviceTypeId} 
-                        onValueChange={setServiceTypeId}
+                        value={businessTypeId} 
+                        onValueChange={setBusinessTypeId}
                       >
-                        <SelectTrigger id="serviceType" className={formErrors.serviceTypeId ? 'border-red-500' : ''}>
-                          <SelectValue placeholder="Sélectionner le type de service" />
+                        <SelectTrigger id="businessType" className={formErrors.businessTypeId ? 'border-red-500' : ''}>
+                          <SelectValue placeholder="Sélectionner le type de business" />
                         </SelectTrigger>
                         <SelectContent>
-                          {serviceTypes?.map((type) => (
+                          {businessTypes?.map((type) => (
                             <SelectItem key={type.id} value={type.id.toString()}>
                               {type.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      {formErrors.serviceTypeId && (
-                        <p className="text-sm text-red-500">{formErrors.serviceTypeId}</p>
+                      {formErrors.businessTypeId && (
+                        <p className="text-sm text-red-500">{formErrors.businessTypeId}</p>
                       )}
                     </div>
                     
                     <div className="md:col-span-2 space-y-2">
-                      <Label htmlFor="serviceDescription">Description du service</Label>
+                      <Label htmlFor="businessDescription">Description du business</Label>
                       <Textarea
-                        id="serviceDescription"
-                        value={serviceDescription}
-                        onChange={(e) => setServiceDescription(e.target.value)}
-                        placeholder="Décrivez votre service, vos spécialités, votre ambiance..."
+                        id="businessDescription"
+                        value={businessDescription}
+                        onChange={(e) => setBusinessDescription(e.target.value)}
+                        placeholder="Décrivez votre business, vos spécialités, votre ambiance..."
                         rows={3}
-                        className={formErrors.serviceDescription ? 'border-red-500' : ''}
+                        className={formErrors.businessDescription ? 'border-red-500' : ''}
                       />
-                      {formErrors.serviceDescription && (
-                        <p className="text-sm text-red-500">{formErrors.serviceDescription}</p>
+                      {formErrors.businessDescription && (
+                        <p className="text-sm text-red-500">{formErrors.businessDescription}</p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="serviceAddress" className="flex items-center gap-2">
+                      <Label htmlFor="businessAddress" className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        Adresse du service
+                        Adresse du business
                       </Label>
                       <Input
-                        id="serviceAddress"
-                        value={serviceAddress}
-                        onChange={(e) => setServiceAddress(e.target.value)}
+                        id="businessAddress"
+                        value={businessAddress}
+                        onChange={(e) => setBusinessAddress(e.target.value)}
                         placeholder="123 Rue du Commerce, Conakry"
-                        className={formErrors.serviceAddress ? 'border-red-500' : ''}
+                        className={formErrors.businessAddress ? 'border-red-500' : ''}
                       />
-                      {formErrors.serviceAddress && (
-                        <p className="text-sm text-red-500">{formErrors.serviceAddress}</p>
+                      {formErrors.businessAddress && (
+                        <p className="text-sm text-red-500">{formErrors.businessAddress}</p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="servicePhone" className="flex items-center gap-2">
+                      <Label htmlFor="businessPhone" className="flex items-center gap-2">
                         <Phone className="h-4 w-4" />
-                        Téléphone du service
+                        Téléphone du business
                       </Label>
                       <Input
-                        id="servicePhone"
-                        value={servicePhone}
-                        onChange={(e) => setServicePhone(e.target.value)}
+                        id="businessPhone"
+                        value={businessPhone}
+                        onChange={(e) => setBusinessPhone(e.target.value)}
                         placeholder="+224 621 23 45 67"
-                        className={formErrors.servicePhone ? 'border-red-500' : ''}
+                        className={formErrors.businessPhone ? 'border-red-500' : ''}
                       />
-                      {formErrors.servicePhone && (
-                        <p className="text-sm text-red-500">{formErrors.servicePhone}</p>
+                      {formErrors.businessPhone && (
+                        <p className="text-sm text-red-500">{formErrors.businessPhone}</p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="serviceOpeningHours" className="flex items-center gap-2">
+                      <Label htmlFor="businessOpeningHours" className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         Heures d'ouverture
                       </Label>
                       <Input
-                        id="serviceOpeningHours"
-                        value={serviceOpeningHours}
-                        onChange={(e) => setServiceOpeningHours(e.target.value)}
+                        id="businessOpeningHours"
+                        value={businessOpeningHours}
+                        onChange={(e) => setBusinessOpeningHours(e.target.value)}
                         placeholder="08:00 - 22:00"
-                        className={formErrors.serviceOpeningHours ? 'border-red-500' : ''}
+                        className={formErrors.businessOpeningHours ? 'border-red-500' : ''}
                       />
-                      {formErrors.serviceOpeningHours && (
-                        <p className="text-sm text-red-500">{formErrors.serviceOpeningHours}</p>
+                      {formErrors.businessOpeningHours && (
+                        <p className="text-sm text-red-500">{formErrors.businessOpeningHours}</p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="serviceDeliveryTime" className="flex items-center gap-2">
+                      <Label htmlFor="businessDeliveryTime" className="flex items-center gap-2">
                         <Truck className="h-4 w-4" />
                         Temps de livraison
                       </Label>
                       <Input
-                        id="serviceDeliveryTime"
-                        value={serviceDeliveryTime}
-                        onChange={(e) => setServiceDeliveryTime(e.target.value)}
+                        id="businessDeliveryTime"
+                        value={businessDeliveryTime}
+                        onChange={(e) => setBusinessDeliveryTime(e.target.value)}
                         placeholder="25-35 min"
-                        className={formErrors.serviceDeliveryTime ? 'border-red-500' : ''}
+                        className={formErrors.businessDeliveryTime ? 'border-red-500' : ''}
                       />
-                      {formErrors.serviceDeliveryTime && (
-                        <p className="text-sm text-red-500">{formErrors.serviceDeliveryTime}</p>
+                      {formErrors.businessDeliveryTime && (
+                        <p className="text-sm text-red-500">{formErrors.businessDeliveryTime}</p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="serviceDeliveryFee">Frais de livraison (FCFA)</Label>
+                      <Label htmlFor="businessDeliveryFee">Frais de livraison (FCFA)</Label>
                       <Input
-                        id="serviceDeliveryFee"
+                        id="businessDeliveryFee"
                         type="number"
-                        value={serviceDeliveryFee}
-                        onChange={(e) => setServiceDeliveryFee(e.target.value)}
+                        value={businessDeliveryFee}
+                        onChange={(e) => setBusinessDeliveryFee(e.target.value)}
                         placeholder="15000"
-                        className={formErrors.serviceDeliveryFee ? 'border-red-500' : ''}
+                        className={formErrors.businessDeliveryFee ? 'border-red-500' : ''}
                       />
-                      {formErrors.serviceDeliveryFee && (
-                        <p className="text-sm text-red-500">{formErrors.serviceDeliveryFee}</p>
+                      {formErrors.businessDeliveryFee && (
+                        <p className="text-sm text-red-500">{formErrors.businessDeliveryFee}</p>
                       )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="serviceCoverImage">Image de couverture (URL)</Label>
+                      <Label htmlFor="businessCoverImage">Image de couverture (URL)</Label>
                       <Input
-                        id="serviceCoverImage"
+                        id="businessCoverImage"
                         type="url"
-                        value={serviceCoverImage}
-                        onChange={(e) => setServiceCoverImage(e.target.value)}
+                        value={businessCoverImage}
+                        onChange={(e) => setBusinessCoverImage(e.target.value)}
                         placeholder="https://example.com/image.jpg"
                       />
                     </div>

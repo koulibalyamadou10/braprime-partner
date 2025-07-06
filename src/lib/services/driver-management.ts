@@ -181,34 +181,112 @@ export class DriverManagementService {
     }
   }
 
-  // Créer un nouveau livreur
+  // Créer un nouveau livreur (version corrigée selon le schéma)
   static async createDriver(driverData: DriverCreateData): Promise<{ driver?: DriverManagementData; error?: string }> {
     try {
-      // 1. Créer l'utilisateur dans Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Vérifier que l'utilisateur actuel est admin
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (!currentUser) {
+        throw new Error('Utilisateur non authentifié');
+      }
+
+      // Vérifier le rôle de l'utilisateur actuel
+      const { data: userProfile, error: currentUserProfileError } = await supabase
+        .from('user_profiles')
+        .select(`
+          role_id,
+          user_roles(name)
+        `)
+        .eq('id', currentUser.id)
+        .single();
+
+      if (currentUserProfileError || !userProfile) {
+        throw new Error('Profil utilisateur non trouvé');
+      }
+
+      const userRole = userProfile.user_roles?.name;
+      if (userRole !== 'admin') {
+        throw new Error('Accès refusé. Seuls les administrateurs peuvent créer des livreurs.');
+      }
+
+      // Vérifier si l'email existe déjà
+      const { data: existingUser, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id, email')
+        .eq('email', driverData.email)
+        .single();
+
+      if (existingUser) {
+        throw new Error('Un utilisateur avec cet email existe déjà');
+      }
+
+      // Récupérer l'ID du rôle driver dynamiquement
+      const { data: driverRole, error: roleError } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('name', 'driver')
+        .single();
+
+      if (roleError || !driverRole) {
+        throw new Error('Rôle driver non trouvé dans la base de données');
+      }
+
+      // ÉTAPE 1: Créer le compte auth.users
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: driverData.email,
         password: driverData.password,
-        email_confirm: true,
-        user_metadata: {
-          role: 'driver',
-          name: driverData.name,
-          phone: driverData.phone
+        options: {
+          data: {
+            name: driverData.name,
+            role: 'driver',
+            phone: driverData.phone,
+            vehicle_type: driverData.vehicle_type,
+            vehicle_plate: driverData.vehicle_plate,
+            business_id: driverData.business_id
+          }
         }
       });
 
       if (authError) {
-        throw new Error(authError.message);
+        throw new Error(`Erreur lors de la création du compte auth: ${authError.message}`);
       }
 
       if (!authData.user) {
-        throw new Error('Erreur lors de la création du compte');
+        throw new Error('Erreur lors de la création du compte utilisateur');
       }
 
-      // 2. Créer le profil livreur
-      const { data: driverProfile, error: profileError } = await supabase
+      // ÉTAPE 2: Créer le profil utilisateur avec le rôle driver
+      const { data: userProfileData, error: userProfileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: authData.user.id, // Utiliser l'ID du compte auth créé
+          name: driverData.name,
+          email: driverData.email,
+          role_id: driverRole.id, // Utiliser l'ID du rôle driver
+          phone_number: driverData.phone,
+          profile_image: `https://ui-avatars.com/api/?name=${encodeURIComponent(driverData.name)}&background=random`,
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (userProfileError) {
+        // Supprimer le compte auth si le profil échoue
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+        } catch (deleteError) {
+          console.warn('Erreur lors de la suppression du compte auth:', deleteError);
+        }
+        throw new Error(`Erreur lors de la création du profil utilisateur: ${userProfileError.message}`);
+      }
+
+      // ÉTAPE 3: Créer le profil livreur
+      const driverId = crypto.randomUUID(); // UUID séparé pour le driver
+      const { data: driverProfile, error: driverProfileError } = await supabase
         .from('drivers')
         .insert({
-          id: authData.user.id,
+          id: driverId,
           name: driverData.name,
           email: driverData.email,
           phone: driverData.phone,
@@ -216,24 +294,80 @@ export class DriverManagementService {
           business_id: driverData.business_id || null,
           vehicle_type: driverData.vehicle_type || null,
           vehicle_plate: driverData.vehicle_plate || null,
-          is_verified: false,
           is_active: true,
           total_deliveries: 0,
-          total_earnings: 0,
           rating: 0,
-          active_sessions: 0
+          total_earnings: 0,
+          is_verified: false
+        })
+        .select(`
+          *,
+          businesses!drivers_business_id_fkey (
+            name
+          )
+        `)
+        .single();
+
+      if (driverProfileError) {
+        // Supprimer les profils créés si le profil livreur échoue
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+          await supabase.from('user_profiles').delete().eq('id', authData.user.id);
+        } catch (deleteError) {
+          console.warn('Erreur lors de la suppression des profils:', deleteError);
+        }
+        throw new Error(`Erreur lors de la création du profil livreur: ${driverProfileError.message}`);
+      }
+
+      // ÉTAPE 4: Créer la liaison driver_profiles (déclenche le trigger)
+      const { data: driverProfileLink, error: linkError } = await supabase
+        .from('driver_profiles')
+        .insert({
+          user_profile_id: authData.user.id,
+          driver_id: driverId,
+          vehicle_type: driverData.vehicle_type || null,
+          vehicle_plate: driverData.vehicle_plate || null,
+          is_active: true
         })
         .select()
         .single();
 
-      if (profileError) {
-        // Supprimer l'utilisateur créé si le profil échoue
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        throw new Error(profileError.message);
+      if (linkError) {
+        // Supprimer les profils créés si la liaison échoue
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+          await supabase.from('user_profiles').delete().eq('id', authData.user.id);
+          await supabase.from('drivers').delete().eq('id', driverId);
+        } catch (deleteError) {
+          console.warn('Erreur lors de la suppression des profils:', deleteError);
+        }
+        throw new Error(`Erreur lors de la création de la liaison driver_profiles: ${linkError.message}`);
       }
 
-      // 3. Récupérer les données complètes
-      return await this.getDriverById(authData.user.id);
+      // Retourner les données du livreur créé
+      const driver: DriverManagementData = {
+        id: driverProfile.id,
+        name: driverProfile.name,
+        email: driverProfile.email,
+        phone: driverProfile.phone,
+        driver_type: driverProfile.driver_type,
+        business_id: driverProfile.business_id,
+        business_name: driverProfile.businesses?.name,
+        is_verified: driverProfile.is_verified || false,
+        is_active: driverProfile.is_active,
+        avatar_url: driverProfile.avatar_url,
+        vehicle_type: driverProfile.vehicle_type,
+        vehicle_plate: driverProfile.vehicle_plate,
+        documents_count: 0, // Valeur par défaut car la colonne n'existe pas
+        total_deliveries: driverProfile.total_deliveries || 0,
+        total_earnings: driverProfile.total_earnings || 0,
+        rating: driverProfile.rating || 0,
+        active_sessions: 0, // Valeur par défaut car la colonne n'existe pas
+        created_at: driverProfile.created_at,
+        last_active: driverProfile.last_active
+      };
+
+      return { driver };
     } catch (error) {
       console.error('Erreur lors de la création du livreur:', error);
       return { error: error instanceof Error ? error.message : 'Erreur lors de la création' };

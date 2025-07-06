@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAdminDashboard } from '@/hooks/use-admin-dashboard';
 import DashboardLayout, { adminNavItems } from '@/components/dashboard/DashboardLayout';
+import AddBusinessDialog from '@/components/dashboard/AddBusinessDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,6 +68,11 @@ const AdminBusinesses = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     handleBusinessesSearch(searchTerm);
+  };
+
+  const handleBusinessAdded = () => {
+    // Rafraîchir les données après l'ajout d'un commerce
+    refreshData();
   };
 
   const formatCurrency = (amount: number) => {
@@ -168,6 +174,7 @@ const AdminBusinesses = () => {
             </p>
           </div>
           <div className="flex items-center gap-2 mt-4 md:mt-0">
+            <AddBusinessDialog onBusinessAdded={handleBusinessAdded} />
             <Button variant="outline" size="icon" onClick={refreshData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>

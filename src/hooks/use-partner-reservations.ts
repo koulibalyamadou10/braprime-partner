@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Reservation, ReservationService } from '@/lib/services/reservations';
+import { Reservation } from '@/lib/services/reservations';
 
 export interface PartnerReservation extends Reservation {
   customer_name?: string;
@@ -32,57 +32,60 @@ export const usePartnerReservations = () => {
         .single();
 
       if (businessError) {
-        console.error('Erreur business:', businessError);
         throw new Error('Impossible de récupérer les informations du business');
       }
 
-      if (!businessData) {
-        throw new Error('Aucun business trouvé pour ce partenaire');
-      }
-
-      // Utiliser le service pour récupérer les réservations
-      const { data: reservationsData, error: reservationsError } = await ReservationService.getBusinessReservations(businessData.id);
+      // Récupérer les réservations pour ce business
+      const { data: reservationsData, error: reservationsError } = await supabase
+        .from('reservations')
+        .select('*')
+        .eq('business_id', businessData.id)
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
 
       if (reservationsError) {
-        console.error('Erreur réservations:', reservationsError);
         throw new Error('Impossible de récupérer les réservations');
       }
 
-      if (!reservationsData || reservationsData.length === 0) {
-        setReservations([]);
-        return;
-      }
+      // Récupérer les données utilisateur pour chaque réservation
+      const reservationsWithUserData = await Promise.all(
+        (reservationsData || []).map(async (reservation: any) => {
+          let userData = null;
+          
+          if (reservation.user_id) {
+            try {
+              const { data: userProfile, error: userError } = await supabase
+                .from('user_profiles')
+                .select('name, phone_number, email')
+                .eq('id', reservation.user_id)
+                .single();
+              
+              if (!userError && userProfile) {
+                userData = userProfile;
+              }
+            } catch (err) {
+              console.warn('Erreur lors de la récupération du profil utilisateur:', err);
+            }
+          }
 
-      // Récupérer les informations des utilisateurs pour ces réservations
-      const userIds = [...new Set(reservationsData.map(r => r.user_id))];
-      const { data: userProfiles, error: userError } = await supabase
-        .from('user_profiles')
-        .select('id, name, phone_number, email')
-        .in('id', userIds);
-
-      if (userError) {
-        console.error('Erreur profils utilisateurs:', userError);
-        // Continuer sans les informations des utilisateurs
-      }
-
-      // Créer un map des profils utilisateurs pour un accès rapide
-      const userProfilesMap = new Map(userProfiles?.map(u => [u.id, u]) || []);
+          return {
+            ...reservation,
+            user_profiles: userData
+          };
+        })
+      );
 
       // Transformer les données
-      const transformedReservations: PartnerReservation[] = reservationsData.map((reservation: any) => {
-        const userProfile = userProfilesMap.get(reservation.user_id);
-        return {
-          ...reservation,
-          customer_name: userProfile?.name || 'Client inconnu',
-          customer_phone: userProfile?.phone_number || '',
-          customer_email: userProfile?.email || '',
-          business_name: businessData.name
-        };
-      });
+      const transformedReservations: PartnerReservation[] = reservationsWithUserData.map((reservation: any) => ({
+        ...reservation,
+        customer_name: reservation.user_profiles?.name || 'Client inconnu',
+        customer_phone: reservation.user_profiles?.phone_number || '',
+        customer_email: reservation.user_profiles?.email || '',
+        business_name: businessData.name
+      }));
 
       setReservations(transformedReservations);
     } catch (err) {
-      console.error('Erreur fetchPartnerReservations:', err);
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
@@ -92,13 +95,12 @@ export const usePartnerReservations = () => {
   // Mettre à jour le statut d'une réservation
   const updateReservationStatus = async (reservationId: string, status: Reservation['status']) => {
     try {
-      const { data, error } = await ReservationService.update(reservationId, { status });
+      const { error } = await supabase
+        .from('reservations')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', reservationId);
 
       if (error) {
-        throw new Error(error);
-      }
-
-      if (!data) {
         throw new Error('Impossible de mettre à jour le statut');
       }
 
@@ -106,14 +108,13 @@ export const usePartnerReservations = () => {
       setReservations(prev => 
         prev.map(res => 
           res.id === reservationId 
-            ? { ...res, status, updated_at: data.updated_at }
+            ? { ...res, status, updated_at: new Date().toISOString() }
             : res
         )
       );
 
       return { success: true };
     } catch (err) {
-      console.error('Erreur updateReservationStatus:', err);
       return { 
         success: false, 
         error: err instanceof Error ? err.message : 'Erreur inconnue' 
@@ -124,13 +125,15 @@ export const usePartnerReservations = () => {
   // Assigner une table à une réservation
   const assignTable = async (reservationId: string, tableNumber: number) => {
     try {
-      const { data, error } = await ReservationService.assignTable(reservationId, tableNumber);
+      const { error } = await supabase
+        .from('reservations')
+        .update({ 
+          table_number: tableNumber, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', reservationId);
 
       if (error) {
-        throw new Error(error);
-      }
-
-      if (!data) {
         throw new Error('Impossible d\'assigner la table');
       }
 
@@ -138,14 +141,13 @@ export const usePartnerReservations = () => {
       setReservations(prev => 
         prev.map(res => 
           res.id === reservationId 
-            ? { ...res, table_number: tableNumber, updated_at: data.updated_at }
+            ? { ...res, table_number: tableNumber, updated_at: new Date().toISOString() }
             : res
         )
       );
 
       return { success: true };
     } catch (err) {
-      console.error('Erreur assignTable:', err);
       return { 
         success: false, 
         error: err instanceof Error ? err.message : 'Erreur inconnue' 
@@ -171,13 +173,15 @@ export const usePartnerReservations = () => {
     const pending = reservations.filter(res => res.status === 'pending').length;
     const completed = reservations.filter(res => res.status === 'completed').length;
     const cancelled = reservations.filter(res => res.status === 'cancelled').length;
+    const no_show = reservations.filter(res => res.status === 'no_show').length;
 
     return {
       total,
       confirmed,
       pending,
       completed,
-      cancelled
+      cancelled,
+      no_show
     };
   };
 

@@ -5,69 +5,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Business, BusinessType, SearchFilters, SearchResult, PaginationParams } from '@/lib/types';
-
-// ============================================================================
-// SERVICES TEMPORAIRES (À REMPLACER PAR LES VRAIS SERVICES)
-// ============================================================================
-
-const BusinessService = {
-  // Fonction temporaire pour la recherche de commerces
-  searchBusinesses: async (filters: SearchFilters, pagination: PaginationParams): Promise<SearchResult> => {
-    // Simulation d'un appel API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return {
-      businesses: [],
-      total: 0,
-      page: pagination.page,
-      limit: pagination.limit,
-      hasMore: false
-    };
-  },
-
-  // Fonction temporaire pour récupérer un commerce par ID
-  getBusinessById: async (id: number): Promise<Business | null> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return null;
-  },
-
-  // Fonction temporaire pour mettre à jour un commerce
-  updateBusiness: async (id: number, data: Partial<Business>): Promise<Business> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    throw new Error('Fonction non implémentée');
-  },
-
-  // Fonction temporaire pour supprimer un commerce
-  deleteBusiness: async (id: number): Promise<void> => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    throw new Error('Fonction non implémentée');
-  },
-
-  // Fonction temporaire pour récupérer les commerces populaires
-  getPopularBusinesses: async (businessType: BusinessType, limit: number): Promise<Business[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [];
-  },
-
-  // Fonction temporaire pour récupérer les commerces à proximité
-  getNearbyBusinesses: async (businessType: BusinessType, lat: number, lng: number, radius: number): Promise<Business[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [];
-  },
-
-  // Fonction temporaire pour récupérer les commerces ouverts
-  getOpenBusinesses: async (businessType: BusinessType): Promise<Business[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [];
-  }
-};
+import { BusinessService } from '@/lib/services/business';
+import { Business, SearchFilters, SearchResult, PaginationParams } from '@/lib/types';
 
 // ============================================================================
 // HOOK PRINCIPAL POUR LES COMMERCES
 // ============================================================================
 
-export const useBusiness = (businessType: BusinessType) => {
+export const useBusiness = (businessType: number) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -245,7 +190,7 @@ export const useBusinessById = (id: number) => {
 
   return {
     // Données
-    business,
+    business: business?.data,
     
     // État
     isLoading,
@@ -264,7 +209,7 @@ export const useBusinessById = (id: number) => {
 // HOOK POUR LES COMMERCES POPULAIRES
 // ============================================================================
 
-export const usePopularBusinesses = (businessType: BusinessType, limit: number = 6) => {
+export const usePopularBusinesses = (businessType: number, limit: number = 6) => {
   const { toast } = useToast();
 
   const {
@@ -282,7 +227,7 @@ export const usePopularBusinesses = (businessType: BusinessType, limit: number =
   });
 
   return {
-    businesses: businesses || [],
+    businesses: businesses?.data || [],
     isLoading,
     error,
     refetch
@@ -294,7 +239,7 @@ export const usePopularBusinesses = (businessType: BusinessType, limit: number =
 // ============================================================================
 
 export const useNearbyBusinesses = (
-  businessType: BusinessType, 
+  businessType: number, 
   latitude: number, 
   longitude: number, 
   radius: number = 10
@@ -317,7 +262,7 @@ export const useNearbyBusinesses = (
   });
 
   return {
-    businesses: businesses || [],
+    businesses: businesses?.data || [],
     isLoading,
     error,
     refetch
@@ -328,7 +273,7 @@ export const useNearbyBusinesses = (
 // HOOK POUR LES COMMERCES OUVERTS
 // ============================================================================
 
-export const useOpenBusinesses = (businessType: BusinessType) => {
+export const useOpenBusinesses = (businessType: number) => {
   const { toast } = useToast();
 
   const {
@@ -339,14 +284,14 @@ export const useOpenBusinesses = (businessType: BusinessType) => {
   } = useQuery({
     queryKey: ['open-businesses', businessType],
     queryFn: () => BusinessService.getOpenBusinesses(businessType),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes (remplace cacheTime)
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes (remplace cacheTime)
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
   return {
-    businesses: businesses || [],
+    businesses: businesses?.data || [],
     isLoading,
     error,
     refetch
@@ -354,62 +299,77 @@ export const useOpenBusinesses = (businessType: BusinessType) => {
 };
 
 // ============================================================================
-// HOOK POUR LA RECHERCHE AVANCÉE
+// HOOK POUR LA RECHERCHE DE COMMERCES
 // ============================================================================
 
 export const useBusinessSearch = () => {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
-  const [isSearching, setIsSearching] = useState(false);
+  const queryClient = useQueryClient();
 
+  // État local pour les filtres de recherche
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
+  const [searchPagination, setSearchPagination] = useState<PaginationParams>({
+    page: 1,
+    limit: 12
+  });
+
+  // Query pour la recherche
   const {
-    data: searchResults,
+    data: searchResult,
     isLoading,
     error,
     refetch
   } = useQuery({
-    queryKey: ['business-search', searchQuery, searchFilters],
-    queryFn: () => BusinessService.searchBusinesses(
-      { ...searchFilters, query: searchQuery },
-      { page: 1, limit: 20 }
-    ),
+    queryKey: ['business-search', searchFilters, searchPagination],
+    queryFn: () => BusinessService.searchBusinesses(searchFilters, searchPagination),
     staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes (remplace cacheTime)
+    gcTime: 10 * 60 * 1000, // 10 minutes (remplace cacheTime)
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
-    enabled: searchQuery.length >= 2 || Object.keys(searchFilters).length > 0
+    enabled: !!searchFilters.query || !!searchFilters.businessType
   });
 
-  // Fonction pour effectuer une recherche
-  const search = useCallback((query: string, filters: SearchFilters = {}) => {
-    setSearchQuery(query);
-    setSearchFilters(filters);
-    setIsSearching(true);
+  // Fonction pour mettre à jour les filtres de recherche
+  const updateSearchFilters = useCallback((newFilters: Partial<SearchFilters>) => {
+    setSearchFilters(prev => ({ ...prev, ...newFilters }));
+    setSearchPagination(prev => ({ ...prev, page: 1 })); // Reset à la première page
   }, []);
 
-  // Fonction pour effacer la recherche
-  const clearSearch = useCallback(() => {
-    setSearchQuery('');
+  // Fonction pour changer de page
+  const changeSearchPage = useCallback((page: number) => {
+    setSearchPagination(prev => ({ ...prev, page }));
+  }, []);
+
+  // Fonction pour réinitialiser la recherche
+  const resetSearch = useCallback(() => {
     setSearchFilters({});
-    setIsSearching(false);
+    setSearchPagination({
+      page: 1,
+      limit: 12
+    });
   }, []);
 
   return {
     // Données
-    searchResults: searchResults?.businesses || [],
-    total: searchResults?.total || 0,
+    businesses: searchResult?.businesses || [],
+    total: searchResult?.total || 0,
+    page: searchPagination.page,
+    limit: searchPagination.limit,
+    hasMore: searchResult?.hasMore || false,
     
     // État
     isLoading,
     error,
-    isSearching,
-    searchQuery,
+    
+    // Filtres
     searchFilters,
+    updateSearchFilters,
+    resetSearch,
+    
+    // Pagination
+    changeSearchPage,
     
     // Actions
-    search,
-    clearSearch,
     refetch
   };
 }; 

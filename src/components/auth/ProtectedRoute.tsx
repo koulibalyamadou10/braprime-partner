@@ -34,7 +34,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     if (isPartner) return <Navigate to="/partner-dashboard" replace />;
     if (isDriver) return <Navigate to="/driver-dashboard" replace />;
     if (isAdmin) return <Navigate to="/admin-dashboard" replace />;
-    return <Navigate to="/" replace />;
+        return <Navigate to="/" replace />;
   }
 
   // If the user is authenticated and has the required role, render the children

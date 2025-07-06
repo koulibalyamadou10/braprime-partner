@@ -37,28 +37,8 @@ const FeaturedItemsSkeleton = () => {
 const FeaturedItems = () => {
   const { data: featuredItems, isLoading, error } = useFeaturedItems(6);
 
-  // Données de fallback si pas de données ou erreur
-  const fallbackItems = [
-    {
-      id: 1,
-      name: "Poulet Braisé Traditionnel",
-      description: "Poulet braisé aux épices locales avec accompagnement",
-      price: 25000,
-      image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      restaurants: { name: "Le Petit Baoulé", cuisine_type: "Restaurant" }
-    },
-    {
-      id: 2,
-      name: "Café Touba",
-      description: "Café traditionnel avec épices",
-      price: 5000,
-      image: "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      restaurants: { name: "Café Conakry", cuisine_type: "Café" }
-    }
-  ];
-
-  // Utiliser les données dynamiques ou les données de fallback
-  const displayItems = featuredItems || fallbackItems;
+  // Utiliser uniquement les données de la base de données
+  const displayItems = featuredItems || [];
 
   if (isLoading) {
     return <FeaturedItemsSkeleton />;
@@ -82,8 +62,8 @@ const FeaturedItems = () => {
         <div className="flex justify-between items-center mb-10">
           <h2 className="text-2xl md:text-3xl font-bold">Articles en Vedette</h2>
           <Button asChild variant="ghost" className="text-guinea-red hover:text-guinea-red/90">
-            <Link to="/restaurants">
-              Voir tous les restaurants
+            <Link to="/categories">
+              Voir tous les services
             </Link>
           </Button>
         </div>

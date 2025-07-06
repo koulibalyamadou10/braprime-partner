@@ -133,6 +133,27 @@ export class CartService {
         if (!cart) {
           return { success: false, error: 'Erreur lors de la création du panier' }
         }
+      } else {
+        // Vérifier si le panier existant appartient au même commerce
+        if (cart.business_id !== businessId) {
+          console.log(`Panier existant pour le commerce ${cart.business_id}, nouvel article pour le commerce ${businessId}. Vidage du panier existant.`)
+          
+          // Vider le panier existant
+          await this.clearCart(userId)
+          
+          // Créer un nouveau panier pour le nouveau commerce
+          const { cartId, error: createError } = await this.createCart(userId, businessId, businessName)
+          if (createError) {
+            return { success: false, error: createError }
+          }
+          
+          // Récupérer le nouveau panier
+          const result = await this.getCart(userId)
+          cart = result.cart
+          if (!cart) {
+            return { success: false, error: 'Erreur lors de la création du panier' }
+          }
+        }
       }
 
       // Vérifier si l'article existe déjà dans le panier

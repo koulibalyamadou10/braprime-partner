@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAdminDashboard } from '@/hooks/use-admin-dashboard';
 import DashboardLayout, { adminNavItems } from '@/components/dashboard/DashboardLayout';
+import AddPartnerDialog from '@/components/dashboard/AddPartnerDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +65,11 @@ const AdminUsers = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     handleUsersSearch(searchTerm);
+  };
+
+  const handlePartnerAdded = () => {
+    // Rafraîchir les données après l'ajout d'un partenaire
+    refreshData();
   };
 
   const getRoleBadge = (role: string) => {
@@ -161,6 +167,7 @@ const AdminUsers = () => {
             </p>
           </div>
           <div className="flex items-center gap-2 mt-4 md:mt-0">
+            <AddPartnerDialog onPartnerAdded={handlePartnerAdded} />
             <Button variant="outline" size="icon" onClick={refreshData} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>

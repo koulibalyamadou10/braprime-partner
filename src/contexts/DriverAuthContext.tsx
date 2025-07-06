@@ -1,5 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { DriverAuthService, DriverAuthData, DriverRegistrationData, DriverLoginData, DriverUpdateData } from '@/lib/services/driver-auth';
+import { supabase } from '@/lib/supabase';
 
 interface DriverAuthContextType {
   driver: DriverAuthData | null;
@@ -40,11 +41,46 @@ export const DriverAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setLoading(true);
       setError(null);
 
-      const { driver: currentDriver, error: authError } = await DriverAuthService.getCurrentDriver();
-
-      if (authError) {
+      // Vérifier d'abord si l'utilisateur a le rôle driver
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
         setDriver(null);
-        setError(authError);
+        setLoading(false);
+        return;
+      }
+
+      // Vérifier le rôle de l'utilisateur
+      const { data: userProfile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select(`
+          role_id,
+          user_roles (
+            name
+          )
+        `)
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !userProfile) {
+        setDriver(null);
+        setLoading(false);
+        return;
+      }
+
+      // Si l'utilisateur n'a pas le rôle driver, ne pas essayer de récupérer les données de chauffeur
+      if (userProfile.user_roles?.name !== 'driver') {
+        setDriver(null);
+        setLoading(false);
+        return;
+      }
+
+      // Seulement si l'utilisateur a le rôle driver, essayer de récupérer les données de chauffeur
+      const { driver: currentDriver, error: driverError } = await DriverAuthService.getCurrentDriver();
+
+      if (driverError) {
+        setDriver(null);
+        setError(driverError);
       } else if (currentDriver) {
         setDriver(currentDriver);
         setError(null);

@@ -37,6 +37,7 @@ import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
 import { toast } from 'sonner';
 import { AssignDriverDialog } from '@/components/AssignDriverDialog';
+import { PartnerOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -306,17 +307,7 @@ const PartnerOrders = () => {
   if (isLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes</h2>
-              <p className="text-gray-500">Chargement de vos commandes...</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-guinea-red"></div>
-          </div>
-        </div>
+        <PartnerOrdersSkeleton />
       </DashboardLayout>
     );
   }

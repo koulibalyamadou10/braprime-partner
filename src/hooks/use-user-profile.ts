@@ -14,7 +14,7 @@ export const useUserProfile = () => {
 
     try {
       const [profileResult, addressesResult] = await Promise.all([
-        UserProfileService.getCurrentUserProfile(),
+        UserProfileService.getProfile(),
         UserProfileService.getUserAddresses()
       ]);
 

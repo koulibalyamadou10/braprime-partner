@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,10 +17,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUserRole } from '@/contexts/UserRoleContext';
+import { useQuickSearch } from '@/hooks/use-search';
+import { SearchResult } from '@/lib/services/search';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const searchRef = useRef<HTMLDivElement>(null);
   const { currentUser, logout } = useAuth();
   const { cart, loading } = useCart();
   const location = useLocation();
@@ -35,6 +40,12 @@ const Header = () => {
     can,
     role
   } = useUserRole();
+
+  // Utiliser la recherche rapide pour l'autocomplétion
+  const { results: autocompleteResults, isLoading: autocompleteLoading } = useQuickSearch(
+    searchTerm,
+    5
+  );
 
   const isAuthenticated = !!currentUser;
   const cartCount = cart?.item_count || 0;
@@ -52,6 +63,82 @@ const Header = () => {
   };
   const shouldShowDashboard = isAdmin || isPartner || isDriver;
   const shouldShowProfile = !isAdmin;
+
+  // Gérer les clics en dehors de l'autocomplétion
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowAutocomplete(false);
+        setSelectedIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Gérer les touches clavier pour l'autocomplétion
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showAutocomplete || autocompleteResults.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev < autocompleteResults.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => 
+          prev > 0 ? prev - 1 : autocompleteResults.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < autocompleteResults.length) {
+          const selectedResult = autocompleteResults[selectedIndex];
+          handleAutocompleteSelect(selectedResult);
+        } else {
+          handleSearch(e as any);
+        }
+        break;
+      case 'Escape':
+        setShowAutocomplete(false);
+        setSelectedIndex(-1);
+        break;
+    }
+  };
+
+  // Gérer la sélection d'un résultat d'autocomplétion
+  const handleAutocompleteSelect = (result: SearchResult) => {
+    setSearchTerm(result.name);
+    setShowAutocomplete(false);
+    setSelectedIndex(-1);
+    navigate(`/search?q=${encodeURIComponent(result.name)}`);
+  };
+
+  // Gérer le focus sur la barre de recherche
+  const handleSearchFocus = () => {
+    if (searchTerm.length >= 1 && autocompleteResults.length > 0) {
+      setShowAutocomplete(true);
+    }
+  };
+
+  // Gérer le changement de terme de recherche
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setSelectedIndex(-1);
+    
+    if (value.length >= 1) {
+      setShowAutocomplete(true);
+    } else {
+      setShowAutocomplete(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await logout();
@@ -71,8 +158,43 @@ const Header = () => {
     if (searchTerm.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
       setSearchTerm('');
+      setShowAutocomplete(false);
+      setSelectedIndex(-1);
       closeMobileMenu();
     }
+  };
+
+  // Rendu d'un résultat d'autocomplétion
+  const renderAutocompleteItem = (result: SearchResult, index: number) => {
+    const isSelected = index === selectedIndex;
+    
+    return (
+      <div
+        key={`${result.type}-${result.id}`}
+        className={cn(
+          "flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors",
+          isSelected && "bg-gray-50"
+        )}
+        onClick={() => handleAutocompleteSelect(result)}
+        onMouseEnter={() => setSelectedIndex(index)}
+      >
+        <div className="flex-shrink-0 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+          {result.type === 'business' && <Package className="h-4 w-4 text-gray-600" />}
+          {result.type === 'menu_item' && <Star className="h-4 w-4 text-gray-600" />}
+          {result.type === 'category' && <Settings className="h-4 w-4 text-gray-600" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {result.name}
+          </div>
+          <div className="text-xs text-gray-500 truncate">
+            {result.type === 'business' && result.cuisine_type && `${result.cuisine_type} • ${result.address || 'Conakry'}`}
+            {result.type === 'menu_item' && result.business_name && `${result.business_name} • ${result.price ? `${result.price} GNF` : ''}`}
+            {result.type === 'category' && result.description}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -88,24 +210,50 @@ const Header = () => {
           </Link>
 
           {/* Barre de recherche - Desktop */}
-          <form 
-            onSubmit={handleSearch}
-            className="hidden md:flex flex-1 max-w-md mx-8"
-          >
+          <div className="hidden md:flex flex-1 max-w-md mx-8 relative" ref={searchRef}>
+            <form onSubmit={handleSearch} className="w-full">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
               <Input
                 type="text"
-                placeholder="Rechercher un restaurant, un plat, un quartier..."
+                  placeholder="Rechercher un service, un commerce, un plat, un quartier..."
                 className="pl-10 pr-4 py-2 w-full"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
+                  onFocus={handleSearchFocus}
+                  onKeyDown={handleKeyDown}
               />
             </div>
-            <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90">
+            </form>
+            
+            {/* Autocomplétion */}
+            {showAutocomplete && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
+                {autocompleteLoading ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    Recherche en cours...
+                  </div>
+                ) : autocompleteResults.length > 0 ? (
+                  <>
+                    {autocompleteResults.map(renderAutocompleteItem)}
+                    <div className="border-t border-gray-100 px-4 py-2">
+                      <div className="text-xs text-gray-500">
+                        Appuyez sur Entrée pour rechercher "{searchTerm}"
+                      </div>
+                    </div>
+                  </>
+                ) : searchTerm.length >= 1 ? (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    Aucun résultat trouvé
+                  </div>
+                ) : null}
+              </div>
+            )}
+            
+            <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90" onClick={handleSearch}>
               Rechercher
             </Button>
-          </form>
+          </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-2">
@@ -320,16 +468,42 @@ const Header = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
               <Input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder="Rechercher un service, un commerce, un plat, un quartier..."
                 className="pl-10 pr-4 py-2 w-full"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
+                onFocus={handleSearchFocus}
+                onKeyDown={handleKeyDown}
               />
             </div>
             <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90">
               <Search className="h-5 w-5" />
             </Button>
           </form>
+          
+          {/* Autocomplétion mobile */}
+          {showAutocomplete && (
+            <div className="absolute left-4 right-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
+              {autocompleteLoading ? (
+                <div className="px-4 py-3 text-sm text-gray-500">
+                  Recherche en cours...
+                </div>
+              ) : autocompleteResults.length > 0 ? (
+                <>
+                  {autocompleteResults.map(renderAutocompleteItem)}
+                  <div className="border-t border-gray-100 px-4 py-2">
+                    <div className="text-xs text-gray-500">
+                      Appuyez sur Entrée pour rechercher "{searchTerm}"
+                    </div>
+                  </div>
+                </>
+              ) : searchTerm.length >= 1 ? (
+                <div className="px-4 py-3 text-sm text-gray-500">
+                  Aucun résultat trouvé
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {/* Mobile Navigation */}

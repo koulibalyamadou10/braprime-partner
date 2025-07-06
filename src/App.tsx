@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { OrderProvider } from "@/contexts/OrderContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DriverAuthProvider } from "@/contexts/DriverAuthContext";
@@ -70,7 +70,7 @@ const PartnerMenu = lazy(() => import("./pages/dashboard/PartnerMenu"));
 const PartnerReservations = lazy(() => import("./pages/dashboard/PartnerReservations"));
 const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers"));
 const DriverDetails = lazy(() => import("./pages/dashboard/DriverDetails"));
-const PartnerDriverAuth = lazy(() => import("./pages/dashboard/PartnerDriverAuth"));
+
 const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
 const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
@@ -101,62 +101,62 @@ const App = () => (
       <AuthProvider>
         <UserRoleProvider>
           <DriverAuthProvider>
-            <OrderProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <ScrollToTop />
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/restaurants" element={<RestaurantsPage />} />
-                    <Route path="/services/:id" element={<RestaurantPage />} />
-                    <Route path="/categories" element={<Categories />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/cafes" element={<CafesPage />} />
-                    <Route path="/cafe/:id" element={<CafePage />} />
-                    <Route path="/markets" element={<MarketsPage />} />
-                    <Route path="/market/:id" element={<MarketPage />} />
-                    <Route path="/supermarkets" element={<SupermarketsPage />} />
-                    <Route path="/supermarket/:id" element={<SupermarketPage />} />
-                    <Route path="/packages" element={<PackagesPage />} />
-                    <Route path="/package/:id" element={<PackagePage />} />
-                    <Route path="/gifts" element={<GiftsPage />} />
-                    <Route path="/gift/:id" element={<GiftPage />} />
-                    <Route path="/pharmacy" element={<PharmacyPage />} />
-                    <Route path="/pharmacies" element={<PharmaciesPage />} />
-                    <Route path="/pharmacy/:id" element={<PharmacyPage />} />
-                    <Route path="/electronics" element={<ElectronicsPage />} />
-                    <Route path="/electronic-stores" element={<ElectronicsStoresPage />} />
-                    <Route path="/electronics/:id" element={<ElectronicsPage />} />
-                    <Route path="/supplies" element={<SuppliesPage />} />
-                    <Route path="/grocery" element={<GroceryPage />} />
-                    <Route path="/documents" element={<DocumentsPage />} />
-                    <Route path="/documents/:id" element={<DocumentServicePage />} />
-                    <Route path="/books" element={<BooksPage />} />
-                    <Route path="/books/:id" element={<BookstorePage />} />
-                    <Route path="/beauty" element={<BeautyPage />} />
-                    <Route path="/hairdressing" element={<HairdressingPage />} />
-                    <Route path="/clothing" element={<NotFound />} />
-                    <Route path="/flowers" element={<NotFound />} />
-                    <Route path="/pets" element={<NotFound />} />
-                    <Route path="/hardware" element={<NotFound />} />
-                    <Route path="/sports" element={<NotFound />} />
-                    <Route path="/toys" element={<NotFound />} />
-                    <Route path="/services" element={<NotFound />} />
-                    <Route path="/transport" element={<NotFound />} />
-                    <Route path="/baby" element={<NotFound />} />
-                    <Route path="/alcohol" element={<NotFound />} />
-                    <Route path="/auto" element={<NotFound />} />
-                    <Route path="/repairs" element={<NotFound />} />
-                    <Route path="/reservations" element={<ReservationPage />} />
-                    <Route path="/about" element={<AboutPage />} />
-                    <Route path="/search" element={<SearchPage />} />
-                    <Route path="/cart" element={<CartPage />} />
-                    <Route path="/checkout" element={<CheckoutPage />} />
-                    <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
-                    <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
-                    <Route path="/orders" element={<OrdersHistoryPage />} />
+        <OrderProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <ScrollToTop />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/restaurants" element={<RestaurantsPage />} />
+                <Route path="/services/:id" element={<RestaurantPage />} />
+                <Route path="/categories" element={<Categories />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/cafes" element={<CafesPage />} />
+                <Route path="/cafe/:id" element={<CafePage />} />
+                <Route path="/markets" element={<MarketsPage />} />
+                <Route path="/market/:id" element={<MarketPage />} />
+                <Route path="/supermarkets" element={<SupermarketsPage />} />
+                <Route path="/supermarket/:id" element={<SupermarketPage />} />
+                <Route path="/packages" element={<PackagesPage />} />
+                <Route path="/package/:id" element={<PackagePage />} />
+                <Route path="/gifts" element={<GiftsPage />} />
+                <Route path="/gift/:id" element={<GiftPage />} />
+                <Route path="/pharmacy" element={<PharmacyPage />} />
+                <Route path="/pharmacies" element={<PharmaciesPage />} />
+                <Route path="/pharmacy/:id" element={<PharmacyPage />} />
+                <Route path="/electronics" element={<ElectronicsPage />} />
+                <Route path="/electronic-stores" element={<ElectronicsStoresPage />} />
+                <Route path="/electronics/:id" element={<ElectronicsPage />} />
+                <Route path="/supplies" element={<SuppliesPage />} />
+                <Route path="/grocery" element={<GroceryPage />} />
+                <Route path="/documents" element={<DocumentsPage />} />
+                <Route path="/documents/:id" element={<DocumentServicePage />} />
+                <Route path="/books" element={<BooksPage />} />
+                <Route path="/books/:id" element={<BookstorePage />} />
+                <Route path="/beauty" element={<BeautyPage />} />
+                <Route path="/hairdressing" element={<HairdressingPage />} />
+                <Route path="/clothing" element={<NotFound />} />
+                <Route path="/flowers" element={<NotFound />} />
+                <Route path="/pets" element={<NotFound />} />
+                <Route path="/hardware" element={<NotFound />} />
+                <Route path="/sports" element={<NotFound />} />
+                <Route path="/toys" element={<NotFound />} />
+                <Route path="/services" element={<NotFound />} />
+                <Route path="/transport" element={<NotFound />} />
+                <Route path="/baby" element={<NotFound />} />
+                <Route path="/alcohol" element={<NotFound />} />
+                <Route path="/auto" element={<NotFound />} />
+                <Route path="/repairs" element={<NotFound />} />
+                <Route path="/reservations" element={<ReservationPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
+                <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
+                <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
+                <Route path="/orders" element={<OrdersHistoryPage />} />
                     
                     {/* Driver Routes */}
                     <Route path="/driver/login" element={<DriverLoginPage />} />
@@ -167,101 +167,138 @@ const App = () => (
                       </DriverProtectedRoute>
                     } />
                     
-                    {/* User Dashboard Routes */}
-                    <Route path="/dashboard" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserDashboard />
-                      </ProtectedRoute>
+                    {/* Driver Dashboard Routes (format /driver-dashboard) */}
+                    <Route path="/driver-dashboard" element={
+                      <DriverProtectedRoute>
+                        <DriverDashboard />
+                      </DriverProtectedRoute>
                     } />
-                    <Route path="/dashboard/orders" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserOrders />
-                      </ProtectedRoute>
+                    <Route path="/driver-dashboard/orders" element={
+                      <DriverProtectedRoute>
+                        <DriverDashboard />
+                      </DriverProtectedRoute>
                     } />
-                    <Route path="/dashboard/profile" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserProfile />
-                      </ProtectedRoute>
+                    <Route path="/driver-dashboard/profile" element={
+                      <DriverProtectedRoute>
+                        <DriverDashboard />
+                      </DriverProtectedRoute>
                     } />
-                    <Route path="/dashboard/addresses" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserAddresses />
-                      </ProtectedRoute>
+                    <Route path="/driver-dashboard/earnings" element={
+                      <DriverProtectedRoute>
+                        <DriverDashboard />
+                      </DriverProtectedRoute>
                     } />
-                    <Route path="/dashboard/payments" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserPayments />
-                      </ProtectedRoute>
+                    <Route path="/driver-dashboard/statistics" element={
+                      <DriverProtectedRoute>
+                        <DriverDashboard />
+                      </DriverProtectedRoute>
                     } />
-                    <Route path="/dashboard/reservations" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserReservations />
-                      </ProtectedRoute>
+                    <Route path="/driver-dashboard/history" element={
+                      <DriverProtectedRoute>
+                        <DriverDashboard />
+                      </DriverProtectedRoute>
                     } />
-                    <Route path="/dashboard/notifications" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserNotifications />
-                      </ProtectedRoute>
+                    <Route path="/driver-dashboard/location" element={
+                      <DriverProtectedRoute>
+                        <DriverDashboard />
+                      </DriverProtectedRoute>
                     } />
-                    <Route path="/dashboard/favorites" element={
-                      <ProtectedRoute allowedRoles={["customer"]}>
-                        <UserFavorites />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Partner Dashboard Routes */}
-                    <Route path="/partner-dashboard" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerDashboard />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/partner-dashboard/orders" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerOrders />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/partner-dashboard/menu" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerMenu />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/partner-dashboard/reservations" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerReservations />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/partner-dashboard/drivers" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerDrivers />
-                      </ProtectedRoute>
-                    } />
+                
+                {/* User Dashboard Routes */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/orders" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/profile" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserProfile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/addresses" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserAddresses />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/payments" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserPayments />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/reservations" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserReservations />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/notifications" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserNotifications />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/favorites" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <UserFavorites />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Partner Dashboard Routes */}
+                <Route path="/partner-dashboard" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/orders" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/menu" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerMenu />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/reservations" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerReservations />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/drivers" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerDrivers />
+                  </ProtectedRoute>
+                } />
                     <Route path="/partner-dashboard/drivers/:id" element={
                       <ProtectedRoute allowedRoles={["partner"]}>
                         <DriverDetails />
                       </ProtectedRoute>
                     } />
-                    <Route path="/partner-dashboard/driver-auth" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerDriverAuth />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/partner-dashboard/revenue" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerRevenue />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/partner-dashboard/profile" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerProfile />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/partner-dashboard/settings" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <PartnerSettings />
-                      </ProtectedRoute>
-                    } />
-                    
-                    {/* Admin Dashboard Routes */}
+                <Route path="/partner-dashboard/driver-auth" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <Navigate to="/partner-dashboard/drivers" replace />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/revenue" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerRevenue />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/profile" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerProfile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/settings" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerSettings />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Admin Dashboard Routes */}
                     <Route path="/admin" element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminDashboard />
@@ -304,52 +341,52 @@ const App = () => (
                     } />
                     
                     {/* Admin Dashboard Routes (anciennes routes pour compatibilité) */}
-                    <Route path="/admin-dashboard" element={
-                      <ProtectedRoute allowedRoles={["admin"]}>
-                        <AdminDashboard />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin-dashboard/orders" element={
-                      <ProtectedRoute allowedRoles={["admin"]}>
-                        <AdminOrders />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin-dashboard/businesses" element={
-                      <ProtectedRoute allowedRoles={["admin"]}>
+                <Route path="/admin-dashboard" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/orders" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/businesses" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminBusinesses />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin-dashboard/users" element={
-                      <ProtectedRoute allowedRoles={["admin"]}>
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/users" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminUsers />
-                      </ProtectedRoute>
-                    } />
+                  </ProtectedRoute>
+                } />
                     <Route path="/admin-dashboard/drivers" element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminDrivers />
-                      </ProtectedRoute>
-                    } />
+                  </ProtectedRoute>
+                } />
                     <Route path="/admin-dashboard/content" element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminContent />
-                      </ProtectedRoute>
-                    } />
+                  </ProtectedRoute>
+                } />
                     <Route path="/admin-dashboard/analytics" element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminAnalytics />
-                      </ProtectedRoute>
-                    } />
+                  </ProtectedRoute>
+                } />
                     <Route path="/admin-dashboard/system" element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminSystem />
-                      </ProtectedRoute>
-                    } />
-                    
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-              </BrowserRouter>
-            </OrderProvider>
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </OrderProvider>
           </DriverAuthProvider>
         </UserRoleProvider>
       </AuthProvider>

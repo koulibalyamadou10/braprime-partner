@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useFavorites } from '@/hooks/use-favorites';
 import { toast } from 'sonner';
+import { UserFavoritesSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 const UserFavorites = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,27 +89,7 @@ const UserFavorites = () => {
   if (isLoading) {
     return (
       <DashboardLayout navItems={customerNavItems} title="Mes Favoris">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Mes Favoris</h2>
-              <p className="text-muted-foreground">
-                Vos commerces et articles préférés
-              </p>
-            </div>
-          </div>
-          
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-6">
-                  <div className="h-4 bg-gray-200 rounded mb-2" />
-                  <div className="h-3 bg-gray-200 rounded w-3/4" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <UserFavoritesSkeleton />
       </DashboardLayout>
     );
   }

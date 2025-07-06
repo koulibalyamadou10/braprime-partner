@@ -47,13 +47,13 @@ const DriverLoginPage = () => {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const { success, error: loginError } = await login({
         email: formData.email,
         password: formData.password
       });
-
+      
       if (success) {
         toast.success('Connexion réussie !');
         navigate('/driver/dashboard');
@@ -112,53 +112,53 @@ const DriverLoginPage = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    id="email"
+                    <Input
+                      id="email"
                     name="email"
-                    type="email"
+                      type="email"
                     placeholder="votre@email.com"
                     value={formData.email}
                     onChange={handleInputChange}
                     className="pl-10"
-                    required
-                  />
+                      required
+                    />
                 </div>
-              </div>
-
+                  </div>
+                  
               {/* Mot de passe */}
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <div className="relative">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Mot de passe</Label>
+                    <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    id="password"
+                      <Input
+                        id="password"
                     name="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Votre mot de passe"
+                        placeholder="Votre mot de passe"
                     value={formData.password}
                     onChange={handleInputChange}
                     className="pl-10 pr-10"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
                       <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
+                        ) : (
                       <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </Button>
-                </div>
-              </div>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
 
               {/* Erreur */}
               {error && (
@@ -169,21 +169,21 @@ const DriverLoginPage = () => {
               )}
 
               {/* Bouton de connexion */}
-              <Button
-                type="submit"
-                className="w-full"
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
                 disabled={isSubmitting || loading}
-              >
+                  >
                 {isSubmitting ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Connexion...
-                  </div>
+                        Connexion...
+                    </div>
                 ) : (
                   <div className="flex items-center">
                     Se connecter
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </div>
+                    </div>
                 )}
               </Button>
             </form>

@@ -8,7 +8,7 @@ import {
   Calendar,
   BarChart3
 } from 'lucide-react';
-import { useRevenueData } from '@/hooks/use-dashboard';
+import { usePartnerRevenueData } from '@/hooks/use-partner-revenue';
 import { formatCurrency } from '@/lib/utils';
 
 interface RevenueChartProps {
@@ -17,7 +17,7 @@ interface RevenueChartProps {
 }
 
 const RevenueChart: React.FC<RevenueChartProps> = ({ period, onPeriodChange }) => {
-  const { data: revenueData, isLoading, error } = useRevenueData(period);
+  const { data: revenueData, isLoading, error } = usePartnerRevenueData(period);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

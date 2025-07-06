@@ -199,11 +199,7 @@ export const partnerNavItems = [
     label: 'Livreurs',
     icon: <Truck className="h-5 w-5" />,
   },
-  {
-    href: '/partner-dashboard/driver-auth',
-    label: 'Comptes Livreurs',
-    icon: <Key className="h-5 w-5" />,
-  },
+
   {
     href: '/partner-dashboard/revenue',
     label: 'Revenus',

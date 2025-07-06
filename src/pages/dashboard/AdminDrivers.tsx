@@ -430,7 +430,7 @@ const AdminDrivers = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {availableBusinesses.length === 0 ? (
-                              <SelectItem value="" disabled>
+                              <SelectItem value="no-business" disabled>
                                 Aucun commerce disponible
                               </SelectItem>
                             ) : (

@@ -54,17 +54,33 @@ export interface DriverStats {
 
 export class DriverDetailsService {
   // Récupérer les détails d'un livreur
-  static async getDriverDetails(driverId: string): Promise<{ driver: DriverDetails | null; error: string | null }> {
+  static async getDriverDetails(driverId: string, partnerId?: string): Promise<{ driver: DriverDetails | null; error: string | null }> {
     try {
-      const { data: driver, error } = await supabase
+      // Construire la requête
+      let query = supabase
         .from('drivers')
         .select('*')
-        .eq('id', driverId)
-        .single();
+        .eq('id', driverId);
+
+      // Si un partnerId est fourni, vérifier que le driver appartient à ce partenaire
+      if (partnerId) {
+        query = query.eq('business_id', partnerId);
+      }
+
+      const { data: driver, error } = await query.single();
 
       if (error) {
         console.error('Erreur récupération détails livreur:', error);
+        if (error.code === 'PGRST116') {
+          return { driver: null, error: 'Livreur non trouvé ou accès non autorisé' };
+        }
         return { driver: null, error: error.message };
+      }
+
+      // Vérification supplémentaire si un partnerId est fourni
+      if (partnerId && driver.business_id !== partnerId) {
+        console.error('Tentative d\'accès non autorisé au driver:', driverId, 'par partenaire:', partnerId);
+        return { driver: null, error: 'Accès non autorisé à ce livreur' };
       }
 
       return { driver, error: null };
@@ -81,8 +97,7 @@ export class DriverDetailsService {
         .from('orders')
         .select(`
           id,
-          customer_name,
-          customer_phone,
+          user_id,
           delivery_address,
           status,
           total,
@@ -101,7 +116,40 @@ export class DriverDetailsService {
         return { orders: null, error: error.message };
       }
 
-      return { orders: orders || [], error: null };
+      // Récupérer les informations des clients pour toutes les commandes
+      const userIds = [...new Set((orders || []).map(order => order.user_id).filter(Boolean))];
+      let userProfiles: any[] = [];
+      
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, name, phone_number')
+          .in('id', userIds);
+        
+        if (!profilesError) {
+          userProfiles = profiles || [];
+        }
+      }
+
+      // Transformer les données en format DriverOrder
+      const driverOrders: DriverOrder[] = (orders || []).map(order => {
+        const userProfile = userProfiles.find(profile => profile.id === order.user_id);
+        return {
+          id: order.id,
+          customer_name: userProfile?.name || 'Client',
+          customer_phone: userProfile?.phone_number || '',
+          delivery_address: order.delivery_address,
+          status: order.status,
+          total: order.total,
+          grand_total: order.grand_total,
+          created_at: order.created_at,
+          delivered_at: order.delivered_at,
+          driver_rating: order.driver_rating,
+          driver_comment: order.driver_comment
+        };
+      });
+
+      return { orders: driverOrders, error: null };
     } catch (error) {
       console.error('Erreur lors de la récupération des commandes du livreur:', error);
       return { orders: null, error: 'Erreur lors de la récupération des commandes du livreur' };
@@ -116,7 +164,7 @@ export class DriverDetailsService {
         .from('orders')
         .select(`
           id,
-          customer_name,
+          user_id,
           driver_rating,
           driver_comment,
           created_at
@@ -131,15 +179,33 @@ export class DriverDetailsService {
         return { reviews: null, error: error.message };
       }
 
+      // Récupérer les informations des clients pour les avis
+      const userIds = [...new Set((ordersWithReviews || []).map(order => order.user_id).filter(Boolean))];
+      let userProfiles: any[] = [];
+      
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, name')
+          .in('id', userIds);
+        
+        if (!profilesError) {
+          userProfiles = profiles || [];
+        }
+      }
+
       // Transformer les données en format DriverReview
-      const reviews: DriverReview[] = (ordersWithReviews || []).map(order => ({
-        id: order.id,
-        order_id: order.id,
-        customer_name: order.customer_name,
-        rating: order.driver_rating,
-        comment: order.driver_comment,
-        created_at: order.created_at
-      }));
+      const reviews: DriverReview[] = (ordersWithReviews || []).map(order => {
+        const userProfile = userProfiles.find(profile => profile.id === order.user_id);
+        return {
+          id: order.id,
+          order_id: order.id,
+          customer_name: userProfile?.name || 'Client',
+          rating: order.driver_rating,
+          comment: order.driver_comment,
+          created_at: order.created_at
+        };
+      });
 
       return { reviews, error: null };
     } catch (error) {
@@ -227,8 +293,7 @@ export class DriverDetailsService {
         .from('orders')
         .select(`
           id,
-          customer_name,
-          customer_phone,
+          user_id,
           delivery_address,
           status,
           total,
@@ -246,7 +311,41 @@ export class DriverDetailsService {
         return { order: null, error: error.message };
       }
 
-      return { order: order || null, error: null };
+      if (!order) {
+        return { order: null, error: null };
+      }
+
+      // Récupérer les informations du client
+      let customerName = 'Client';
+      let customerPhone = '';
+      
+      if (order.user_id) {
+        const { data: userProfile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('name, phone_number')
+          .eq('id', order.user_id)
+          .single();
+        
+        if (!profileError && userProfile) {
+          customerName = userProfile.name;
+          customerPhone = userProfile.phone_number || '';
+        }
+      }
+
+      const driverOrder: DriverOrder = {
+        id: order.id,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        delivery_address: order.delivery_address,
+        status: order.status,
+        total: order.total,
+        grand_total: order.grand_total,
+        created_at: order.created_at,
+        driver_rating: order.driver_rating,
+        driver_comment: order.driver_comment
+      };
+
+      return { order: driverOrder, error: null };
     } catch (error) {
       console.error('Erreur lors de la récupération de la commande actuelle:', error);
       return { order: null, error: 'Erreur lors de la récupération de la commande actuelle' };

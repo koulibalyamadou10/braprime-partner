@@ -46,34 +46,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardService } from '@/lib/services/dashboard'
 import { toast } from 'sonner';
 import { useUserRole } from '@/contexts/UserRoleContext';
+import { PartnerDashboardSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
-// Composant de chargement
-const DashboardSkeleton = () => (
-  <div className="space-y-6">
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <Skeleton className="h-8 w-64 mb-2" />
-        <Skeleton className="h-4 w-96" />
-      </div>
-      <Skeleton className="h-10 w-32" />
-    </div>
-    
-    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-      {[...Array(4)].map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16 mb-2" />
-            <Skeleton className="h-3 w-32" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  </div>
-);
+// Composant de chargement - remplacé par PartnerDashboardSkeleton
 
 // Fonction pour obtenir la couleur du statut
 const getStatusColor = (status: string) => {
@@ -333,17 +308,7 @@ const PartnerDashboard = () => {
   if (isLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
-              <p className="text-gray-500">Chargement de vos données...</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-guinea-red"></div>
-          </div>
-        </div>
+        <PartnerDashboardSkeleton />
       </DashboardLayout>
     );
   }

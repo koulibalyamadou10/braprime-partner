@@ -83,43 +83,49 @@ export class DashboardService {
 
       switch (period) {
         case 'today':
+          // Aujourd'hui (depuis minuit)
           startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
           break
         case 'week':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+          // Cette semaine (depuis lundi)
+          const dayOfWeek = now.getDay()
+          const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysToMonday)
           break
         case 'month':
+          // Ce mois (depuis le 1er du mois)
           startDate = new Date(now.getFullYear(), now.getMonth(), 1)
           break
         case 'year':
+          // Cette année (depuis le 1er janvier)
           startDate = new Date(now.getFullYear(), 0, 1)
           break
       }
 
-      // Récupérer d'abord les IDs des restaurants du partenaire
-      const { data: restaurants, error: restaurantsError } = await supabase
-        .from('restaurants')
+      // Récupérer d'abord les IDs des businesses du partenaire
+      const { data: businesses, error: businessesError } = await supabase
+        .from('businesses')
         .select('id')
-        .eq('partner_id', partnerId)
+        .eq('owner_id', partnerId)
 
-      if (restaurantsError) {
-        console.error('Erreur lors de la récupération des restaurants:', restaurantsError)
+      if (businessesError) {
+        console.error('Erreur lors de la récupération des businesses:', businessesError)
         return this.getDefaultStats()
       }
 
-      if (!restaurants?.length) {
-        console.log('Aucun restaurant trouvé pour le partenaire:', partnerId)
+      if (!businesses?.length) {
+        console.log('Aucun business trouvé pour le partenaire:', partnerId)
         return this.getDefaultStats()
       }
 
-      const restaurantIds = restaurants.map(r => r.id)
-      console.log('Restaurants trouvés:', restaurantIds)
+      const businessIds = businesses.map(b => b.id)
+      console.log('Businesses trouvés:', businessIds)
 
-      // Récupérer les commandes des restaurants du partenaire
+      // Récupérer les commandes des businesses du partenaire
       const { data: orders, error } = await supabase
         .from('orders')
         .select('*')
-        .in('restaurant_id', restaurantIds)
+        .in('business_id', businessIds)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', now.toISOString())
 
@@ -137,10 +143,10 @@ export class DashboardService {
       console.log('Commandes trouvées:', orders?.length || 0)
 
       const totalOrders = orders?.length || 0
-      const totalRevenue = orders?.reduce((sum, order) => sum + order.grand_total, 0) || 0
+      const totalRevenue = orders?.reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0
       const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
       const pendingOrders = orders?.filter(order => order.status === 'pending').length || 0
-      const completedOrders = orders?.filter(order => order.status === 'delivered').length || 0
+      const completedOrders = orders?.filter(order => order.status === 'delivered' || order.status === 'completed').length || 0
       const cancelledOrders = orders?.filter(order => order.status === 'cancelled').length || 0
 
       // Calculer la croissance (simplifié pour l'exemple)
@@ -218,18 +224,18 @@ export class DashboardService {
       // Vérifier l'authentification
       await this.checkAuth()
 
-      // Récupérer d'abord les IDs des restaurants du partenaire
-      const { data: restaurants, error: restaurantsError } = await supabase
-        .from('restaurants')
+      // Récupérer d'abord les IDs des businesses du partenaire
+      const { data: businesses, error: businessesError } = await supabase
+        .from('businesses')
         .select('id')
-        .eq('partner_id', partnerId)
+        .eq('owner_id', partnerId)
 
-      if (restaurantsError || !restaurants?.length) {
-        console.error('Erreur lors de la récupération des restaurants:', restaurantsError)
+      if (businessesError || !businesses?.length) {
+        console.error('Erreur lors de la récupération des businesses:', businessesError)
         return []
       }
 
-      const restaurantIds = restaurants.map(r => r.id)
+      const businessIds = businesses.map(b => b.id)
 
       const { data: orders, error } = await supabase
         .from('orders')
@@ -243,7 +249,7 @@ export class DashboardService {
           items,
           created_at
         `)
-        .in('restaurant_id', restaurantIds)
+        .in('business_id', businessIds)
         .order('created_at', { ascending: false })
         .limit(limit)
 
@@ -319,18 +325,18 @@ export class DashboardService {
       // Vérifier l'authentification
       await this.checkAuth()
 
-      // Récupérer d'abord les IDs des restaurants du partenaire
-      const { data: restaurants, error: restaurantsError } = await supabase
-        .from('restaurants')
+      // Récupérer d'abord les IDs des businesses du partenaire
+      const { data: businesses, error: businessesError } = await supabase
+        .from('businesses')
         .select('id')
-        .eq('partner_id', partnerId)
+        .eq('owner_id', partnerId)
 
-      if (restaurantsError || !restaurants?.length) {
-        console.error('Erreur lors de la récupération des restaurants:', restaurantsError)
+      if (businessesError || !businesses?.length) {
+        console.error('Erreur lors de la récupération des businesses:', businessesError)
         return []
       }
 
-      const restaurantIds = restaurants.map(r => r.id)
+      const businessIds = businesses.map(b => b.id)
 
       const now = new Date()
       const startDate = period === 'week' 
@@ -340,7 +346,7 @@ export class DashboardService {
       const { data: orders, error } = await supabase
         .from('orders')
         .select('items')
-        .in('restaurant_id', restaurantIds)
+        .in('business_id', businessIds)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', now.toISOString())
 
@@ -438,18 +444,18 @@ export class DashboardService {
       // Vérifier l'authentification
       await this.checkAuth()
 
-      // Récupérer d'abord les IDs des restaurants du partenaire
-      const { data: restaurants, error: restaurantsError } = await supabase
-        .from('restaurants')
+      // Récupérer d'abord les IDs des businesses du partenaire
+      const { data: businesses, error: businessesError } = await supabase
+        .from('businesses')
         .select('id')
-        .eq('partner_id', partnerId)
+        .eq('owner_id', partnerId)
 
-      if (restaurantsError || !restaurants?.length) {
-        console.error('Erreur lors de la récupération des restaurants:', restaurantsError)
+      if (businessesError || !businesses?.length) {
+        console.error('Erreur lors de la récupération des businesses:', businessesError)
         return []
       }
 
-      const restaurantIds = restaurants.map(r => r.id)
+      const businessIds = businesses.map(b => b.id)
 
       const now = new Date()
       let startDate: Date
@@ -473,7 +479,7 @@ export class DashboardService {
       const { data: orders, error } = await supabase
         .from('orders')
         .select('grand_total, created_at')
-        .in('restaurant_id', restaurantIds)
+        .in('business_id', businessIds)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', now.toISOString())
 
@@ -561,7 +567,7 @@ export class DashboardService {
       // 2. Vérifier le profil utilisateur
       console.log('2. Vérification du profil utilisateur...')
       const { data: userProfile, error: profileError } = await supabase
-        .from('users')
+        .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single()
@@ -578,29 +584,29 @@ export class DashboardService {
       
       console.log('✅ Profil utilisateur:', userProfile)
       
-      // 3. Vérifier les restaurants (si partenaire)
+      // 3. Vérifier les businesses (si partenaire)
       if (userProfile.role === 'partner') {
-        console.log('3. Vérification des restaurants...')
-        const { data: restaurants, error: restaurantsError } = await supabase
-          .from('restaurants')
+        console.log('3. Vérification des businesses...')
+        const { data: businesses, error: businessesError } = await supabase
+          .from('businesses')
           .select('*')
-          .eq('partner_id', user.id)
+          .eq('owner_id', user.id)
         
-        if (restaurantsError) {
-          console.error('❌ Erreur restaurants:', restaurantsError)
-          return { success: false, error: 'Erreur restaurants', details: restaurantsError }
+        if (businessesError) {
+          console.error('❌ Erreur businesses:', businessesError)
+          return { success: false, error: 'Erreur businesses', details: businessesError }
         }
         
-        console.log('✅ Restaurants trouvés:', restaurants?.length || 0, restaurants)
+        console.log('✅ Businesses trouvés:', businesses?.length || 0, businesses)
         
-        // 4. Vérifier les commandes (si restaurants existent)
-        if (restaurants?.length) {
+        // 4. Vérifier les commandes (si businesses existent)
+        if (businesses?.length) {
           console.log('4. Vérification des commandes...')
-          const restaurantIds = restaurants.map(r => r.id)
+          const businessIds = businesses.map(b => b.id)
           const { data: orders, error: ordersError } = await supabase
             .from('orders')
             .select('*')
-            .in('restaurant_id', restaurantIds)
+            .in('business_id', businessIds)
             .limit(5)
           
           if (ordersError) {

@@ -128,3 +128,71 @@ INSERT INTO businesses (
 -- ============================================================================
 
 SELECT 'Administrateur créé avec succès!' as status; 
+
+-- Script pour créer un utilisateur administrateur de test
+-- Ce script doit être exécuté dans Supabase SQL Editor
+
+-- 1. Créer l'utilisateur dans Supabase Auth (à faire manuellement via l'interface Supabase)
+-- Email: admin@bradelivery.com
+-- Mot de passe: admin123456
+
+-- 2. Une fois l'utilisateur créé, récupérer son ID et l'insérer dans user_profiles
+-- Remplacez 'USER_ID_FROM_AUTH' par l'ID réel de l'utilisateur créé
+
+-- Insérer le profil administrateur
+INSERT INTO user_profiles (
+  id,
+  name,
+  email,
+  role_id,
+  phone_number,
+  profile_image,
+  is_active,
+  created_at
+) VALUES (
+  'USER_ID_FROM_AUTH', -- Remplacez par l'ID réel
+  'Administrateur BraPrime',
+  'admin@bradelivery.com',
+  4, -- ID du rôle admin
+  '+224 123 456 789',
+  'https://ui-avatars.com/api/?name=Admin&background=random',
+  true,
+  NOW()
+);
+
+-- 3. Vérifier que l'utilisateur a bien le rôle admin
+SELECT 
+  up.id,
+  up.name,
+  up.email,
+  up.role_id,
+  ur.name as role_name,
+  up.is_active
+FROM user_profiles up
+JOIN user_roles ur ON up.role_id = ur.id
+WHERE up.email = 'admin@bradelivery.com';
+
+-- 4. Si vous voulez créer l'utilisateur directement via SQL (moins sécurisé)
+-- Note: Cette méthode ne crée pas l'utilisateur dans Supabase Auth
+-- Il faudra ensuite créer manuellement l'utilisateur dans Auth avec le même ID
+
+-- Générer un UUID pour l'admin
+-- INSERT INTO user_profiles (
+--   id,
+--   name,
+--   email,
+--   role_id,
+--   phone_number,
+--   profile_image,
+--   is_active,
+--   created_at
+-- ) VALUES (
+--   gen_random_uuid(),
+--   'Administrateur BraPrime',
+--   'admin@bradelivery.com',
+--   4,
+--   '+224 123 456 789',
+--   'https://ui-avatars.com/api/?name=Admin&background=random',
+--   true,
+--   NOW()
+-- ); 

@@ -40,7 +40,7 @@ import {
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DriverAuthManager } from '@/components/dashboard/DriverAuthManager';
+import { PartnerDriverAuthManager } from '@/components/dashboard/PartnerDriverAuthManager';
 
 const PartnerDrivers = () => {
   const { currentUser } = useAuth();
@@ -57,7 +57,9 @@ const PartnerDrivers = () => {
     phone: '',
     email: '',
     vehicle_type: '',
-    vehicle_plate: ''
+    vehicle_plate: '',
+    createAuthAccount: false,
+    password: ''
   });
 
   const [editForm, setEditForm] = useState({
@@ -121,17 +123,57 @@ const PartnerDrivers = () => {
       return;
     }
 
-    const result = await addDriver(addForm);
+    if (addForm.createAuthAccount && !addForm.password) {
+      toast.error('Le mot de passe est requis pour créer un compte de connexion');
+      return;
+    }
+
+    // Préparer les données du driver (sans les champs auth)
+    const driverData = {
+      name: addForm.name,
+      phone: addForm.phone,
+      email: addForm.email,
+      vehicle_type: addForm.vehicle_type,
+      vehicle_plate: addForm.vehicle_plate
+    };
+
+    const result = await addDriver(driverData);
     
     if (result.success) {
-      toast.success('Livreur ajouté avec succès');
+      // Si on doit créer un compte auth, le faire maintenant
+      if (addForm.createAuthAccount && addForm.email && addForm.password) {
+        try {
+          const { DriverAuthPartnerService } = await import('@/lib/services/driver-auth-partner');
+          const authResult = await DriverAuthPartnerService.createDriverAuthAccount({
+            driver_id: result.driver_id || result.driver?.id,
+            email: addForm.email,
+            phone: addForm.phone,
+            password: addForm.password
+          });
+
+          if (authResult.success) {
+            toast.success('Livreur ajouté avec compte de connexion créé');
+          } else {
+            toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
+            console.error('Erreur création compte auth:', authResult.error);
+          }
+        } catch (error) {
+          toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
+          console.error('Erreur création compte auth:', error);
+        }
+      } else {
+        toast.success('Livreur ajouté avec succès');
+      }
+
       setIsAddDialogOpen(false);
       setAddForm({
         name: '',
         phone: '',
         email: '',
         vehicle_type: '',
-        vehicle_plate: ''
+        vehicle_plate: '',
+        createAuthAccount: false,
+        password: ''
       });
     } else {
       toast.error(result.error || 'Erreur lors de l\'ajout du livreur');
@@ -283,71 +325,134 @@ const PartnerDrivers = () => {
                 Ajouter un Livreur
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Ajouter un Livreur</DialogTitle>
                 <DialogDescription>
                   Ajoutez un nouveau livreur à votre équipe de livraison.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Nom complet *</Label>
-                  <Input
-                    id="name"
-                    value={addForm.name}
-                    onChange={(e) => setAddForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nom et prénom du livreur"
-                  />
+              <div className="grid gap-4 py-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="name" className="text-sm">Nom complet *</Label>
+                    <Input
+                      id="name"
+                      value={addForm.name}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Nom et prénom"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone" className="text-sm">Téléphone *</Label>
+                    <Input
+                      id="phone"
+                      value={addForm.phone}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+224 123 456 789"
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
+                
                 <div className="grid gap-2">
-                  <Label htmlFor="phone">Téléphone *</Label>
-                  <Input
-                    id="phone"
-                    value={addForm.phone}
-                    onChange={(e) => setAddForm(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+224 123 456 789"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-sm">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     value={addForm.email}
                     onChange={(e) => setAddForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="email@example.com"
+                    className="text-sm"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="vehicle_type">Type de véhicule</Label>
-                  <Select value={addForm.vehicle_type} onValueChange={(value) => setAddForm(prev => ({ ...prev, vehicle_type: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un véhicule" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="car">Voiture</SelectItem>
-                      <SelectItem value="motorcycle">Moto</SelectItem>
-                      <SelectItem value="bike">Vélo</SelectItem>
-                    </SelectContent>
-                  </Select>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="vehicle_type" className="text-sm">Type de véhicule</Label>
+                    <Select value={addForm.vehicle_type} onValueChange={(value) => setAddForm(prev => ({ ...prev, vehicle_type: value }))}>
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Sélectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="car">Voiture</SelectItem>
+                        <SelectItem value="motorcycle">Moto</SelectItem>
+                        <SelectItem value="bike">Vélo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="vehicle_plate" className="text-sm">Plaque d'immatriculation</Label>
+                    <Input
+                      id="vehicle_plate"
+                      value={addForm.vehicle_plate}
+                      onChange={(e) => setAddForm(prev => ({ ...prev, vehicle_plate: e.target.value }))}
+                      placeholder="ABC 123"
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="vehicle_plate">Plaque d'immatriculation</Label>
-                  <Input
-                    id="vehicle_plate"
-                    value={addForm.vehicle_plate}
-                    onChange={(e) => setAddForm(prev => ({ ...prev, vehicle_plate: e.target.value }))}
-                    placeholder="ABC 123"
-                  />
+                
+                {/* Section création de compte auth */}
+                <div className="space-y-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="create-auth"
+                      checked={addForm.createAuthAccount}
+                      onCheckedChange={(checked) => setAddForm(prev => ({ 
+                        ...prev, 
+                        createAuthAccount: checked,
+                        password: checked ? prev.password : ''
+                      }))}
+                    />
+                    <Label htmlFor="create-auth" className="font-medium text-sm">
+                      Créer un compte de connexion
+                    </Label>
+                  </div>
+                  
+                  {addForm.createAuthAccount && (
+                    <div className="space-y-3 pl-4 border-l-2 border-blue-200 bg-blue-50/30 rounded-r-lg p-3">
+                      <div className="grid gap-2">
+                        <Label htmlFor="auth-email" className="text-sm">Email pour la connexion *</Label>
+                        <Input
+                          id="auth-email"
+                          type="email"
+                          value={addForm.email}
+                          onChange={(e) => setAddForm(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="email@example.com"
+                          required={addForm.createAuthAccount}
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Le livreur utilisera cet email pour se connecter
+                        </p>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="auth-password" className="text-sm">Mot de passe *</Label>
+                        <Input
+                          id="auth-password"
+                          type="password"
+                          value={addForm.password}
+                          onChange={(e) => setAddForm(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="Mot de passe sécurisé"
+                          required={addForm.createAuthAccount}
+                          className="text-sm"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Communiquez ce mot de passe de manière sécurisée au livreur
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <DialogFooter className="pt-4">
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} size="sm">
                   Annuler
                 </Button>
-                <Button onClick={handleAddDriver}>
-                  Ajouter
+                <Button onClick={handleAddDriver} size="sm">
+                  Ajouter le livreur
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -552,84 +657,94 @@ const PartnerDrivers = () => {
           </TabsContent>
 
           <TabsContent value="auth" className="space-y-6">
-            <DriverAuthManager businessId={business?.id || 0} />
+            <PartnerDriverAuthManager businessId={business?.id || 0} />
           </TabsContent>
         </Tabs>
 
         {/* Dialog d'édition */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Modifier le Livreur</DialogTitle>
               <DialogDescription>
                 Modifiez les informations du livreur.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-name">Nom complet *</Label>
-                <Input
-                  id="edit-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Nom et prénom du livreur"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-phone">Téléphone *</Label>
-                <Input
-                  id="edit-phone"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+224 123 456 789"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-email">Email</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-vehicle_type">Type de véhicule</Label>
-                <Select value={editForm.vehicle_type} onValueChange={(value) => setEditForm(prev => ({ ...prev, vehicle_type: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un véhicule" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="car">Voiture</SelectItem>
-                    <SelectItem value="motorcycle">Moto</SelectItem>
-                    <SelectItem value="bike">Vélo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-vehicle_plate">Plaque d'immatriculation</Label>
-                <Input
-                  id="edit-vehicle_plate"
-                  value={editForm.vehicle_plate}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, vehicle_plate: e.target.value }))}
-                  placeholder="ABC 123"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-is_active"
-                  checked={editForm.is_active}
-                  onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, is_active: checked }))}
-                />
-                <Label htmlFor="edit-is_active">Livreur actif</Label>
-              </div>
+            <div className="grid gap-4 py-2">
+                              <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-name" className="text-sm">Nom complet *</Label>
+                    <Input
+                      id="edit-name"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Nom et prénom"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-phone" className="text-sm">Téléphone *</Label>
+                    <Input
+                      id="edit-phone"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+224 123 456 789"
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-email" className="text-sm">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="email@example.com"
+                    className="text-sm"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-vehicle_type" className="text-sm">Type de véhicule</Label>
+                    <Select value={editForm.vehicle_type} onValueChange={(value) => setEditForm(prev => ({ ...prev, vehicle_type: value }))}>
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Sélectionner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="car">Voiture</SelectItem>
+                        <SelectItem value="motorcycle">Moto</SelectItem>
+                        <SelectItem value="bike">Vélo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-vehicle_plate" className="text-sm">Plaque d'immatriculation</Label>
+                    <Input
+                      id="edit-vehicle_plate"
+                      value={editForm.vehicle_plate}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, vehicle_plate: e.target.value }))}
+                      placeholder="ABC 123"
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+                              <div className="flex items-center space-x-2 pt-2 border-t border-gray-100">
+                  <Switch
+                    id="edit-is_active"
+                    checked={editForm.is_active}
+                    onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, is_active: checked }))}
+                  />
+                  <Label htmlFor="edit-is_active" className="text-sm">Livreur actif</Label>
+                </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} size="sm">
                 Annuler
               </Button>
-              <Button onClick={handleEditDriver}>
+              <Button onClick={handleEditDriver} size="sm">
                 Mettre à jour
               </Button>
             </DialogFooter>

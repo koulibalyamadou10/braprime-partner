@@ -33,11 +33,15 @@ import {
 import { toast } from 'sonner';
 import { DriverDetailsService, DriverDetails, DriverOrder, DriverReview, DriverStats } from '@/lib/services/driver-details';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 
 const DriverDetailsPage = () => {
   const { driverId } = useParams<{ driverId: string }>();
   const navigate = useNavigate();
   const { currentUser, isAuthenticated } = useAuth();
+  
+  // Utiliser le hook partner dashboard pour récupérer l'ID du business
+  const { business, isAuthenticated: isPartnerAuthenticated } = usePartnerDashboard();
   
   // États pour les données
   const [driver, setDriver] = useState<DriverDetails | null>(null);
@@ -52,20 +56,20 @@ const DriverDetailsPage = () => {
 
   // Charger les données du livreur
   useEffect(() => {
-    if (driverId) {
+    if (driverId && business?.id) {
       loadDriverData();
     }
-  }, [driverId]);
+  }, [driverId, business?.id]);
 
   const loadDriverData = async () => {
-    if (!driverId) return;
+    if (!driverId || !business?.id) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      // Charger les détails du livreur
-      const { driver: driverData, error: driverError } = await DriverDetailsService.getDriverDetails(driverId);
+      // Charger les détails du livreur avec vérification des permissions
+      const { driver: driverData, error: driverError } = await DriverDetailsService.getDriverDetails(driverId, business.id);
       if (driverError) {
         setError(driverError);
         return;
@@ -113,7 +117,7 @@ const DriverDetailsPage = () => {
   };
 
   // Vérifier l'authentification
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !isPartnerAuthenticated) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Détails du Livreur">
         <div className="flex flex-col items-center justify-center py-12">
@@ -137,6 +141,22 @@ const DriverDetailsPage = () => {
             <h3 className="text-lg font-semibold mb-2">Accès Restreint</h3>
             <p className="text-muted-foreground mb-4">
               Cette page est réservée aux partenaires.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Vérifier que le business est chargé
+  if (!business) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Détails du Livreur">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Chargement...</h3>
+            <p className="text-muted-foreground mb-4">
+              Chargement des informations du commerce
             </p>
           </div>
         </div>
@@ -227,6 +247,8 @@ const DriverDetailsPage = () => {
 
   // Affichage d'erreur
   if (error || !driver) {
+    const isUnauthorized = error?.includes('non autorisé') || error?.includes('Accès non autorisé');
+    
     return (
       <DashboardLayout navItems={partnerNavItems} title="Détails du Livreur">
         <div className="space-y-6">
@@ -239,9 +261,26 @@ const DriverDetailsPage = () => {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-              <p className="text-red-500 mb-4">{error || 'Livreur non trouvé'}</p>
-              <Button onClick={loadDriverData}>
-                Réessayer
+              <h3 className="text-lg font-semibold mb-2">
+                {isUnauthorized ? 'Accès Non Autorisé' : 'Erreur'}
+              </h3>
+              <p className="text-red-500 mb-4 text-center max-w-md">
+                {isUnauthorized 
+                  ? 'Ce livreur n\'appartient pas à votre commerce ou vous n\'avez pas les permissions pour y accéder.'
+                  : error || 'Livreur non trouvé'
+                }
+              </p>
+              {!isUnauthorized && (
+                <Button onClick={loadDriverData}>
+                  Réessayer
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/partner-dashboard/drivers')}
+                className="mt-2"
+              >
+                Retour à la liste des livreurs
               </Button>
             </CardContent>
           </Card>

@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { UserNotificationsSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { 
   Bell, 
   Mail, 
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { NotificationService } from '@/lib/services/notifications';
 
 interface Notification {
   id: string;
@@ -61,6 +63,7 @@ const UserNotifications: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -71,49 +74,16 @@ const UserNotifications: React.FC = () => {
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      // Simuler le chargement des données
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Données de test
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          title: 'Commande confirmée',
-          message: 'Votre commande #12345 a été confirmée et est en préparation.',
-          type: 'order',
-          is_read: false,
-          created_at: '2024-01-15T10:30:00Z',
-          action_url: '/orders/12345'
-        },
-        {
-          id: '2',
-          title: 'Livraison en cours',
-          message: 'Votre commande #12344 est en cours de livraison. Livreur: Mamadou Diallo',
-          type: 'delivery',
-          is_read: false,
-          created_at: '2024-01-15T09:15:00Z',
-          action_url: '/tracking/12344'
-        },
-        {
-          id: '3',
-          title: 'Promotion spéciale',
-          message: '20% de réduction sur tous les restaurants ce weekend !',
-          type: 'promo',
-          is_read: true,
-          created_at: '2024-01-14T16:00:00Z'
-        },
-        {
-          id: '4',
-          title: 'Maintenance prévue',
-          message: 'Le service sera temporairement indisponible le 20 janvier de 2h à 4h.',
-          type: 'system',
-          is_read: true,
-          created_at: '2024-01-13T14:30:00Z'
-        }
-      ];
-
-      setNotifications(mockNotifications);
-    } catch (error) {
+      setError(null);
+      const { data, error } = await NotificationService.getUserNotifications();
+      if (error) {
+        setError(error);
+        toast.error('Erreur lors du chargement des notifications');
+      } else {
+        setNotifications(data);
+      }
+    } catch (err) {
+      setError('Erreur lors du chargement des notifications');
       toast.error('Erreur lors du chargement des notifications');
     } finally {
       setLoading(false);
@@ -183,20 +153,19 @@ const UserNotifications: React.FC = () => {
   if (loading) {
     return (
       <DashboardLayout navItems={userNavItems}>
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-48" />
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <UserNotificationsSkeleton />
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout navItems={userNavItems}>
+        <div className="flex flex-col items-center justify-center py-12">
+          <Bell className="h-12 w-12 text-red-400 mb-4" />
+          <h3 className="text-lg font-medium text-red-600 mb-2">Erreur de chargement</h3>
+          <p className="text-red-500">{error}</p>
+          <Button onClick={loadNotifications} className="mt-4">Réessayer</Button>
         </div>
       </DashboardLayout>
     );

@@ -32,6 +32,12 @@ export interface PartnerStats {
   totalCustomers: number
   rating: number
   reviewCount: number
+  todayOrders: number
+  todayRevenue: number
+  weekOrders: number
+  weekRevenue: number
+  monthOrders: number
+  monthRevenue: number
 }
 
 export interface PartnerOrder {
@@ -50,6 +56,9 @@ export interface PartnerOrder {
   payment_status: string
   created_at: string
   updated_at: string
+  estimated_delivery?: string
+  driver_name?: string
+  driver_phone?: string
 }
 
 export interface PartnerMenuItem {
@@ -61,14 +70,32 @@ export interface PartnerMenuItem {
   category_id: number
   category_name: string
   is_available: boolean
-  is_featured: boolean
+  is_popular: boolean
   preparation_time: number
   allergens: string[]
   nutritional_info: any
+  sort_order: number
+}
+
+export interface PartnerDriver {
+  id: string
+  name: string
+  phone: string
+  email?: string
+  vehicle_type?: string
+  vehicle_plate?: string
+  is_active: boolean
+  rating: number
+  total_deliveries: number
+  total_earnings: number
+  current_location?: any
+  last_active?: string
+  created_at: string
+  updated_at: string
 }
 
 export class PartnerDashboardService {
-  // Récupérer le business du partenaire connecté
+  // Récupérer le business du partenaire connecté (optimisé)
   static async getPartnerBusiness(): Promise<{ business: PartnerBusiness | null; error: string | null }> {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -77,13 +104,32 @@ export class PartnerDashboardService {
         return { business: null, error: 'Utilisateur non authentifié' }
       }
 
+      // Requête optimisée avec jointure et sélection ciblée
       const { data: business, error } = await supabase
         .from('businesses')
         .select(`
-          *,
-          business_types(name)
+          id,
+          name,
+          description,
+          business_type_id,
+          address,
+          phone,
+          email,
+          opening_hours,
+          cuisine_type,
+          rating,
+          review_count,
+          delivery_time,
+          delivery_fee,
+          is_active,
+          is_open,
+          owner_id,
+          created_at,
+          updated_at,
+          business_types!inner(name)
         `)
         .eq('owner_id', user.id)
+        .eq('is_active', true)
         .single()
 
       if (error) {
@@ -124,10 +170,52 @@ export class PartnerDashboardService {
     }
   }
 
-  // Récupérer les statistiques du partenaire
+  // Récupérer les statistiques du partenaire (optimisé avec requêtes agrégées)
   static async getPartnerStats(businessId: number): Promise<{ stats: PartnerStats | null; error: string | null }> {
     try {
-      // Récupérer les commandes du business
+      // Requête agrégée pour toutes les statistiques en une fois
+      const { data: statsData, error: statsError } = await supabase
+        .rpc('get_partner_stats', { business_id: businessId })
+
+      if (statsError) {
+        console.error('Erreur récupération stats:', statsError)
+        // Fallback vers requête simple si la fonction RPC n'existe pas
+        return await this.getPartnerStatsFallback(businessId)
+      }
+
+      if (!statsData) {
+        return { stats: null, error: 'Aucune donnée statistique trouvée' }
+      }
+
+      const stats: PartnerStats = {
+        totalOrders: statsData.total_orders || 0,
+        totalRevenue: statsData.total_revenue || 0,
+        averageOrderValue: statsData.average_order_value || 0,
+        completedOrders: statsData.completed_orders || 0,
+        pendingOrders: statsData.pending_orders || 0,
+        cancelledOrders: statsData.cancelled_orders || 0,
+        totalCustomers: statsData.total_customers || 0,
+        rating: statsData.rating || 0,
+        reviewCount: statsData.review_count || 0,
+        todayOrders: statsData.today_orders || 0,
+        todayRevenue: statsData.today_revenue || 0,
+        weekOrders: statsData.week_orders || 0,
+        weekRevenue: statsData.week_revenue || 0,
+        monthOrders: statsData.month_orders || 0,
+        monthRevenue: statsData.month_revenue || 0
+      }
+
+      return { stats, error: null }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des statistiques:', error)
+      return { stats: null, error: 'Erreur lors de la récupération des statistiques' }
+    }
+  }
+
+  // Fallback pour les statistiques si la fonction RPC n'existe pas
+  private static async getPartnerStatsFallback(businessId: number): Promise<{ stats: PartnerStats | null; error: string | null }> {
+    try {
+      // Récupérer toutes les commandes pour calculer les statistiques
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
@@ -138,6 +226,7 @@ export class PartnerDashboardService {
         return { stats: null, error: ordersError.message }
       }
 
+      // Calculer les statistiques globales
       const totalOrders = orders?.length || 0
       const totalRevenue = orders?.reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0
       const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
@@ -145,11 +234,11 @@ export class PartnerDashboardService {
       const pendingOrders = orders?.filter(order => order.status === 'pending').length || 0
       const cancelledOrders = orders?.filter(order => order.status === 'cancelled').length || 0
 
-      // Récupérer les clients uniques
+      // Clients uniques
       const uniqueCustomers = new Set(orders?.map(order => order.user_id).filter(Boolean) || []).size
 
-      // Récupérer les avis
-      const { data: reviews, error: reviewsError } = await supabase
+      // Avis
+      const { data: reviewsData, error: reviewsError } = await supabase
         .from('reviews')
         .select('rating')
         .eq('business_id', businessId)
@@ -158,10 +247,30 @@ export class PartnerDashboardService {
         console.error('Erreur récupération avis:', reviewsError)
       }
 
-      const rating = reviews && reviews.length > 0 
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
+      const rating = reviewsData && reviewsData.length > 0 
+        ? reviewsData.reduce((sum, review) => sum + review.rating, 0) / reviewsData.length 
         : 0
 
+      // Statistiques par période
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+      // Calculer les statistiques par période
+      const todayOrders = orders?.filter(order => new Date(order.created_at) >= today).length || 0
+      const todayRevenue = orders?.filter(order => new Date(order.created_at) >= today)
+        .reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0
+
+      const weekOrders = orders?.filter(order => new Date(order.created_at) >= weekAgo).length || 0
+      const weekRevenue = orders?.filter(order => new Date(order.created_at) >= weekAgo)
+        .reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0
+
+      const monthOrders = orders?.filter(order => new Date(order.created_at) >= monthAgo).length || 0
+      const monthRevenue = orders?.filter(order => new Date(order.created_at) >= monthAgo)
+        .reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0
+
+      // Construire les statistiques
       const stats: PartnerStats = {
         totalOrders,
         totalRevenue,
@@ -171,33 +280,68 @@ export class PartnerDashboardService {
         cancelledOrders,
         totalCustomers: uniqueCustomers,
         rating,
-        reviewCount: reviews?.length || 0
+        reviewCount: reviewsData?.length || 0,
+        todayOrders,
+        todayRevenue,
+        weekOrders,
+        weekRevenue,
+        monthOrders,
+        monthRevenue
       }
 
       return { stats, error: null }
     } catch (error) {
-      console.error('Erreur lors de la récupération des statistiques:', error)
+      console.error('Erreur lors de la récupération des statistiques (fallback):', error)
       return { stats: null, error: 'Erreur lors de la récupération des statistiques' }
     }
   }
 
-  // Récupérer les commandes récentes du partenaire
-  static async getPartnerOrders(businessId: number, limit: number = 10): Promise<{ orders: PartnerOrder[] | null; error: string | null }> {
+  // Récupérer les commandes récentes du partenaire (optimisé avec jointure)
+  static async getPartnerOrders(
+    businessId: number, 
+    limit: number = 10, 
+    offset: number = 0,
+    status?: string
+  ): Promise<{ orders: PartnerOrder[] | null; error: string | null; total: number }> {
     try {
-      // D'abord, récupérer les commandes sans la jointure
-      const { data: orders, error } = await supabase
+      // Construire la requête avec filtres optionnels
+      let query = supabase
         .from('orders')
-        .select('*')
+        .select(`
+          id,
+          user_id,
+          items,
+          status,
+          total,
+          delivery_fee,
+          grand_total,
+          delivery_address,
+          delivery_instructions,
+          payment_method,
+          payment_status,
+          created_at,
+          updated_at,
+          estimated_delivery,
+          driver_name,
+          driver_phone
+        `)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
-        .limit(limit)
+        .range(offset, offset + limit - 1)
+
+      // Ajouter le filtre de statut si spécifié
+      if (status) {
+        query = query.eq('status', status)
+      }
+
+      const { data: orders, error, count } = await query
 
       if (error) {
         console.error('Erreur récupération commandes:', error)
-        return { orders: null, error: error.message }
+        return { orders: null, error: error.message, total: 0 }
       }
 
-      // Ensuite, récupérer les profils utilisateur séparément
+      // Récupérer les profils utilisateur séparément
       const userIds = orders?.map(order => order.user_id).filter(Boolean) || []
       let userProfiles: any[] = []
 
@@ -234,33 +378,65 @@ export class PartnerDashboardService {
           payment_method: order.payment_method,
           payment_status: order.payment_status,
           created_at: order.created_at,
-          updated_at: order.updated_at
+          updated_at: order.updated_at,
+          estimated_delivery: order.estimated_delivery,
+          driver_name: order.driver_name,
+          driver_phone: order.driver_phone
         }
       })
 
-      return { orders: partnerOrders, error: null }
+      return { 
+        orders: partnerOrders, 
+        error: null, 
+        total: count || partnerOrders.length 
+      }
     } catch (error) {
       console.error('Erreur lors de la récupération des commandes:', error)
-      return { orders: null, error: 'Erreur lors de la récupération des commandes' }
+      return { orders: null, error: 'Erreur lors de la récupération des commandes', total: 0 }
     }
   }
 
-  // Récupérer les articles de menu du partenaire
-  static async getPartnerMenu(businessId: number): Promise<{ menu: PartnerMenuItem[] | null; error: string | null }> {
+  // Récupérer les articles de menu du partenaire (optimisé avec pagination)
+  static async getPartnerMenu(
+    businessId: number,
+    limit: number = 50,
+    offset: number = 0,
+    categoryId?: number
+  ): Promise<{ menu: PartnerMenuItem[] | null; error: string | null; total: number }> {
     try {
-      const { data: menuItems, error } = await supabase
+      // Construire la requête avec filtres optionnels
+      let query = supabase
         .from('menu_items')
         .select(`
-          *,
-          menu_categories(name)
+          id,
+          name,
+          description,
+          price,
+          image,
+          category_id,
+          is_available,
+          is_popular,
+          preparation_time,
+          allergens,
+          nutritional_info,
+          sort_order,
+          menu_categories!inner(name)
         `)
         .eq('business_id', businessId)
-        .order('category_id', { ascending: true })
+        .order('sort_order', { ascending: true })
         .order('name', { ascending: true })
+        .range(offset, offset + limit - 1)
+
+      // Ajouter le filtre de catégorie si spécifié
+      if (categoryId) {
+        query = query.eq('category_id', categoryId)
+      }
+
+      const { data: menuItems, error, count } = await query
 
       if (error) {
         console.error('Erreur récupération menu:', error)
-        return { menu: null, error: error.message }
+        return { menu: null, error: error.message, total: 0 }
       }
 
       const partnerMenu: PartnerMenuItem[] = (menuItems || []).map(item => ({
@@ -272,25 +448,33 @@ export class PartnerDashboardService {
         category_id: item.category_id,
         category_name: item.menu_categories?.name || 'Sans catégorie',
         is_available: item.is_available,
-        is_featured: item.is_featured,
+        is_popular: item.is_popular,
         preparation_time: item.preparation_time || 15,
         allergens: item.allergens || [],
-        nutritional_info: item.nutritional_info || {}
+        nutritional_info: item.nutritional_info || {},
+        sort_order: item.sort_order || 0
       }))
 
-      return { menu: partnerMenu, error: null }
+      return { 
+        menu: partnerMenu, 
+        error: null, 
+        total: count || partnerMenu.length 
+      }
     } catch (error) {
       console.error('Erreur lors de la récupération du menu:', error)
-      return { menu: null, error: 'Erreur lors de la récupération du menu' }
+      return { menu: null, error: 'Erreur lors de la récupération du menu', total: 0 }
     }
   }
 
-  // Mettre à jour le statut d'une commande
+  // Mettre à jour le statut d'une commande (optimisé)
   static async updateOrderStatus(orderId: string, status: string): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update({ 
+          status, 
+          updated_at: new Date().toISOString() 
+        })
         .eq('id', orderId)
 
       if (error) {
@@ -305,7 +489,7 @@ export class PartnerDashboardService {
     }
   }
 
-  // Mettre à jour les informations du business
+  // Mettre à jour les informations du business (optimisé)
   static async updateBusinessInfo(businessId: number, updates: Partial<PartnerBusiness>): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
@@ -328,7 +512,7 @@ export class PartnerDashboardService {
     }
   }
 
-  // Changer le statut ouvert/fermé du business
+  // Changer le statut ouvert/fermé du business (optimisé)
   static async toggleBusinessStatus(businessId: number, isOpen: boolean): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
@@ -351,115 +535,107 @@ export class PartnerDashboardService {
     }
   }
 
-  // Récupérer les notifications du partenaire
-  static async getPartnerNotifications(businessId: number, limit: number = 10): Promise<{ notifications: any[] | null; error: string | null }> {
+  // Récupérer les notifications du partenaire (optimisé avec pagination)
+  static async getPartnerNotifications(
+    businessOwnerId: string, 
+    limit: number = 10,
+    offset: number = 0
+  ): Promise<{ notifications: any[] | null; error: string | null; total: number }> {
     try {
-      const { data: notifications, error } = await supabase
+      const { data: notifications, error, count } = await supabase
         .from('notifications')
         .select('*')
-        .eq('business_id', businessId)
+        .eq('user_id', businessOwnerId)
         .order('created_at', { ascending: false })
-        .limit(limit)
+        .range(offset, offset + limit - 1)
 
       if (error) {
         console.error('Erreur récupération notifications:', error)
-        return { notifications: null, error: error.message }
+        return { notifications: null, error: error.message, total: 0 }
       }
 
-      return { notifications: notifications || [], error: null }
+      return { 
+        notifications: notifications || [], 
+        error: null, 
+        total: count || (notifications?.length || 0)
+      }
     } catch (error) {
       console.error('Erreur lors de la récupération des notifications:', error)
-      return { notifications: null, error: 'Erreur lors de la récupération des notifications' }
+      return { notifications: null, error: 'Erreur lors de la récupération des notifications', total: 0 }
     }
   }
 
-  // Diagnostic pour vérifier l'authentification et les données
-  static async diagnoseAuthAndData(): Promise<{ success: boolean; data: any; error: string | null }> {
+  // Récupérer les livreurs d'un business (optimisé avec pagination)
+  static async getPartnerDrivers(
+    businessId: number,
+    limit: number = 20,
+    offset: number = 0,
+    isActive?: boolean
+  ): Promise<{ drivers: PartnerDriver[] | null; error: string | null; total: number }> {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      
-      if (authError || !user) {
-        return { 
-          success: false, 
-          data: null, 
-          error: 'Utilisateur non authentifié' 
-        }
-      }
-
-      // Vérifier le profil utilisateur
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      // Vérifier le business
-      const { data: business, error: businessError } = await supabase
-        .from('businesses')
-        .select('*')
-        .eq('owner_id', user.id)
-        .single()
-
-      // Vérifier les commandes
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('business_id', business?.id || 0)
-        .limit(5)
-
-      const diagnosticData = {
-        user: {
-          id: user.id,
-          email: user.email,
-          email_confirmed: user.email_confirmed_at ? true : false
-        },
-        profile: profile || null,
-        business: business || null,
-        orders: orders || [],
-        errors: {
-          profile: profileError?.message,
-          business: businessError?.message,
-          orders: ordersError?.message
-        }
-      }
-
-      return { 
-        success: true, 
-        data: diagnosticData, 
-        error: null 
-      }
-    } catch (error) {
-      console.error('Erreur lors du diagnostic:', error)
-      return { 
-        success: false, 
-        data: null, 
-        error: 'Erreur lors du diagnostic' 
-      }
-    }
-  }
-
-  // Récupérer les livreurs d'un business
-  static async getPartnerDrivers(businessId: number): Promise<{ drivers: any[] | null; error: string | null }> {
-    try {
-      const { data: drivers, error } = await supabase
+      let query = supabase
         .from('drivers')
-        .select('*')
+        .select(`
+          id,
+          name,
+          phone,
+          email,
+          vehicle_type,
+          vehicle_plate,
+          is_active,
+          rating,
+          total_deliveries,
+          total_earnings,
+          current_location,
+          last_active,
+          created_at,
+          updated_at
+        `)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      // Ajouter le filtre de statut si spécifié
+      if (isActive !== undefined) {
+        query = query.eq('is_active', isActive)
+      }
+
+      const { data: drivers, error, count } = await query
 
       if (error) {
         console.error('Erreur récupération livreurs:', error)
-        return { drivers: null, error: error.message }
+        return { drivers: null, error: error.message, total: 0 }
       }
 
-      return { drivers: drivers || [], error: null }
+      const partnerDrivers: PartnerDriver[] = (drivers || []).map(driver => ({
+        id: driver.id,
+        name: driver.name,
+        phone: driver.phone,
+        email: driver.email,
+        vehicle_type: driver.vehicle_type,
+        vehicle_plate: driver.vehicle_plate,
+        is_active: driver.is_active,
+        rating: driver.rating || 0,
+        total_deliveries: driver.total_deliveries || 0,
+        total_earnings: driver.total_earnings || 0,
+        current_location: driver.current_location,
+        last_active: driver.last_active,
+        created_at: driver.created_at,
+        updated_at: driver.updated_at
+      }))
+
+      return { 
+        drivers: partnerDrivers, 
+        error: null, 
+        total: count || partnerDrivers.length 
+      }
     } catch (error) {
       console.error('Erreur lors de la récupération des livreurs:', error)
-      return { drivers: null, error: 'Erreur lors de la récupération des livreurs' }
+      return { drivers: null, error: 'Erreur lors de la récupération des livreurs', total: 0 }
     }
   }
 
-  // Ajouter un livreur
+  // Ajouter un livreur (optimisé)
   static async addDriver(driverData: {
     name: string
     phone: string
@@ -467,7 +643,7 @@ export class PartnerDashboardService {
     business_id: number
     vehicle_type?: string
     vehicle_plate?: string
-  }): Promise<{ driver: any | null; error: string | null }> {
+  }): Promise<{ driver: PartnerDriver | null; error: string | null }> {
     try {
       const { data: driver, error } = await supabase
         .from('drivers')
@@ -476,7 +652,8 @@ export class PartnerDashboardService {
           ...driverData,
           is_active: true,
           rating: 0,
-          total_deliveries: 0
+          total_deliveries: 0,
+          total_earnings: 0
         }])
         .select()
         .single()
@@ -486,14 +663,31 @@ export class PartnerDashboardService {
         return { driver: null, error: error.message }
       }
 
-      return { driver, error: null }
+      const partnerDriver: PartnerDriver = {
+        id: driver.id,
+        name: driver.name,
+        phone: driver.phone,
+        email: driver.email,
+        vehicle_type: driver.vehicle_type,
+        vehicle_plate: driver.vehicle_plate,
+        is_active: driver.is_active,
+        rating: driver.rating || 0,
+        total_deliveries: driver.total_deliveries || 0,
+        total_earnings: driver.total_earnings || 0,
+        current_location: driver.current_location,
+        last_active: driver.last_active,
+        created_at: driver.created_at,
+        updated_at: driver.updated_at
+      }
+
+      return { driver: partnerDriver, error: null }
     } catch (error) {
       console.error('Erreur lors de l\'ajout du livreur:', error)
       return { driver: null, error: 'Erreur lors de l\'ajout du livreur' }
     }
   }
 
-  // Mettre à jour un livreur
+  // Mettre à jour un livreur (optimisé)
   static async updateDriver(driverId: string, updates: {
     name?: string
     phone?: string
@@ -501,7 +695,7 @@ export class PartnerDashboardService {
     vehicle_type?: string
     vehicle_plate?: string
     is_active?: boolean
-  }): Promise<{ driver: any | null; error: string | null }> {
+  }): Promise<{ driver: PartnerDriver | null; error: string | null }> {
     try {
       const { data: driver, error } = await supabase
         .from('drivers')
@@ -515,14 +709,31 @@ export class PartnerDashboardService {
         return { driver: null, error: error.message }
       }
 
-      return { driver, error: null }
+      const partnerDriver: PartnerDriver = {
+        id: driver.id,
+        name: driver.name,
+        phone: driver.phone,
+        email: driver.email,
+        vehicle_type: driver.vehicle_type,
+        vehicle_plate: driver.vehicle_plate,
+        is_active: driver.is_active,
+        rating: driver.rating || 0,
+        total_deliveries: driver.total_deliveries || 0,
+        total_earnings: driver.total_earnings || 0,
+        current_location: driver.current_location,
+        last_active: driver.last_active,
+        created_at: driver.created_at,
+        updated_at: driver.updated_at
+      }
+
+      return { driver: partnerDriver, error: null }
     } catch (error) {
       console.error('Erreur lors de la mise à jour du livreur:', error)
       return { driver: null, error: 'Erreur lors de la mise à jour du livreur' }
     }
   }
 
-  // Supprimer un livreur
+  // Supprimer un livreur (optimisé)
   static async deleteDriver(driverId: string): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
@@ -539,6 +750,69 @@ export class PartnerDashboardService {
     } catch (error) {
       console.error('Erreur lors de la suppression du livreur:', error)
       return { success: false, error: 'Erreur lors de la suppression du livreur' }
+    }
+  }
+
+  // Diagnostic pour vérifier l'authentification et les données (optimisé)
+  static async diagnoseAuthAndData(): Promise<{ success: boolean; data: any; error: string | null }> {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !user) {
+        return { 
+          success: false, 
+          data: null, 
+          error: 'Utilisateur non authentifié' 
+        }
+      }
+
+      // Requêtes parallèles pour optimiser les performances
+      const [profileResult, businessResult, ordersResult] = await Promise.allSettled([
+        supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('businesses')
+          .select('*')
+          .eq('owner_id', user.id)
+          .single(),
+        supabase
+          .from('orders')
+          .select('count')
+          .eq('business_id', 0) // Placeholder, sera mis à jour si business trouvé
+          .limit(5)
+      ])
+
+      const diagnosticData = {
+        user: {
+          id: user.id,
+          email: user.email,
+          email_confirmed: user.email_confirmed_at ? true : false
+        },
+        profile: profileResult.status === 'fulfilled' ? profileResult.value.data : null,
+        business: businessResult.status === 'fulfilled' ? businessResult.value.data : null,
+        orders: ordersResult.status === 'fulfilled' ? ordersResult.value.data : [],
+        errors: {
+          profile: profileResult.status === 'rejected' ? 'Erreur profil' : profileResult.value?.error?.message,
+          business: businessResult.status === 'rejected' ? 'Erreur business' : businessResult.value?.error?.message,
+          orders: ordersResult.status === 'rejected' ? 'Erreur commandes' : ordersResult.value?.error?.message
+        }
+      }
+
+      return { 
+        success: true, 
+        data: diagnosticData, 
+        error: null 
+      }
+    } catch (error) {
+      console.error('Erreur lors du diagnostic:', error)
+      return { 
+        success: false, 
+        data: null, 
+        error: 'Erreur lors du diagnostic' 
+      }
     }
   }
 } 

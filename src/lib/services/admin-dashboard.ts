@@ -325,7 +325,7 @@ export class AdminDashboardService {
               .select('name, email')
               .eq('id', business.owner_id)
               .single();
-            
+
             if (owner) {
               owner_name = owner.name;
               owner_email = owner.email;
@@ -403,7 +403,7 @@ export class AdminDashboardService {
 
           if (order.user_id) {
             const { data: user } = await supabase
-              .from('user_profiles')
+        .from('user_profiles')
               .select('name, email')
               .eq('id', order.user_id)
               .single();
@@ -414,7 +414,7 @@ export class AdminDashboardService {
             }
           }
 
-          return {
+      return {
             id: order.id,
             user_name,
             user_email,
@@ -432,7 +432,7 @@ export class AdminDashboardService {
             created_at: order.created_at,
             estimated_delivery: order.estimated_delivery,
             actual_delivery: order.actual_delivery,
-          };
+      };
         })
       );
 
