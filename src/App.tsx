@@ -80,6 +80,7 @@ const AdminOrders = lazy(() => import("./pages/dashboard/AdminOrders"));
 import AdminBusinesses from '@/pages/dashboard/AdminBusinesses';
 import AdminUsers from '@/pages/dashboard/AdminUsers';
 import AdminDrivers from '@/pages/dashboard/AdminDrivers';
+import AdminRequests from '@/pages/dashboard/AdminRequests';
 import AdminContent from '@/pages/dashboard/AdminContent';
 import AdminAnalytics from '@/pages/dashboard/AdminAnalytics';
 import AdminSystem from '@/pages/dashboard/AdminSystem';
@@ -277,6 +278,11 @@ const App = () => (
                         <AdminDrivers />
                       </ProtectedRoute>
                     } />
+                    <Route path="/admin/requests" element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <AdminRequests />
+                      </ProtectedRoute>
+                    } />
                     <Route path="/admin/content" element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminContent />
@@ -317,6 +323,11 @@ const App = () => (
                     <Route path="/admin-dashboard/drivers" element={
                       <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminDrivers />
+                  </ProtectedRoute>
+                } />
+                    <Route path="/admin-dashboard/requests" element={
+                      <ProtectedRoute allowedRoles={["admin"]}>
+                        <AdminRequests />
                   </ProtectedRoute>
                 } />
                     <Route path="/admin-dashboard/content" element={

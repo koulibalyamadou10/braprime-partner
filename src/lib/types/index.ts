@@ -602,4 +602,57 @@ export interface ThemeConfig {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+}
+
+// ============================================================================
+// TYPES POUR LES DEMANDES
+// ============================================================================
+
+export interface Request {
+  id: string;
+  type: 'partner' | 'driver';
+  status: 'pending' | 'approved' | 'rejected' | 'under_review';
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  user_phone: string;
+  business_name?: string;
+  business_type?: string;
+  business_address?: string;
+  vehicle_type?: string;
+  vehicle_plate?: string;
+  documents?: RequestDocument[];
+  notes?: string;
+  admin_notes?: string;
+  created_at: string;
+  updated_at: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+}
+
+export interface RequestDocument {
+  id: string;
+  type: string;
+  name: string;
+  url: string;
+  status: 'pending' | 'approved' | 'rejected';
+  uploaded_at: string;
+}
+
+export interface RequestStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  under_review: number;
+  partner_requests: number;
+  driver_requests: number;
+}
+
+export interface RequestFilters {
+  type?: 'partner' | 'driver';
+  status?: 'pending' | 'approved' | 'rejected' | 'under_review';
+  date_from?: string;
+  date_to?: string;
+  search?: string;
 } 

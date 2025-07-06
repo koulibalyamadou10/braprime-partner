@@ -196,12 +196,13 @@ const AdminDashboard = () => {
         <RealTimeStats />
 
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview">Aperçu</TabsTrigger>
             <TabsTrigger value="businesses">Commerces</TabsTrigger>
             <TabsTrigger value="orders">Commandes</TabsTrigger>
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
             <TabsTrigger value="drivers">Livreurs</TabsTrigger>
+            <TabsTrigger value="requests">Demandes</TabsTrigger>
             <TabsTrigger value="content">Contenu</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="system">Système</TabsTrigger>
@@ -659,6 +660,94 @@ const AdminDashboard = () => {
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="requests" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Gestion des Demandes</CardTitle>
+                <CardDescription>
+                  Gérez les demandes de partenaires et chauffeurs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Statistiques
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Exporter
+                    </Button>
+                  </div>
+                  <Button asChild>
+                    <Link to="/admin-dashboard/requests">
+                      Gérer les demandes
+                    </Link>
+                  </Button>
+                </div>
+                
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Total Demandes</p>
+                          <p className="text-2xl font-bold">0</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-yellow-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">En Attente</p>
+                          <p className="text-2xl font-bold">0</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Building2 className="h-4 w-4 text-green-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Partenaires</p>
+                          <p className="text-2xl font-bold">0</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <Truck className="h-4 w-4 text-purple-600" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Chauffeurs</p>
+                          <p className="text-2xl font-bold">0</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-4">Demandes Récentes</h3>
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">Aucune demande pour le moment</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
