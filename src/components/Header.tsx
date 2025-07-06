@@ -19,7 +19,7 @@ import {
 import { useUserRole } from '@/contexts/UserRoleContext';
 import { useQuickSearch } from '@/hooks/use-search';
 import { SearchResult } from '@/lib/services/search';
-import RequestStatusBadge from '@/components/RequestStatusBadge';
+
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -282,7 +282,6 @@ const Header = () => {
                     <div className="flex flex-col space-y-1">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium leading-none">{currentUser.name}</p>
-                        <RequestStatusBadge />
                       </div>
                       <p className="text-xs leading-none text-muted-foreground">
                         {currentUser.email}

@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 interface CreateRequestData {
   type: 'partner' | 'driver';
+  user_name: string;
+  user_email: string;
+  user_phone: string;
   business_name?: string;
   business_type?: string;
   business_address?: string;
@@ -13,15 +15,22 @@ interface CreateRequestData {
 }
 
 export const useRequestsSimple = () => {
-  const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const createRequest = async (data: CreateRequestData) => {
-    if (!currentUser) {
-      throw new Error('Vous devez être connecté pour soumettre une demande');
+
+    // Validation des champs requis
+    if (!data.user_name?.trim()) {
+      throw new Error('Le nom est requis');
+    }
+    if (!data.user_email?.trim()) {
+      throw new Error('L\'email est requis');
+    }
+    if (!data.user_phone?.trim()) {
+      throw new Error('Le téléphone est requis');
     }
 
-    // Validation des champs requis selon le type de demande
+    // Validation des champs spécifiques selon le type de demande
     if (data.type === 'partner') {
       if (!data.business_name?.trim()) {
         throw new Error('Le nom du commerce est requis');
@@ -47,10 +56,10 @@ export const useRequestsSimple = () => {
         .from('requests')
         .insert({
           type: data.type,
-          user_id: currentUser.id,
-          user_name: currentUser.name,
-          user_email: currentUser.email,
-          user_phone: currentUser.phone_number || 'Non renseigné',
+          user_id: null, // Pas d'utilisateur connecté
+          user_name: data.user_name,
+          user_email: data.user_email,
+          user_phone: data.user_phone,
           business_name: data.business_name,
           business_type: data.business_type,
           business_address: data.business_address,

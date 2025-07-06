@@ -60,15 +60,18 @@ Les politiques Row Level Security (RLS) garantissent que :
 
 ### Pour les utilisateurs
 
-#### Soumettre une demande
+#### Soumettre une demande (sans connexion requise)
 ```typescript
-import { useRequests } from '@/hooks/use-requests';
+import { useRequestsSimple } from '@/hooks/use-requests-simple';
 
-const { createRequest } = useRequests();
+const { createRequest } = useRequestsSimple();
 
 // Demande partenaire
 createRequest({
   type: 'partner',
+  user_name: 'Nom du demandeur',
+  user_email: 'email@example.com',
+  user_phone: '+224123456789',
   business_name: 'Mon Restaurant',
   business_type: 'restaurant',
   business_address: '123 Rue Test, Conakry',
@@ -78,6 +81,9 @@ createRequest({
 // Demande chauffeur
 createRequest({
   type: 'driver',
+  user_name: 'Nom du demandeur',
+  user_email: 'email@example.com',
+  user_phone: '+224123456789',
   vehicle_type: 'motorcycle',
   vehicle_plate: 'ABC123',
   notes: 'Je souhaite devenir chauffeur'
@@ -153,8 +159,8 @@ Le composant `RequestStatusBadge` affiche le statut de la demande en cours dans 
 ## 🔄 Workflow
 
 ### Demande partenaire
-1. Utilisateur soumet une demande via le formulaire
-2. Demande créée avec statut "pending"
+1. **Utilisateur non connecté** soumet une demande via le formulaire
+2. Demande créée avec statut "pending" (user_id = NULL)
 3. Admin examine la demande
 4. Admin approuve → Demande marquée comme approuvée
 5. Admin crée le compte → Profil partenaire et business créés
@@ -162,13 +168,27 @@ Le composant `RequestStatusBadge` affiche le statut de la demande en cours dans 
 7. Utilisateur peut se connecter avec email/mot de passe
 
 ### Demande chauffeur
-1. Utilisateur soumet une demande via le formulaire
-2. Demande créée avec statut "pending"
+1. **Utilisateur non connecté** soumet une demande via le formulaire
+2. Demande créée avec statut "pending" (user_id = NULL)
 3. Admin examine la demande
 4. Admin approuve → Demande marquée comme approuvée
 5. Admin crée le compte → Profil chauffeur créé
 6. Email envoyé avec les informations de connexion
 7. Utilisateur peut se connecter avec email/mot de passe
+
+## 🔓 Accès Public
+
+### Avantages
+- **Aucune inscription requise** : Les utilisateurs peuvent soumettre des demandes sans créer de compte
+- **Processus simplifié** : Formulaire direct sans étapes d'authentification
+- **Conversion améliorée** : Réduction des frictions pour les nouveaux utilisateurs
+- **Données complètes** : Collecte des informations de contact directement dans le formulaire
+
+### Sécurité
+- **Validation côté client et serveur** : Vérification des données soumises
+- **Politiques RLS** : Contrôle d'accès approprié pour les demandes anonymes
+- **Protection anti-spam** : Validation des emails et téléphones
+- **Audit complet** : Traçabilité de toutes les demandes
 
 ## 🔐 Création de Comptes
 
@@ -260,7 +280,13 @@ psql -d your_database -f scripts/fix-user-roles.sql
 psql -d your_database -f scripts/create-requests-table.sql
 ```
 
-#### 3. Tester le système
+#### 3. Activer les demandes anonymes
+```bash
+# Permettre les demandes sans connexion
+psql -d your_database -f scripts/allow-anonymous-requests.sql
+```
+
+#### 4. Tester le système
 ```bash
 # Créer des données de test
 psql -d your_database -f scripts/test-requests-system.sql

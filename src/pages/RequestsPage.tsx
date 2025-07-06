@@ -125,6 +125,9 @@ const RequestsPage = () => {
     try {
       await createRequest({
         type: 'partner',
+        user_name: partnerForm.name,
+        user_email: partnerForm.email,
+        user_phone: partnerForm.phone,
         business_name: partnerForm.business_name,
         business_type: partnerForm.business_type,
         business_address: partnerForm.business_address,
@@ -163,6 +166,9 @@ const RequestsPage = () => {
     try {
       await createRequest({
         type: 'driver',
+        user_name: driverForm.name,
+        user_email: driverForm.email,
+        user_phone: driverForm.phone,
         vehicle_type: driverForm.vehicle_type,
         vehicle_plate: driverForm.vehicle_plate,
         notes: driverForm.notes
@@ -346,7 +352,7 @@ const RequestsPage = () => {
                       <Button 
                         type="submit" 
                         className="w-full" 
-                        disabled={isSubmitting || !partnerForm.business_name || !partnerForm.business_type || !partnerForm.business_address}
+                        disabled={isSubmitting || !partnerForm.name || !partnerForm.email || !partnerForm.phone || !partnerForm.business_name || !partnerForm.business_type || !partnerForm.business_address}
                       >
                         {isSubmitting ? (
                           <>
@@ -448,7 +454,7 @@ const RequestsPage = () => {
                       <Button 
                         type="submit" 
                         className="w-full" 
-                        disabled={isSubmitting || !driverForm.vehicle_type}
+                        disabled={isSubmitting || !driverForm.name || !driverForm.email || !driverForm.phone || !driverForm.vehicle_type}
                       >
                         {isSubmitting ? (
                           <>
