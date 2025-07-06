@@ -1,9 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { PartnerRegistrationForm } from './PartnerRegistrationForm'
 import { 
   Building2, 
   TrendingUp, 
@@ -83,11 +82,10 @@ const testimonials = [
 ]
 
 export function PartnerSection() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const navigate = useNavigate()
 
-  const handleSuccess = (result: any) => {
-    setIsDialogOpen(false)
-    // Rediriger vers le dashboard ou afficher un message de succès
+  const handleBecomePartner = () => {
+    navigate('/devenir-partenaire')
   }
 
   return (
@@ -154,26 +152,15 @@ export function PartnerSection() {
 
             {/* CTA Button */}
             <div className="mt-8">
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="w-full md:w-auto">
-                    <Building2 className="h-5 w-5 mr-2" />
-                    Devenir Partenaire
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold">
-                      Créer votre compte partenaire
-                    </DialogTitle>
-                  </DialogHeader>
-                  <PartnerRegistrationForm 
-                    onSuccess={handleSuccess}
-                    onCancel={() => setIsDialogOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
+              <Button 
+                size="lg" 
+                className="w-full md:w-auto"
+                onClick={handleBecomePartner}
+              >
+                <Building2 className="h-5 w-5 mr-2" />
+                Devenir Partenaire
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
             </div>
           </div>
 
@@ -299,26 +286,15 @@ export function PartnerSection() {
               <p className="text-lg mb-6 opacity-90">
                 Créez votre compte partenaire en moins de 5 minutes
               </p>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" variant="secondary">
-                    <Building2 className="h-5 w-5 mr-2" />
-                    Commencer maintenant
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold">
-                      Créer votre compte partenaire
-                    </DialogTitle>
-                  </DialogHeader>
-                  <PartnerRegistrationForm 
-                    onSuccess={handleSuccess}
-                    onCancel={() => setIsDialogOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
+              <Button 
+                size="lg" 
+                variant="secondary"
+                onClick={handleBecomePartner}
+              >
+                <Building2 className="h-5 w-5 mr-2" />
+                Commencer maintenant
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
             </CardContent>
           </Card>
         </div>

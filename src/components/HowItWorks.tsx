@@ -1,5 +1,5 @@
-
 import { Search, Utensils, Truck } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 
 const steps = [
   {
@@ -26,6 +26,12 @@ const steps = [
 ];
 
 const HowItWorks = () => {
+  const navigate = useNavigate();
+
+  const handleBecomeDriver = () => {
+    navigate('/devenir-chauffeur');
+  };
+
   return (
     <section className="py-16 bg-gray-50">
       <div className="container mx-auto px-4">
@@ -48,12 +54,15 @@ const HowItWorks = () => {
           <div className="relative z-0 rounded-xl overflow-hidden shadow-lg">
             <div className="w-full h-64 bg-gray-200 guinea-gradient opacity-20"></div>
             <div className="absolute inset-0 flex flex-col justify-center items-center text-center p-6">
-              <h3 className="text-2xl md:text-3xl font-bold mb-4">Vous êtes un restaurant ou un commerce?</h3>
+              <h3 className="text-2xl md:text-3xl font-bold mb-4">Vous voulez gagner de l'argent en livrant?</h3>
               <p className="text-lg text-gray-700 mb-6 max-w-2xl">
-                Rejoignez BraPrime et atteignez plus de clients dans toute la Guinée. Inscrivez-vous dès aujourd'hui!
+                Rejoignez notre équipe de chauffeurs et gagnez un revenu flexible en livrant des commandes dans toute la Guinée!
               </p>
-              <button className="bg-white hover:bg-gray-100 text-guinea-red font-medium py-3 px-6 rounded-lg shadow transition-colors">
-                Devenir partenaire
+              <button 
+                className="bg-white hover:bg-gray-100 text-guinea-red font-medium py-3 px-6 rounded-lg shadow transition-colors"
+                onClick={handleBecomeDriver}
+              >
+                Devenir chauffeur
               </button>
             </div>
           </div>

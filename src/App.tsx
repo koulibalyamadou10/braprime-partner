@@ -51,7 +51,7 @@ const LoginPage = lazy(() => import("./pages/LoginPage"));
 
 // Driver Pages
 const DriverLoginPage = lazy(() => import("./pages/DriverLoginPage"));
-const DriverRegisterPage = lazy(() => import("./pages/DriverRegisterPage"));
+const DriverRegistrationPage = lazy(() => import("./pages/DriverRegistrationPage"));
 
 // Dashboard Pages
 const UserDashboard = lazy(() => import("./pages/dashboard/UserDashboard"));
@@ -72,6 +72,7 @@ const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers"));
 const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
 const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
+const PartnerRegistrationPage = lazy(() => import("./pages/PartnerRegistrationPage"));
 
 // Admin Dashboard Pages
 const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
@@ -150,6 +151,8 @@ const App = () => (
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/cart" element={<CartPage />} />
+                <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} />
+                <Route path="/devenir-chauffeur" element={<DriverRegistrationPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
                 <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
@@ -157,7 +160,7 @@ const App = () => (
                     
                     {/* Driver Routes - Mobile App Only */}
                     <Route path="/driver/login" element={<DriverLoginPage />} />
-                    <Route path="/driver/register" element={<DriverRegisterPage />} />
+                    <Route path="/driver/register" element={<DriverRegistrationPage />} />
                 
                 {/* User Dashboard Routes */}
                 <Route path="/dashboard" element={

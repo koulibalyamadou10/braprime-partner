@@ -1,8 +1,14 @@
-
 import Layout from '@/components/Layout';
 import { Phone, Mail, Globe } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const AboutPage = () => {
+  const navigate = useNavigate();
+
+  const handleBecomePartner = () => {
+    navigate('/devenir-partenaire');
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
@@ -90,7 +96,10 @@ const AboutPage = () => {
                 <p className="text-gray-600 mb-4">
                   Augmentez votre visibilité et vos ventes en proposant vos plats sur notre plateforme.
                 </p>
-                <button className="bg-guinea-green hover:bg-guinea-green/90 text-white font-medium py-2 px-4 rounded-lg">
+                <button 
+                  className="bg-guinea-green hover:bg-guinea-green/90 text-white font-medium py-2 px-4 rounded-lg"
+                  onClick={handleBecomePartner}
+                >
                   Devenir partenaire
                 </button>
               </div>
