@@ -55,6 +55,7 @@ import { useAdminRequests } from '@/hooks/use-admin-requests';
 import { Request, RequestFilters } from '@/lib/types';
 import { toast } from 'sonner';
 import { AdminAccountCreationService } from '@/lib/services/admin-account-creation';
+import { useNavigate } from 'react-router-dom';
 
 const AdminRequests = () => {
   const [filters, setFilters] = useState<RequestFilters>({});
@@ -67,6 +68,7 @@ const AdminRequests = () => {
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [isPasswordCopied, setIsPasswordCopied] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const navigate = useNavigate();
 
   const {
     requests,
@@ -196,10 +198,35 @@ const AdminRequests = () => {
         selectedRequest.type
       );
 
-      toast.success(`Compte ${selectedRequest.type} créé avec succès ! Un email a été envoyé à ${selectedRequest.user_email}`);
-      setIsCreateAccountDialogOpen(false);
-      setGeneratedPassword('');
-      refetch();
+      // Connecter automatiquement l'utilisateur
+      try {
+        const loginResult = await AdminAccountCreationService.autoLoginUser(
+          selectedRequest.user_email,
+          generatedPassword
+        );
+
+        if (loginResult.success) {
+          // Rediriger vers le dashboard approprié
+          const dashboardRoute = selectedRequest.type === 'partner' ? '/partner-dashboard' : '/driver-dashboard';
+          toast.success(`Compte ${selectedRequest.type} créé et connecté avec succès ! Redirection vers le dashboard...`);
+          
+          // Fermer le dialog et rediriger
+          setIsCreateAccountDialogOpen(false);
+          setGeneratedPassword('');
+          refetch();
+          
+          // Redirection après un court délai
+          setTimeout(() => {
+            navigate(dashboardRoute);
+          }, 1500);
+        }
+      } catch (loginError) {
+        console.error('Erreur lors de la connexion automatique:', loginError);
+        toast.success(`Compte ${selectedRequest.type} créé avec succès ! Un email a été envoyé à ${selectedRequest.user_email}`);
+        setIsCreateAccountDialogOpen(false);
+        setGeneratedPassword('');
+        refetch();
+      }
     } catch (error) {
       console.error('Erreur lors de la création du compte:', error);
       toast.error(error instanceof Error ? error.message : 'Erreur lors de la création du compte');

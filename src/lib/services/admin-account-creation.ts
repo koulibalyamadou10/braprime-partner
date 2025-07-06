@@ -77,10 +77,15 @@ export class AdminAccountCreationService {
             name: data.name, // Nom temporaire, sera mis à jour
             description: 'Commerce créé via demande approuvée',
             address: 'Adresse à compléter',
+            phone: data.phone_number || null,
+            email: data.email,
             owner_id: authData.user.id,
             is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            is_open: true,
+            delivery_time: '30-45 min',
+            delivery_fee: 5000,
+            rating: 0,
+            review_count: 0
           });
 
         if (businessError) {
@@ -193,4 +198,30 @@ export class AdminAccountCreationService {
       return false;
     }
   }
+
+  /**
+   * Connecter automatiquement l'utilisateur après création du compte
+   */
+  static async autoLoginUser(email: string, password: string) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        throw new Error(`Erreur lors de la connexion automatique: ${error.message}`);
+      }
+
+      return {
+        success: true,
+        user: data.user,
+        session: data.session
+      };
+    } catch (error) {
+      console.error('Erreur lors de la connexion automatique:', error);
+      throw error;
+    }
+  }
+}
 } 
