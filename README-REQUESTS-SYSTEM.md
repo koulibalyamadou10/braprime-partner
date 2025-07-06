@@ -286,10 +286,25 @@ psql -d your_database -f scripts/create-requests-table.sql
 psql -d your_database -f scripts/allow-anonymous-requests.sql
 ```
 
+**⚠️ Important** : Si vous obtenez une erreur "null value in column user_id violates not-null constraint", exécutez ce script dans l'éditeur SQL de Supabase :
+```sql
+-- Script simplifié pour corriger la contrainte
+ALTER TABLE requests ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE requests DROP CONSTRAINT IF EXISTS requests_user_id_fkey;
+ALTER TABLE requests ADD CONSTRAINT requests_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE SET NULL;
+```
+
 #### 4. Tester le système
 ```bash
 # Créer des données de test
 psql -d your_database -f scripts/test-requests-system.sql
+```
+
+#### 5. Tester les demandes anonymes
+```bash
+# Tester les demandes sans connexion
+psql -d your_database -f scripts/test-anonymous-request.sql
 ```
 
 ### 4. Vérifier l'installation
