@@ -131,11 +131,6 @@ const DriverRegistrationPage = () => {
     navigate('/driver/register');
   };
 
-  const handleLogin = () => {
-    // Redirection vers la page de connexion chauffeur existante
-    navigate('/driver/login');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100">
       {/* Header */}
@@ -167,6 +162,15 @@ const DriverRegistrationPage = () => {
             Rejoignez notre équipe de chauffeurs et gagnez un revenu flexible 
             en livrant des commandes dans toute la Guinée
           </p>
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg max-w-2xl mx-auto">
+            <div className="flex items-center gap-2 text-blue-700">
+              <Smartphone className="h-5 w-5" />
+              <span className="font-medium">Les chauffeurs utilisent l'application mobile BraPrime</span>
+            </div>
+            <p className="text-sm text-blue-600 mt-1">
+              Après inscription, vous recevrez l'accès à l'app mobile pour gérer vos livraisons
+            </p>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-12">
@@ -176,26 +180,27 @@ const DriverRegistrationPage = () => {
               <CardHeader>
                 <CardTitle className="text-2xl font-bold flex items-center gap-2">
                   <Truck className="h-6 w-6 text-primary" />
-                  Rejoindre l'équipe BraPrime
+                  Inscription Chauffeur
                 </CardTitle>
                 <CardDescription>
-                  Choisissez votre option pour commencer votre aventure avec BraPrime
+                  Créez votre compte chauffeur et commencez à gagner avec BraPrime
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Nouveau chauffeur */}
+                {/* Inscription chauffeur */}
                 <div className="border rounded-lg p-6 bg-gradient-to-r from-green-50 to-blue-50">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                       <Car className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">Nouveau chauffeur</h3>
+                      <h3 className="font-semibold text-lg">Devenir chauffeur BraPrime</h3>
                       <p className="text-sm text-gray-600">Créez votre compte chauffeur</p>
                     </div>
                   </div>
                   <p className="text-sm text-gray-700 mb-4">
-                    Inscrivez-vous comme nouveau chauffeur et commencez à gagner dès aujourd'hui.
+                    Inscrivez-vous comme chauffeur et commencez à gagner dès aujourd'hui. 
+                    Une fois inscrit, vous recevrez l'application mobile pour gérer vos livraisons.
                   </p>
                   <Button 
                     onClick={handleRegister}
@@ -206,28 +211,25 @@ const DriverRegistrationPage = () => {
                   </Button>
                 </div>
 
-                {/* Chauffeur existant */}
-                <div className="border rounded-lg p-6 bg-gray-50">
+                {/* Information app mobile */}
+                <div className="border rounded-lg p-6 bg-blue-50">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Truck className="h-5 w-5 text-blue-600" />
+                      <Smartphone className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">Chauffeur existant</h3>
-                      <p className="text-sm text-gray-600">Connectez-vous à votre compte</p>
+                      <h3 className="font-semibold text-lg">Application Mobile</h3>
+                      <p className="text-sm text-gray-600">Gérez vos livraisons depuis votre smartphone</p>
                     </div>
                   </div>
                   <p className="text-sm text-gray-700 mb-4">
-                    Vous avez déjà un compte ? Connectez-vous pour accéder à votre dashboard.
+                    Après votre inscription, vous recevrez l'application mobile BraPrime 
+                    pour gérer vos livraisons, suivre vos gains et communiquer avec les clients.
                   </p>
-                  <Button 
-                    variant="outline"
-                    onClick={handleLogin}
-                    className="w-full"
-                  >
-                    <Truck className="h-4 w-4 mr-2" />
-                    Se connecter
-                  </Button>
+                  <div className="flex items-center gap-2 text-sm text-blue-600">
+                    <Smartphone className="h-4 w-4" />
+                    <span>Application disponible sur iOS et Android</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
