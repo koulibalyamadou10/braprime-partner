@@ -15,14 +15,15 @@ export class AdminAccountCreationService {
    */
   static async createUserAccount(data: CreateAccountData) {
     try {
-      // 1. Créer l'utilisateur dans Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // 1. Créer l'utilisateur dans Supabase Auth (comme les autres services)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        email_confirm: true, // Confiré automatiquement
-        user_metadata: {
-          name: data.name,
-          role: data.role
+        options: {
+          data: {
+            name: data.name,
+            role: data.role
+          }
         }
       });
 
@@ -50,8 +51,9 @@ export class AdminAccountCreationService {
         });
 
       if (profileError) {
-        // Si erreur profil, supprimer l'utilisateur auth créé
-        await supabase.auth.admin.deleteUser(authData.user.id);
+        // Si erreur profil, on ne peut pas supprimer l'utilisateur auth directement
+        // L'utilisateur devra être supprimé manuellement par l'admin si nécessaire
+        console.error('Erreur lors de la création du profil:', profileError);
         throw new Error(`Erreur lors de la création du profil: ${profileError.message}`);
       }
 
@@ -75,17 +77,21 @@ export class AdminAccountCreationService {
         }
       }
 
-      // 4. Si c'est un chauffeur, créer le profil driver
+      // 4. Si c'est un chauffeur, créer le profil driver (comme les autres services)
       if (data.role === 'driver') {
         const { error: driverError } = await supabase
           .from('drivers')
           .insert({
+            id: authData.user.id, // Utiliser l'ID du compte auth comme ID du driver
             name: data.name,
             phone: data.phone_number || '',
             email: data.email,
-            user_id: authData.user.id,
             is_active: true,
             is_verified: true,
+            total_deliveries: 0,
+            total_earnings: 0,
+            rating: 0,
+            active_sessions: 0,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
@@ -100,7 +106,7 @@ export class AdminAccountCreationService {
       const { error: updateError } = await supabase
         .from('requests')
         .update({
-          admin_notes: `Compte créé le ${new Date().toLocaleDateString('fr-FR')}. Email: ${data.email}`,
+          admin_notes: `Compte créé le ${new Date().toLocaleDateString('fr-FR')}. Email: ${data.email}. Mot de passe généré automatiquement.`,
           updated_at: new Date().toISOString()
         })
         .eq('id', data.requestId);
