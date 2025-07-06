@@ -9,7 +9,6 @@ import { DriverAuthProvider } from "@/contexts/DriverAuthContext";
 import ScrollToTop from "./components/ScrollToTop";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import DriverProtectedRoute from "./components/auth/DriverProtectedRoute";
 import { UserRoleProvider } from '@/contexts/UserRoleContext';
 
 // Use dynamic imports for page components
@@ -69,7 +68,6 @@ const PartnerOrders = lazy(() => import("./pages/dashboard/PartnerOrders"));
 const PartnerMenu = lazy(() => import("./pages/dashboard/PartnerMenu"));
 const PartnerReservations = lazy(() => import("./pages/dashboard/PartnerReservations"));
 const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers"));
-const DriverDetails = lazy(() => import("./pages/dashboard/DriverDetails"));
 
 const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
@@ -78,7 +76,6 @@ const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
 // Admin Dashboard Pages
 const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
 const AdminOrders = lazy(() => import("./pages/dashboard/AdminOrders"));
-const DriverDashboard = lazy(() => import("./pages/dashboard/DriverDashboard"));
 import AdminBusinesses from '@/pages/dashboard/AdminBusinesses';
 import AdminUsers from '@/pages/dashboard/AdminUsers';
 import AdminDrivers from '@/pages/dashboard/AdminDrivers';
@@ -158,51 +155,9 @@ const App = () => (
                 <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
                 <Route path="/orders" element={<OrdersHistoryPage />} />
                     
-                    {/* Driver Routes */}
+                    {/* Driver Routes - Mobile App Only */}
                     <Route path="/driver/login" element={<DriverLoginPage />} />
                     <Route path="/driver/register" element={<DriverRegisterPage />} />
-                    <Route path="/driver/dashboard" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
-                    
-                    {/* Driver Dashboard Routes (format /driver-dashboard) */}
-                    <Route path="/driver-dashboard" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
-                    <Route path="/driver-dashboard/orders" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
-                    <Route path="/driver-dashboard/profile" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
-                    <Route path="/driver-dashboard/earnings" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
-                    <Route path="/driver-dashboard/statistics" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
-                    <Route path="/driver-dashboard/history" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
-                    <Route path="/driver-dashboard/location" element={
-                      <DriverProtectedRoute>
-                        <DriverDashboard />
-                      </DriverProtectedRoute>
-                    } />
                 
                 {/* User Dashboard Routes */}
                 <Route path="/dashboard" element={
@@ -272,11 +227,6 @@ const App = () => (
                     <PartnerDrivers />
                   </ProtectedRoute>
                 } />
-                    <Route path="/partner-dashboard/drivers/:id" element={
-                      <ProtectedRoute allowedRoles={["partner"]}>
-                        <DriverDetails />
-                      </ProtectedRoute>
-                    } />
                 <Route path="/partner-dashboard/driver-auth" element={
                   <ProtectedRoute allowedRoles={["partner"]}>
                     <Navigate to="/partner-dashboard/drivers" replace />
