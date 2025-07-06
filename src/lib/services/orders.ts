@@ -18,7 +18,7 @@ export interface Order {
   delivery_instructions?: string
   payment_method: string
   payment_status: string
-  estimated_delivery: string
+  estimated_delivery?: string
   actual_delivery?: string
   driver_id?: string
   driver_name?: string
@@ -26,8 +26,19 @@ export interface Order {
   driver_location?: any
   customer_rating?: number
   customer_review?: string
+  pickup_coordinates?: any
+  delivery_coordinates?: any
+  estimated_pickup_time?: string
+  estimated_delivery_time?: string
+  actual_pickup_time?: string
+  actual_delivery_time?: string
   created_at: string
   updated_at: string
+  preferred_delivery_time?: string
+  delivery_type: 'asap' | 'scheduled'
+  available_for_drivers: boolean
+  scheduled_delivery_window_start?: string
+  scheduled_delivery_window_end?: string
 }
 
 // Type pour la création de commande
@@ -43,10 +54,16 @@ export interface CreateOrderData {
   tax: number
   grand_total: number
   delivery_address: string
+  delivery_instructions?: string
   delivery_method: string
-  estimated_delivery: string
   payment_method?: string
   payment_status?: string
+  // Champs pour les types de livraison
+  delivery_type: 'asap' | 'scheduled'
+  available_for_drivers: boolean
+  preferred_delivery_time?: string
+  scheduled_delivery_window_start?: string
+  scheduled_delivery_window_end?: string
 }
 
 export class OrderService {

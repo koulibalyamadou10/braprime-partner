@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderService, type CreateOrderData } from '@/lib/services/orders';
@@ -60,9 +60,10 @@ const CheckoutPage = () => {
     postalCode: '',
     notes: ''
   });
-  const [deliveryTimeMode, setDeliveryTimeMode] = useState<'now' | 'scheduled'>('now');
+  const [deliveryTimeMode, setDeliveryTimeMode] = useState<'asap' | 'scheduled'>('asap');
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [scheduledTime, setScheduledTime] = useState<string>('12:00');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Charger les données utilisateur et du panier
   useEffect(() => {
@@ -92,42 +93,96 @@ const CheckoutPage = () => {
     return `${hour.toString().padStart(2, '0')}:${minute}`;
   });
 
-  // Validation du formulaire
-  const isFormValid = () => {
-    if (!cart || cart.items.length === 0) return false;
+  // Validation du formulaire (sans modifier l'état)
+  const validateForm = useCallback(() => {
+    const errors: string[] = [];
     
-    // Vérifier les champs requis du formulaire
-    const requiredFields = [
-      formData.firstName,
-      formData.lastName,
-      formData.phone,
-      formData.address,
-      formData.city
-    ];
-    
-    // Si c'est une livraison, vérifier que l'adresse est complète
-    if (deliveryMethod === 'delivery') {
-      if (!formData.address.trim()) return false;
+    if (!cart || cart.items.length === 0) {
+      errors.push('Votre panier est vide');
+      return errors;
     }
     
-    return requiredFields.every(field => field.trim() !== '');
-  };
+    // Vérifier les champs requis du formulaire
+    if (!formData.firstName.trim()) errors.push('Le prénom est requis');
+    if (!formData.lastName.trim()) errors.push('Le nom est requis');
+    if (!formData.phone.trim()) errors.push('Le téléphone est requis');
+    if (!formData.address.trim()) errors.push('L\'adresse est requise');
+    if (!formData.city.trim()) errors.push('La ville est requise');
+    
+    // Si c'est une livraison, vérifier que l'adresse est complète
+    if (deliveryMethod === 'delivery' && !formData.address.trim()) {
+      errors.push('L\'adresse de livraison est requise');
+    }
+    
+    // Vérifier les champs de livraison programmée
+    if (deliveryTimeMode === 'scheduled') {
+      if (!scheduledDate) {
+        errors.push('Veuillez sélectionner une date de livraison');
+      }
+      if (!scheduledTime) {
+        errors.push('Veuillez sélectionner une heure de livraison');
+      }
+      if (scheduledDate && scheduledTime) {
+        try {
+          // Vérifier que la date/heure est dans le futur
+          const scheduledDateTime = new Date(scheduledDate);
+          const [hour, minute] = scheduledTime.split(':');
+          scheduledDateTime.setHours(Number(hour), Number(minute), 0, 0);
+          
+          // Vérifier que la date est valide
+          if (isNaN(scheduledDateTime.getTime())) {
+            errors.push('La date et heure de livraison ne sont pas valides');
+          } else if (scheduledDateTime <= new Date()) {
+            errors.push('La date et heure de livraison doivent être dans le futur');
+          }
+        } catch (error) {
+          errors.push('Erreur lors de la validation de la date de livraison');
+        }
+      }
+    }
+    
+    return errors;
+  }, [cart, formData.firstName, formData.lastName, formData.phone, formData.address, formData.city, deliveryMethod, deliveryTimeMode, scheduledDate, scheduledTime]);
+
+  // Validation du formulaire (pour le bouton disabled)
+  const isFormValid = useCallback(() => {
+    const errors = validateForm();
+    return errors.length === 0;
+  }, [validateForm]);
+
+  // Fonction pour créer la date de livraison programmée
+  const createScheduledDeliveryTime = useCallback((date: Date | undefined, time: string): string | null => {
+    if (!date || !time) return null;
+    
+    try {
+      // Créer une nouvelle date en combinant la date sélectionnée avec l'heure
+      const deliveryDate = new Date(date);
+      const [hour, minute] = time.split(':');
+      deliveryDate.setHours(Number(hour), Number(minute), 0, 0);
+      
+      // Vérifier que la date est valide
+      if (isNaN(deliveryDate.getTime())) {
+        console.error('Date de livraison invalide:', date, time);
+        return null;
+      }
+      
+      return deliveryDate.toISOString();
+    } catch (error) {
+      console.error('Erreur lors de la création de la date de livraison:', error);
+      return null;
+    }
+  }, []);
 
   // Gérer la soumission de la commande
   const handleSubmitOrder = async () => {
-    if (!isFormValid()) {
-      console.log('Formulaire invalide:', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        deliveryMethod,
-        paymentMethod
-      });
+    // Valider le formulaire
+    const errors = validateForm();
+    setValidationErrors(errors);
+    
+    if (errors.length > 0) {
       return;
     }
-
+    
     if (!currentUser) {
       toast({
         title: "Erreur",
@@ -136,7 +191,7 @@ const CheckoutPage = () => {
       });
       return;
     }
-
+    
     if (!cart || cart.items.length === 0) {
       toast({
         title: "Erreur",
@@ -145,7 +200,7 @@ const CheckoutPage = () => {
       });
       return;
     }
-
+    
     setIsProcessing(true);
     
     try {
@@ -155,36 +210,9 @@ const CheckoutPage = () => {
       const tax = Math.round(cartTotal * 0.15); // 15% de taxe
       const grandTotal = cartTotal + deliveryFee + tax;
 
-      let estimatedDelivery: Date;
-      if (deliveryTimeMode === 'now') {
-        // Livraison immédiate (30-45 min après maintenant)
-        const now = new Date();
-        estimatedDelivery = new Date(now.getTime() + (30 + Math.random() * 15) * 60000);
-      } else {
-        // Livraison programmée
-        if (!scheduledDate || !scheduledTime) {
-          toast({
-            title: "Erreur",
-            description: "Veuillez choisir une date et une heure de livraison.",
-            variant: "destructive",
-          });
-          setIsProcessing(false);
-          return;
-        }
-        const [hour, minute] = scheduledTime.split(':');
-        estimatedDelivery = new Date(scheduledDate);
-        estimatedDelivery.setHours(Number(hour), Number(minute), 0, 0);
-        if (estimatedDelivery < new Date()) {
-          toast({
-            title: "Erreur",
-            description: "La date/heure de livraison doit être dans le futur.",
-            variant: "destructive",
-          });
-          setIsProcessing(false);
-          return;
-        }
-      }
-
+      // Déterminer le type de livraison et les champs associés
+      const deliveryType = deliveryTimeMode === 'asap' ? 'asap' : 'scheduled';
+      
       // Préparer les données de la commande
       const orderData: CreateOrderData = {
         id: crypto.randomUUID(), // Générer un UUID unique
@@ -198,11 +226,42 @@ const CheckoutPage = () => {
         tax: tax,
         grand_total: grandTotal,
         delivery_address: `${formData.address}, ${formData.city}`,
+        delivery_instructions: formData.notes || undefined,
         delivery_method: deliveryMethod,
-        estimated_delivery: estimatedDelivery.toISOString(),
         payment_method: paymentMethod,
-        payment_status: 'pending'
+        payment_status: 'pending',
+        // Champs spécifiques aux types de livraison
+        delivery_type: deliveryType,
+        // Champs pour les livraisons programmées
+        ...(deliveryType === 'scheduled' && scheduledDate && scheduledTime && {
+          preferred_delivery_time: createScheduledDeliveryTime(scheduledDate, scheduledTime),
+          scheduled_delivery_window_start: (() => {
+            const baseTime = createScheduledDeliveryTime(scheduledDate, scheduledTime);
+            if (!baseTime) return null;
+            const baseDate = new Date(baseTime);
+            baseDate.setMinutes(baseDate.getMinutes() - 15); // -15 minutes
+            return baseDate.toISOString();
+          })(),
+          scheduled_delivery_window_end: (() => {
+            const baseTime = createScheduledDeliveryTime(scheduledDate, scheduledTime);
+            if (!baseTime) return null;
+            const baseDate = new Date(baseTime);
+            baseDate.setMinutes(baseDate.getMinutes() + 15); // +15 minutes
+            return baseDate.toISOString();
+          })(),
+        })
       };
+
+      // Vérifier que la date de livraison programmée est valide
+      if (deliveryType === 'scheduled' && !orderData.preferred_delivery_time) {
+        toast({
+          title: "Erreur",
+          description: "La date de livraison programmée n'est pas valide. Veuillez réessayer.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
 
       // Vérifier que le panier a les bonnes informations du commerce
       if (!cart.business_id || !cart.business_name || cart.business_name === 'Commerce') {
@@ -226,7 +285,7 @@ const CheckoutPage = () => {
         });
         return;
       }
-
+      
       if (order) {
         // Vider le panier après création réussie
         clearCart();
@@ -530,56 +589,202 @@ const CheckoutPage = () => {
                 </CardContent>
               </Card>
 
-              <Card className="mb-6">
+              {/* Type de livraison */}
+              <Card>
                 <CardHeader>
-                  <CardTitle>Livraison</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Type de livraison
+                  </CardTitle>
+                  <CardDescription>
+                    Choisissez le type de livraison qui vous convient
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="mb-4">
-                    <Label className="mb-2 block">Date de livraison</Label>
-                    <RadioGroup
-                      value={deliveryTimeMode}
-                      onValueChange={val => setDeliveryTimeMode(val as 'now' | 'scheduled')}
-                      className="flex flex-col gap-2"
-                    >
-                      <RadioGroupItem value="now" id="now" />
-                      <Label htmlFor="now" className="ml-2 cursor-pointer">Livrer maintenant</Label>
-                      <RadioGroupItem value="scheduled" id="scheduled" className="mt-2" />
-                      <Label htmlFor="scheduled" className="ml-2 cursor-pointer">Programmer la livraison</Label>
-                    </RadioGroup>
-                    {deliveryTimeMode === 'scheduled' && (
-                      <div className="mt-4 flex flex-col md:flex-row gap-4 items-center">
+                <CardContent className="space-y-4">
+                  <RadioGroup
+                    value={deliveryTimeMode}
+                    onValueChange={val => setDeliveryTimeMode(val as 'asap' | 'scheduled')}
+                    className="grid grid-cols-1 gap-4"
+                  >
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <RadioGroupItem value="asap" id="asap" />
+                      <div className="flex-1">
+                        <Label htmlFor="asap" className="cursor-pointer">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">Livraison rapide</span>
+                            <Badge variant="secondary" className="bg-orange-100 text-orange-800">ASAP</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Livraison immédiate dans les 30-45 minutes
+                          </p>
+                        </Label>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <RadioGroupItem value="scheduled" id="scheduled" />
+                      <div className="flex-1">
+                        <Label htmlFor="scheduled" className="cursor-pointer">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">Livraison programmée</span>
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800">Programmée</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Choisissez la date et l'heure de votre choix
+                          </p>
+                        </Label>
+                      </div>
+                    </div>
+                  </RadioGroup>
+
+                  {/* Options pour la livraison programmée */}
+                  {deliveryTimeMode === 'scheduled' && (
+                    <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-medium text-blue-900 mb-3">Programmer votre livraison</h4>
+                      
+                      {/* Sélection de la date */}
+                      <div className="mb-4">
+                        <Label className="text-sm font-medium text-blue-900 mb-2 block">
+                          Date de livraison *
+                        </Label>
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full md:w-auto justify-start text-left font-normal">
-                              <Clock className="mr-2 h-4 w-4" />
-                              {scheduledDate ? format(scheduledDate, 'dd MMMM yyyy') : 'Sélectionner une date'}
+                            <Button 
+                              variant="outline" 
+                              className="w-full justify-start text-left font-normal border-blue-300 hover:border-blue-400"
+                            >
+                              <Calendar className="mr-2 h-4 w-4 text-blue-600" />
+                              {scheduledDate ? format(scheduledDate, 'EEEE dd MMMM yyyy') : 'Sélectionner une date'}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
+                          <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
                               selected={scheduledDate}
                               onSelect={setScheduledDate}
                               initialFocus
-                              disabled={date => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                              disabled={(date) => {
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                
+                                // Désactiver les dates passées
+                                if (date < today) return true;
+                                
+                                // Désactiver les dates trop éloignées (max 30 jours)
+                                const maxDate = new Date();
+                                maxDate.setDate(maxDate.getDate() + 30);
+                                if (date > maxDate) return true;
+                                
+                                return false;
+                              }}
+                              className="rounded-md border"
                             />
                           </PopoverContent>
                         </Popover>
-                        <div className="w-full md:w-auto">
-                          <Select value={scheduledTime} onValueChange={setScheduledTime}>
-                            <SelectTrigger className="w-full md:w-32">
-                              <SelectValue placeholder="Heure" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {timeSlots.map(time => (
-                                <SelectItem key={time} value={time}>{time}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {scheduledDate && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            📅 {format(scheduledDate, 'EEEE dd MMMM yyyy')}
+                          </p>
+                        )}
                       </div>
-                    )}
+
+                      {/* Sélection de l'heure */}
+                      <div className="mb-4">
+                        <Label className="text-sm font-medium text-blue-900 mb-2 block">
+                          Heure de livraison *
+                        </Label>
+                        <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                          <SelectTrigger className="w-full border-blue-300 hover:border-blue-400">
+                            <Clock className="mr-2 h-4 w-4 text-blue-600" />
+                            <SelectValue placeholder="Choisir une heure" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {timeSlots.map(time => (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {scheduledTime && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            ⏰ Heure sélectionnée : {scheduledTime}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Informations sur la fenêtre de livraison */}
+                      <div className="bg-white p-3 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span className="text-sm font-medium text-blue-900">
+                            Fenêtre de livraison
+                          </span>
+                        </div>
+                        <p className="text-xs text-blue-700">
+                          Votre commande sera livrée dans une fenêtre de ±15 minutes autour de l'heure choisie.
+                        </p>
+                        {scheduledDate && scheduledTime && (
+                          <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-800">
+                            <strong>Livraison prévue :</strong><br/>
+                            {format(scheduledDate, 'EEEE dd MMMM yyyy')} à {scheduledTime}<br/>
+                            <span className="text-blue-600">
+                              (Entre {(() => {
+                                const [hour, minute] = scheduledTime.split(':');
+                                const baseDate = new Date(scheduledDate);
+                                baseDate.setHours(Number(hour), Number(minute), 0, 0);
+                                const start = new Date(baseDate.getTime() - 15 * 60000);
+                                const end = new Date(baseDate.getTime() + 15 * 60000);
+                                return `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')} et ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+                              })()})
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Aperçu du type de livraison sélectionné */}
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium">
+                        {deliveryTimeMode === 'asap' ? 'Livraison rapide' : 'Livraison programmée'}
+                      </span>
+                      <Badge 
+                        variant="secondary" 
+                        className={deliveryTimeMode === 'asap' 
+                          ? 'bg-orange-100 text-orange-800' 
+                          : 'bg-blue-100 text-blue-800'
+                        }
+                      >
+                        {deliveryTimeMode === 'asap' ? 'ASAP' : 'Programmée'}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {deliveryTimeMode === 'asap' ? (
+                        <div>
+                          <p>🚚 Votre commande sera livrée dans les 30-45 minutes</p>
+                          <p className="text-gray-500 mt-1">• Livraison immédiate</p>
+                          <p className="text-gray-500">• Assignation automatique d'un chauffeur</p>
+                        </div>
+                      ) : (
+                        <div>
+                          {scheduledDate && scheduledTime ? (
+                            <>
+                              <p>📅 Livraison programmée</p>
+                              <p className="text-blue-600 font-medium mt-1">
+                                {format(scheduledDate, 'EEEE dd MMMM yyyy')} à {scheduledTime}
+                              </p>
+                              <p className="text-gray-500 mt-1">• Fenêtre de livraison : ±15 minutes</p>
+                              <p className="text-gray-500">• Chauffeur assigné à l'approche de l'heure</p>
+                            </>
+                          ) : (
+                            <p className="text-orange-600">⚠️ Veuillez sélectionner une date et une heure</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -655,6 +860,26 @@ const CheckoutPage = () => {
                       </>
                     )}
                   </Button>
+
+                  {/* Affichage des erreurs de validation */}
+                  {validationErrors.length > 0 && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        <span className="text-sm font-medium text-red-800">
+                          Veuillez corriger les erreurs suivantes :
+                        </span>
+                      </div>
+                      <ul className="text-sm text-red-700 space-y-1">
+                        {validationErrors.map((error, index) => (
+                          <li key={index} className="flex items-center gap-2">
+                            <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                            {error}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <p className="text-xs text-muted-foreground text-center">
                     En passant cette commande, vous acceptez nos conditions générales de vente.
