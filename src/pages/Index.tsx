@@ -5,7 +5,7 @@ import PopularItems from '@/components/PopularItems';
 import FeaturedItems from '@/components/FeaturedItems';
 import HowItWorks from '@/components/HowItWorks';
 import { PartnerSection } from '@/components/PartnerSection';
-import { ForceLogoutButton } from '@/components/ForceLogoutButton';
+
 import { ShieldCheck, Clock, ThumbsUp, Truck, Users, MapPin } from 'lucide-react';
 import { useHomepage } from '@/hooks/use-homepage';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,12 +16,7 @@ const Index = () => {
 
   return (
     <Layout>
-      {/* Bouton de déconnexion forcée temporaire */}
-      {isAuthenticated && (
-        <div className="fixed top-4 right-4 z-50">
-          <ForceLogoutButton />
-        </div>
-      )}
+
       
       <Hero />
       <Categories />

@@ -29,7 +29,7 @@ const HowItWorks = () => {
   const navigate = useNavigate();
 
   const handleBecomeDriver = () => {
-    navigate('/devenir-chauffeur');
+    navigate('/requests');
   };
 
   return (

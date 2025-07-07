@@ -19,7 +19,7 @@ const CategoryDetail = lazy(() => import("./pages/CategoryDetail"));
 const Categories = lazy(() => import("./pages/Categories"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const DriverLoginPage = lazy(() => import("./pages/DriverLoginPage"));
-const DriverRegistrationPage = lazy(() => import("./pages/DriverRegistrationPage"));
+
 const UserDashboard = lazy(() => import("./pages/dashboard/UserDashboard"));
 const UserOrders = lazy(() => import("./pages/dashboard/UserOrders"));
 const UserProfile = lazy(() => import("./pages/dashboard/UserProfile"));
@@ -89,14 +89,14 @@ const App = () => (
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} />
-                <Route path="/devenir-chauffeur" element={<DriverRegistrationPage />} />
+
                 <Route path="/requests" element={<RequestsPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
                 <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
                 <Route path="/orders" element={<OrdersHistoryPage />} />
                 <Route path="/driver/login" element={<DriverLoginPage />} />
-                <Route path="/driver/register" element={<DriverRegistrationPage />} />
+
                 <Route path="/dashboard" element={
                   <ProtectedRoute allowedRoles={["customer"]}>
                     <UserDashboard />
