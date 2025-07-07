@@ -4,94 +4,6 @@ import { Button } from "@/components/ui/button";
 import { useCategoriesWithCounts } from "@/hooks/use-homepage";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Mapping des icônes pour les catégories avec plus d'options
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  // Services alimentaires
-  'Restaurants': Utensils,
-  'Cafés': Coffee,
-  'Marchés': ShoppingBasket,
-  'Supermarchés': ShoppingCart,
-  'Boulangeries': Apple,
-  'Pâtisseries': Cake,
-  'Fast Food': Zap,
-  
-  // Services de livraison
-  'Colis': Package,
-  'Livraison': Truck,
-  'Express': Zap,
-  
-  // Services de santé
-  'Pharmacie': Pill,
-  'Médecine': Heart,
-  'Optique': Eye,
-  'Dentiste': Users,
-  
-  // Services électroniques
-  'Électronique': Tv,
-  'Téléphonie': Smartphone,
-  'Informatique': Monitor,
-  'Accessoires': Headphones,
-  
-  // Services professionnels
-  'Fournitures': Briefcase,
-  'Documents': FileText,
-  'Services': Settings,
-  'Consultation': Users,
-  
-  // Services de beauté
-  'Beauté': Sparkles,
-  'Coiffure': Scissors,
-  'Esthétique': Heart,
-  'Spa': Flower,
-  
-  // Services de construction
-  'Bricolage': Hammer,
-  'Plomberie': Wrench,
-  'Électricité': Zap,
-  'Peinture': Palette,
-  
-  // Services de loisirs
-  'Sport': Dumbbell,
-  'Jeux': Gamepad2,
-  'Livres': BookOpen,
-  'Musique': Music,
-  
-  // Services de transport
-  'Transport': Car,
-  'Location': Key,
-  'Taxi': Car,
-  'Vélo': Bike,
-  
-  // Services pour enfants
-  'Bébé': Baby,
-  'Jouets': Gamepad2,
-  'Éducation': BookOpen,
-  
-  // Services spécialisés
-  'Cadeaux': Gift,
-  'Fleurs': Flower,
-  'Animaux': Dog,
-  'Photographie': Camera,
-  'Art': Palette,
-  'Voyage': Globe,
-  'Sécurité': Shield,
-  'Nettoyage': Sparkles,
-  
-  // Services locaux
-  'Local': MapPin,
-  'Événements': Calendar,
-  'Communauté': Users,
-  
-  // Services premium
-  'Premium': Star,
-  'Exclusif': Award,
-  'Spécialisé': Target,
-  'Tendance': TrendingUp,
-  
-  // Fallback
-  'default': Store
-};
-
 // Composant de chargement pour les catégories
 const CategoriesSkeleton = ({ showAll = false }: { showAll?: boolean }) => {
   const itemCount = showAll ? 13 : 5;
@@ -156,29 +68,27 @@ const Categories = ({ showAll = false }: CategoriesProps) => {
           {limitedCategories.length === 0 ? (
             <div className="col-span-full text-center text-gray-500">Aucune catégorie trouvée.</div>
           ) : (
-            limitedCategories.map((category) => {
-              // Utiliser l'icône de la base de données (category.icon) si disponible, sinon utiliser le mapping par défaut
-              const IconComponent = iconMap[category.icon] || iconMap.default;
-              return (
-                <Link 
-                  key={category.id} 
-                  to={category.link}
-                  className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group"
-                >
-                  <div className={`${category.color} p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200`}>
-                    <IconComponent className="h-5 w-5 text-white" />
-                  </div>
-                  <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
-                    {category.name}
+            limitedCategories.map((category) => (
+              <Link 
+                key={category.id} 
+                to={category.link}
+                className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group"
+              >
+                <div className={`${category.color} p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
+                  <span className="text-2xl" role="img" aria-label={category.name}>
+                    {category.icon}
                   </span>
-                  {category.restaurant_count > 0 && (
-                    <span className="text-xs text-gray-500">
-                      {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
-                    </span>
-                  )}
-                </Link>
-              );
-            })
+                </div>
+                <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
+                  {category.name}
+                </span>
+                {category.restaurant_count > 0 && (
+                  <span className="text-xs text-gray-500">
+                    {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
+                  </span>
+                )}
+              </Link>
+            ))
           )}
         </div>
       </div>

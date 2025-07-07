@@ -122,48 +122,49 @@ export class HomepageService {
     }
   }
 
-  // Récupérer les catégories avec compteurs
+  // Récupérer les types de commerce avec compteurs
   static async getCategoriesWithCounts(): Promise<Category[]> {
     try {
       const { data, error } = await supabase
-        .from('categories')
+        .from('business_types')
         .select('*')
-        .eq('is_active', true)
         .order('name');
 
       if (error) {
-        console.error('Erreur lors de la récupération des catégories:', error);
+        console.error('Erreur lors de la récupération des types de commerce:', error);
         throw error;
       }
 
-      // Filtrer les doublons par nom et ID
-      const uniqueCategories = (data || []).filter((category, index, self) => 
-        index === self.findIndex(c => c.id === category.id && c.name === category.name)
-      );
-
-      // Ajouter le compteur de restaurants pour chaque catégorie
-      const categoriesWithCounts = await Promise.all(
-        uniqueCategories.map(async (category) => {
+      // Ajouter le compteur de restaurants pour chaque type de commerce
+      const businessTypesWithCounts = await Promise.all(
+        (data || []).map(async (businessType) => {
           const { count, error: countError } = await supabase
             .from('businesses')
             .select('*', { count: 'exact', head: true })
-            .eq('category_id', category.id)
+            .eq('business_type_id', businessType.id)
             .eq('is_active', true);
 
           if (countError) {
-            console.error('Erreur lors du comptage des restaurants:', countError);
+            console.error('Erreur lors du comptage des commerces:', countError);
           }
 
           return {
-            ...category,
-            restaurant_count: count || 0
+            id: businessType.id,
+            name: businessType.name,
+            icon: businessType.icon,
+            color: businessType.color,
+            description: businessType.description,
+            is_active: true,
+            restaurant_count: count || 0,
+            // Générer automatiquement le lien vers la page de détail du type de commerce
+            link: `/categories/${businessType.id}`
           };
         })
       );
 
-      return categoriesWithCounts;
+      return businessTypesWithCounts;
     } catch (error) {
-      console.error('Erreur lors de la récupération des catégories:', error);
+      console.error('Erreur lors de la récupération des types de commerce:', error);
       return [];
     }
   }

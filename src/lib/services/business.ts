@@ -789,4 +789,147 @@ export class BusinessService {
       return { data: [], error: 'Erreur de connexion' }
     }
   }
+
+  // Récupérer tous les commerces actifs
+  static async getAllBusinesses(): Promise<Business[]> {
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select(`
+          *,
+          business_types (
+            id,
+            name,
+            icon,
+            color
+          ),
+          categories (
+            id,
+            name,
+            icon,
+            color
+          )
+        `)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Erreur lors de la récupération des commerces:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commerces:', error);
+      return [];
+    }
+  }
+
+  // Récupérer les commerces par catégorie
+  static async getBusinessesByCategory(categoryId: string): Promise<Business[]> {
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select(`
+          *,
+          business_types (
+            id,
+            name,
+            icon,
+            color
+          ),
+          categories (
+            id,
+            name,
+            icon,
+            color
+          )
+        `)
+        .eq('category_id', categoryId)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Erreur lors de la récupération des commerces par catégorie:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commerces par catégorie:', error);
+      return [];
+    }
+  }
+
+  // Rechercher des commerces par nom
+  static async searchBusinesses(searchTerm: string): Promise<Business[]> {
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select(`
+          *,
+          business_types (
+            id,
+            name,
+            icon,
+            color
+          ),
+          categories (
+            id,
+            name,
+            icon,
+            color
+          )
+        `)
+        .eq('is_active', true)
+        .ilike('name', `%${searchTerm}%`)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Erreur lors de la recherche de commerces:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Erreur lors de la recherche de commerces:', error);
+      return [];
+    }
+  }
+
+  // Récupérer les commerces par type de commerce
+  static async getBusinessesByType(businessTypeId: string): Promise<Business[]> {
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select(`
+          *,
+          business_types (
+            id,
+            name,
+            icon,
+            color
+          ),
+          categories (
+            id,
+            name,
+            icon,
+            color
+          )
+        `)
+        .eq('business_type_id', businessTypeId)
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Erreur lors de la récupération des commerces par type:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commerces par type:', error);
+      return [];
+    }
+  }
 } 

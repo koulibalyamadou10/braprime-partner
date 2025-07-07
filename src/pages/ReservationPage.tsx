@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,106 +14,12 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Clock, MapPin, Phone, Users, UtensilsCrossed, Coffee, Building, Hotel } from 'lucide-react';
 
-// Mock data for establishments that accept reservations
+// Données vides - à remplacer par des données dynamiques depuis Supabase
 const MOCK_ESTABLISHMENTS = {
-  restaurants: [
-    {
-      id: 1,
-      name: "Le Petit Baoulé",
-      image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Cuisine Guinéenne",
-      address: "Rue KA-003, Quartier Almamya, Kaloum, Conakry",
-      rating: 4.8,
-      availableTimes: ["12:00", "13:00", "14:00", "18:00", "19:00", "20:00", "21:00"],
-      maxPartySize: 10
-    },
-    {
-      id: 2,
-      name: "Saveurs de Guinée",
-      image: "https://images.unsplash.com/photo-1537047902294-62a40c20a6ae?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Cuisine Fusion",
-      address: "Boulevard du Commerce, Quartier Camayenne, Dixinn, Conakry",
-      rating: 4.5,
-      availableTimes: ["11:30", "12:30", "13:30", "18:30", "19:30", "20:30"],
-      maxPartySize: 8
-    },
-    {
-      id: 3,
-      name: "L'Atlantique",
-      image: "https://images.unsplash.com/photo-1544148103-0773bf10d330?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Fruits de Mer",
-      address: "Rue de la Plage, Quartier Landréah, Conakry",
-      rating: 4.7,
-      availableTimes: ["12:00", "13:00", "19:00", "20:00", "21:00"],
-      maxPartySize: 6
-    }
-  ],
-  cafes: [
-    {
-      id: 1,
-      name: "Café Nimba",
-      image: "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Café et Pâtisseries",
-      address: "Avenue de la République, Kaloum, Conakry",
-      rating: 4.6,
-      availableTimes: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00"],
-      maxPartySize: 4
-    },
-    {
-      id: 2,
-      name: "Fouta Coffee House",
-      image: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Café Artisanal",
-      address: "Rue des Ministères, Quartier Minière, Conakry",
-      rating: 4.4,
-      availableTimes: ["07:30", "08:30", "09:30", "10:30", "14:30", "15:30", "16:30"],
-      maxPartySize: 6
-    }
-  ],
-  lounges: [
-    {
-      id: 1,
-      name: "Lounge Baobab",
-      image: "https://images.unsplash.com/photo-1597075687490-8eea8c19377a?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Cocktails et Tapas",
-      address: "Avenue de la Marina, Kaloum, Conakry",
-      rating: 4.9,
-      availableTimes: ["17:00", "18:00", "19:00", "20:00", "21:00", "22:00"],
-      maxPartySize: 8
-    },
-    {
-      id: 2,
-      name: "Sky Lounge Conakry",
-      image: "https://images.unsplash.com/photo-1470337458703-46ad1756a187?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Bar à Cocktails",
-      address: "Tour Emeraude, 15ème étage, Quartier Almamya, Conakry",
-      rating: 4.7,
-      availableTimes: ["18:00", "19:00", "20:00", "21:00", "22:00", "23:00"],
-      maxPartySize: 12
-    }
-  ],
-  hotels: [
-    {
-      id: 1,
-      name: "Hôtel Kakimbo",
-      image: "https://images.unsplash.com/photo-1596436889106-be35e843f974?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Restaurant Gastronomique",
-      address: "Route de l'Aéroport, Quartier Gbéssia, Conakry",
-      rating: 4.8,
-      availableTimes: ["12:00", "13:00", "14:00", "19:00", "20:00", "21:00"],
-      maxPartySize: 10
-    },
-    {
-      id: 2,
-      name: "Grand Hôtel de Conakry",
-      image: "https://images.unsplash.com/photo-1568084680786-a84f91d1153c?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-      cuisine: "Cuisine Internationale",
-      address: "Boulevard du Commerce, Quartier Camayenne, Conakry",
-      rating: 4.6,
-      availableTimes: ["07:00", "08:00", "12:30", "13:30", "19:30", "20:30"],
-      maxPartySize: 8
-    }
-  ]
+  restaurants: [],
+  cafes: [],
+  lounges: [],
+  hotels: []
 };
 
 const ReservationPage = () => {
@@ -355,7 +262,7 @@ const ReservationPage = () => {
                     </div>
                     <div>
                       <Label htmlFor="notes">Notes spéciales</Label>
-                      <Input
+                      <Textarea
                         id="notes"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
