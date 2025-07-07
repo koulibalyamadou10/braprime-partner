@@ -113,8 +113,8 @@ const Hero = () => {
         <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6">
-              <span className="block">Livraison rapide à</span>
-              <span className="text-guinea-red">Guinea Conakry</span>
+              <span className="block">Livraison rapide en</span>
+              <span className="text-guinea-red">Guinée Conakry</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-600 max-w-2xl mb-8">
               Commandez de la nourriture, des courses et des articles essentiels auprès de vos restaurants et commerces locaux préférés. Livraison rapide dans toutes les régions de Guinée.

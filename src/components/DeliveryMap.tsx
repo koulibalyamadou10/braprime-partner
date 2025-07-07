@@ -18,7 +18,7 @@ interface DeliveryMapProps {
 }
 
 const DeliveryMap = ({ deliveryAddress, driverLocation }: DeliveryMapProps) => {
-  // Center of Guinea Conakry
+  // Center of Guinée Conakry
   const guineaCenter = { lat: 9.9456, lng: -9.6966 };
   
   // Simulated restaurant location (random location in Conakry)
