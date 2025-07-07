@@ -38,6 +38,7 @@ interface OrderTrackingData {
   driver_phone?: string;
   driver_location?: { lat: number; lng: number };
   delivery_address: string;
+  landmark?: string; // Point de repère
   items: Array<{
     id: string;
     name: string;
@@ -551,6 +552,12 @@ const OrderTrackingPage = () => {
                       <p className="text-sm text-gray-500">Adresse de livraison</p>
                       <p className="font-medium">{order.delivery_address}</p>
                     </div>
+                    {order.landmark && (
+                      <div>
+                        <p className="text-sm text-gray-500">Point de repère</p>
+                        <p className="font-medium text-blue-600">{order.landmark}</p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm text-gray-500">Méthode</p>
                       <p className="font-medium">

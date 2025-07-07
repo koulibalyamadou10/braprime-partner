@@ -187,6 +187,7 @@ export interface Order {
   deliveryMethod: DeliveryMethod;
   deliveryAddress: string;
   deliveryInstructions?: string;
+  landmark?: string; // Point de repère pour la livraison
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   createdAt: string;

@@ -58,6 +58,7 @@ const CheckoutPage = () => {
     address: '',
     city: '',
     postalCode: '',
+    landmark: '', // Point de repère
     notes: ''
   });
   const [deliveryTimeMode, setDeliveryTimeMode] = useState<'asap' | 'scheduled'>('asap');
@@ -227,6 +228,7 @@ const CheckoutPage = () => {
         grand_total: grandTotal,
         delivery_address: `${formData.address}, ${formData.city}`,
         delivery_instructions: formData.notes || undefined,
+        landmark: formData.landmark || undefined, // Point de repère
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         payment_status: 'pending',
@@ -476,6 +478,19 @@ const CheckoutPage = () => {
                       rows={3}
                       required
                     />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="landmark">Point de repère</Label>
+                    <Input
+                      id="landmark"
+                      value={formData.landmark}
+                      onChange={(e) => setFormData(prev => ({ ...prev, landmark: e.target.value }))}
+                      placeholder="Ex: près de la pharmacie, derrière la mosquée, à côté de l'école..."
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Facilitez la livraison en indiquant un point de repère proche
+                    </p>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

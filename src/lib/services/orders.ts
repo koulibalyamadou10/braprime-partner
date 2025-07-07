@@ -55,6 +55,7 @@ export interface CreateOrderData {
   grand_total: number
   delivery_address: string
   delivery_instructions?: string
+  landmark?: string // Point de repère pour la livraison
   delivery_method: string
   payment_method?: string
   payment_status?: string

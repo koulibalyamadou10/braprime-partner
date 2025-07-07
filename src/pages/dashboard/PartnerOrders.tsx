@@ -697,6 +697,11 @@ const PartnerOrders = () => {
                       <div>
                         <p className="font-medium">Adresse de livraison</p>
                         <p className="text-sm">{selectedOrder.delivery_address}</p>
+                        {selectedOrder.landmark && (
+                          <p className="text-sm text-blue-600 mt-1">
+                            📍 Point de repère: {selectedOrder.landmark}
+                          </p>
+                        )}
                       </div>
                     </div>
                     
