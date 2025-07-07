@@ -82,7 +82,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const handleIncreaseQuantity = async () => {
     if (cartItem) {
       try {
-        await updateQuantity(cartItem.id, quantity + 1);
+      await updateQuantity(cartItem.id, quantity + 1);
         toast({
           title: "Quantité mise à jour",
           description: `Quantité de ${item.name} augmentée.`,
@@ -100,14 +100,14 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const handleDecreaseQuantity = async () => {
     if (cartItem) {
       try {
-        if (quantity === 1) {
-          await removeFromCart(cartItem.id);
+      if (quantity === 1) {
+        await removeFromCart(cartItem.id);
           toast({
             title: "Article retiré",
             description: `${item.name} a été retiré du panier.`,
           });
-        } else {
-          await updateQuantity(cartItem.id, quantity - 1);
+      } else {
+        await updateQuantity(cartItem.id, quantity - 1);
           toast({
             title: "Quantité mise à jour",
             description: `Quantité de ${item.name} diminuée.`,

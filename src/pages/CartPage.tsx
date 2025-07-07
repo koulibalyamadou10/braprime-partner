@@ -252,70 +252,70 @@ const CartPage = () => {
                       
                       {/* Version desktop */}
                       <div className="hidden md:flex items-center gap-4 p-4">
-                        {/* Image de l'article */}
-                        <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
-                          {item.image && (
-                            <img 
-                              src={item.image} 
-                              alt={item.name}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          )}
-                        </div>
-                        
-                        {/* Détails de l'article */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">{item.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {formatCurrency(item.price)} chacun
+                      {/* Image de l'article */}
+                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
+                        {item.image && (
+                          <img 
+                            src={item.image} 
+                            alt={item.name}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Détails de l'article */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium truncate">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {formatCurrency(item.price)} chacun
+                        </p>
+                        {item.special_instructions && (
+                          <p className="text-sm text-blue-600 mt-1">
+                            Note: {item.special_instructions}
                           </p>
-                          {item.special_instructions && (
-                            <p className="text-sm text-blue-600 mt-1">
-                              Note: {item.special_instructions}
-                            </p>
-                          )}
-                        </div>
-                        
-                        {/* Contrôles de quantité */}
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                            disabled={loading}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-medium">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                            disabled={loading}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        
-                        {/* Prix total de l'article */}
-                        <div className="text-right min-w-0">
-                          <p className="font-medium">
-                            {formatCurrency(item.price * item.quantity)}
-                          </p>
-                        </div>
-                        
-                        {/* Bouton supprimer */}
+                        )}
+                      </div>
+                      
+                      {/* Contrôles de quantité */}
+                      <div className="flex items-center gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => handleRemoveItem(item.id)}
+                          onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                           disabled={loading}
-                          className="text-red-500 hover:text-red-700"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Minus className="h-3 w-3" />
                         </Button>
+                        <span className="w-8 text-center font-medium">
+                          {item.quantity}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                          disabled={loading}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      {/* Prix total de l'article */}
+                      <div className="text-right min-w-0">
+                        <p className="font-medium">
+                          {formatCurrency(item.price * item.quantity)}
+                        </p>
+                      </div>
+                      
+                      {/* Bouton supprimer */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveItem(item.id)}
+                        disabled={loading}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                       </div>
                     </div>
                   ))}
