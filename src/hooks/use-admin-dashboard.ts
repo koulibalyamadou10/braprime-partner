@@ -28,11 +28,14 @@ export const useAdminDashboard = () => {
   const [driversSearch, setDriversSearch] = useState('');
   const [ordersStatus, setOrdersStatus] = useState('');
 
+  // État pour le filtre par durée
+  const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year'>('month');
+
   // Charger les statistiques générales
-  const loadStats = async () => {
+  const loadStats = async (selectedPeriod?: 'today' | 'week' | 'month' | 'year') => {
     try {
       setLoading(true);
-      const { data, error } = await AdminDashboardService.getStats();
+      const { data, error } = await AdminDashboardService.getStats(selectedPeriod || period);
       
       if (error) {
         setError(error);
@@ -137,10 +140,10 @@ export const useAdminDashboard = () => {
   };
 
   // Charger les analytics
-  const loadAnalytics = async () => {
+  const loadAnalytics = async (selectedPeriod?: 'today' | 'week' | 'month' | 'year') => {
     try {
       setLoading(true);
-      const { data, error } = await AdminDashboardService.getAnalytics();
+      const { data, error } = await AdminDashboardService.getAnalytics(selectedPeriod || period);
       
       if (error) {
         setError(error);
@@ -193,6 +196,15 @@ export const useAdminDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Gestionnaire pour changer la période
+  const handlePeriodChange = async (newPeriod: 'today' | 'week' | 'month' | 'year') => {
+    setPeriod(newPeriod);
+    await Promise.all([
+      loadStats(newPeriod),
+      loadAnalytics(newPeriod)
+    ]);
   };
 
   // Gestionnaires de recherche
@@ -267,11 +279,12 @@ export const useAdminDashboard = () => {
     ordersTotal,
     driversTotal,
     
-    // Recherche
+    // Recherche et filtres
     usersSearch,
     businessesSearch,
     driversSearch,
     ordersStatus,
+    period,
     
     // Actions
     loadStats,
@@ -293,5 +306,6 @@ export const useAdminDashboard = () => {
     handleBusinessesPageChange,
     handleOrdersPageChange,
     handleDriversPageChange,
+    handlePeriodChange,
   };
 }; 

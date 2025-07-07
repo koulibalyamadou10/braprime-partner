@@ -105,15 +105,32 @@ export interface AvailableBusiness {
 
 export class AdminDashboardService {
   // Récupérer les statistiques générales
-  static async getStats(): Promise<{ data: AdminStats | null; error: string | null }> {
+  static async getStats(period: 'today' | 'week' | 'month' | 'year' = 'month'): Promise<{ data: AdminStats | null; error: string | null }> {
     try {
       // Compter les utilisateurs par rôle
-      const { data: userStats, error: userError } = await supabase
+      let userStats: any[] = [];
+      const { data: userStatsData, error: userError } = await supabase
         .from('user_profiles')
-        .select('role_id, user_roles(name)')
+        .select('id, role_id, user_roles(name)')
         .eq('is_active', true);
 
-      if (userError) throw userError;
+      if (userError) {
+        console.error('Error fetching users with roles:', userError);
+        // Fallback: compter les utilisateurs sans les rôles
+        const { count: userCount, error: userCountError } = await supabase
+          .from('user_profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true);
+        
+        if (userCountError) {
+          console.error('Error counting users:', userCountError);
+          throw userCountError;
+        }
+        
+        userStats = Array(userCount || 0).fill({ id: 'temp', role_id: null, user_roles: { name: 'customer' } });
+      } else {
+        userStats = userStatsData || [];
+      }
 
       // Compter les commerces
       const { count: businessCount, error: businessError } = await supabase
@@ -123,10 +140,34 @@ export class AdminDashboardService {
 
       if (businessError) throw businessError;
 
-      // Compter les commandes
+      // Calculer la date de début selon la période
+      const now = new Date();
+      let startDate: Date;
+
+      switch (period) {
+        case 'today':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'week':
+          const dayOfWeek = now.getDay();
+          const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysToMonday);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+
+      // Compter les commandes pour la période
       const { count: orderCount, error: orderError } = await supabase
         .from('orders')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startDate.toISOString());
 
       if (orderError) throw orderError;
 
@@ -138,31 +179,43 @@ export class AdminDashboardService {
 
       if (driverError) throw driverError;
 
-      // Calculer le revenu total
+      // Calculer le revenu total pour la période
       const { data: revenueData, error: revenueError } = await supabase
         .from('orders')
         .select('grand_total')
-        .eq('payment_status', 'completed');
+        .eq('payment_status', 'completed')
+        .gte('created_at', startDate.toISOString());
 
       if (revenueError) throw revenueError;
 
       const totalRevenue = revenueData?.reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0;
 
-      // Compter les commandes en attente
+      // Compter les commandes en attente pour la période
       const { count: pendingOrders, error: pendingError } = await supabase
         .from('orders')
         .select('*', { count: 'exact', head: true })
-        .in('status', ['pending', 'confirmed', 'preparing']);
+        .in('status', ['pending', 'confirmed', 'preparing'])
+        .gte('created_at', startDate.toISOString());
 
       if (pendingError) throw pendingError;
 
       // Compter les livreurs actifs (avec une session active)
-      const { count: activeDrivers, error: activeDriversError } = await supabase
-        .from('work_sessions')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
+      let activeDrivers = 0;
+      try {
+        const { count: activeDriversCount, error: activeDriversError } = await supabase
+          .from('work_sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'active');
 
-      if (activeDriversError) throw activeDriversError;
+        if (activeDriversError) {
+          // Table work_sessions might not exist, use 0
+        } else {
+          activeDrivers = activeDriversCount || 0;
+        }
+      } catch (error) {
+        // Table work_sessions might not exist, use 0
+        activeDrivers = 0;
+      }
 
       // Compter les commerces ouverts
       const { count: activeBusinesses, error: activeBusinessesError } = await supabase
@@ -190,6 +243,8 @@ export class AdminDashboardService {
         activeDrivers: activeDrivers || 0,
         activeBusinesses: activeBusinesses || 0,
       };
+
+
 
       return { data: stats, error: null };
     } catch (error) {
@@ -531,7 +586,7 @@ export class AdminDashboardService {
   }
 
   // Récupérer les analytics
-  static async getAnalytics(): Promise<{ data: AdminAnalytics | null; error: string | null }> {
+  static async getAnalytics(period: 'today' | 'week' | 'month' | 'year' = 'month'): Promise<{ data: AdminAnalytics | null; error: string | null }> {
     try {
       // Revenus par mois (6 derniers mois)
       const { data: revenueData, error: revenueError } = await supabase
