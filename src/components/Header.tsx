@@ -439,7 +439,7 @@ const Header = () => {
                   <Link to="/login">Se connecter</Link>
                 </Button>
                 <Button asChild>
-                  <Link to="/register">S'inscrire</Link>
+                  <Link to="/login?action=signup">S'inscrire</Link>
                 </Button>
               </div>
             )}
@@ -721,7 +721,7 @@ const Header = () => {
                     Se connecter
                   </Link>
                   <Link
-                    to="/register"
+                    to="/login?action=signup"
                     className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                     onClick={closeMobileMenu}
                   >
