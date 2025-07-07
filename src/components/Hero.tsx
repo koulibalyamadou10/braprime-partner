@@ -1,7 +1,9 @@
-import { ArrowRight, Users, ShoppingBag, Clock, Star } from "lucide-react";
+import { ArrowRight, Users, ShoppingBag, Clock, Star, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useHomepageStats } from "@/hooks/use-homepage";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/contexts/UserRoleContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Composant de chargement pour le Hero
@@ -83,10 +85,20 @@ const StatsDisplay = ({ stats }: { stats: any }) => {
 
 const Hero = () => {
   const { data: stats, isLoading, error } = useHomepageStats();
+  const { currentUser } = useAuth();
+  const { isAdmin, isPartner, isDriver } = useUserRole();
 
   if (isLoading) {
     return <HeroSkeleton />;
   }
+
+  // Déterminer le lien du tableau de bord selon le rôle
+  const getDashboardLink = () => {
+    if (isAdmin) return '/dashboard/admin';
+    if (isPartner) return '/dashboard/partner';
+    if (isDriver) return '/driver/login'; // Les chauffeurs utilisent l'app mobile
+    return '/dashboard';
+  };
 
   return (
     <section className="relative py-12 md:py-20 overflow-hidden">
@@ -114,9 +126,18 @@ const Hero = () => {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="py-6 px-8 text-lg border-guinea-green text-guinea-green hover:bg-guinea-green/10">
-                <Link to="/login">S'inscrire / Connexion</Link>
-              </Button>
+              {currentUser ? (
+                <Button asChild variant="outline" className="py-6 px-8 text-lg border-guinea-green text-guinea-green hover:bg-guinea-green/10">
+                  <Link to={getDashboardLink()}>
+                    <User className="mr-2 h-5 w-5" />
+                    Mon compte
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild variant="outline" className="py-6 px-8 text-lg border-guinea-green text-guinea-green hover:bg-guinea-green/10">
+                  <Link to="/login">S'inscrire / Connexion</Link>
+                </Button>
+              )}
             </div>
             
             {/* Statistiques dynamiques */}
