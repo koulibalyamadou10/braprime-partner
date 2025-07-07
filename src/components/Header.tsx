@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCart, Menu, X, User, LogOut, Settings, Package, Calendar, Star, Search, Truck, MapPin } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Settings, Package, Calendar, Star, Search, Truck, MapPin, ChefHat } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCartContext } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
@@ -311,6 +311,12 @@ const Header = () => {
                         <Link to="/dashboard/favorites" className="flex items-center">
                           <Star className="mr-2 h-4 w-4" />
                           Mes favoris
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/articles" className="flex items-center">
+                          <ChefHat className="mr-2 h-4 w-4" />
+                          Tous les articles
                         </Link>
                       </DropdownMenuItem>
                     </>

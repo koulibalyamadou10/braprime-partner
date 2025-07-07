@@ -52,6 +52,7 @@ const ReservationPage = lazy(() => import("./pages/ReservationPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SearchPage = lazy(() => import("./pages/SearchPage"));
+const AllItemsPage = lazy(() => import("./pages/AllItemsPage"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const OrderConfirmationPage = lazy(() => import("./pages/OrderConfirmationPage"));
@@ -89,6 +90,7 @@ const App = () => (
                 <Route path="/reservations" element={<ReservationPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/articles" element={<AllItemsPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} />
 

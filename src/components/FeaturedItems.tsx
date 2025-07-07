@@ -224,7 +224,7 @@ const FeaturedItems = () => {
         {/* Bouton Voir plus */}
         <div className="text-center mt-12">
           <Button asChild variant="outline" size="lg" className="border-2 border-guinea-red text-guinea-red hover:bg-guinea-red hover:text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300">
-            <Link to="/categories">
+            <Link to="/articles">
               Voir tous les articles
               <ChefHat className="h-4 w-4 ml-2" />
             </Link>
