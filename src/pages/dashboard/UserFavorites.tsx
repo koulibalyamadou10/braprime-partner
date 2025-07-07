@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import DashboardLayout, { customerNavItems } from '@/components/dashboard/DashboardLayout';
+import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -88,14 +88,14 @@ const UserFavorites = () => {
 
   if (isLoading) {
     return (
-      <DashboardLayout navItems={customerNavItems} title="Mes Favoris">
+      <DashboardLayout navItems={userNavItems} title="Mes Favoris">
         <UserFavoritesSkeleton />
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout navItems={customerNavItems} title="Mes Favoris">
+    <DashboardLayout navItems={userNavItems} title="Mes Favoris">
       <div className="space-y-6">
         {/* En-tête */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
