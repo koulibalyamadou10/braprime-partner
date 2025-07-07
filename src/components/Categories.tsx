@@ -30,9 +30,19 @@ const CategoriesSkeleton = ({ showAll = false }: { showAll?: boolean }) => {
 
 interface CategoriesProps {
   showAll?: boolean;
+  customCategories?: any[];
+  title?: string;
+  showViewAllButton?: boolean;
+  className?: string;
 }
 
-const Categories = ({ showAll = false }: CategoriesProps) => {
+const Categories = ({ 
+  showAll = false, 
+  customCategories, 
+  title = "Catégories de Services",
+  showViewAllButton = true,
+  className = ""
+}: CategoriesProps) => {
   const { data: categories, isLoading, error } = useCategoriesWithCounts();
 
   if (isLoading) {
@@ -43,19 +53,19 @@ const Categories = ({ showAll = false }: CategoriesProps) => {
     console.error('Erreur lors du chargement des catégories:', error);
   }
 
-  // Utiliser uniquement les données de la base de données et filtrer les doublons
-  const displayCategories = categories || [];
+  // Utiliser les catégories personnalisées si fournies, sinon utiliser les données de la base
+  const displayCategories = customCategories || categories || [];
   const uniqueCategories = displayCategories.filter((category, index, self) => 
     index === self.findIndex(c => c.id === category.id && c.name === category.name)
   );
   const limitedCategories = showAll ? uniqueCategories : uniqueCategories.slice(0, 10);
 
   return (
-    <section className="py-12 bg-gray-50">
+    <section className={`py-12 bg-gray-50 ${className}`}>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-bold">Catégories de Services</h2>
-          {!showAll && (
+          <h2 className="text-2xl md:text-3xl font-bold">{title}</h2>
+          {!showAll && showViewAllButton && (
             <Link to="/categories">
               <Button variant="ghost" className="text-guinea-red hover:text-guinea-red/90 flex items-center">
                 Voir toutes les catégories
