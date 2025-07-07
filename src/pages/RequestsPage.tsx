@@ -31,6 +31,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRequestsSimple } from '@/hooks/use-requests-simple';
+import { useRequestsPageStats } from '@/hooks/use-requests-stats';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const partnerBenefits = [
   {
@@ -97,6 +99,7 @@ const RequestsPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { createRequest, isSubmitting } = useRequestsSimple();
+  const { data: statsData, isLoading: statsLoading } = useRequestsPageStats();
   const [activeTab, setActiveTab] = useState("partner");
 
 
@@ -541,24 +544,53 @@ const RequestsPage = () => {
               {/* Stats */}
               <Card className="bg-gradient-to-r from-primary to-primary/80 text-white">
                 <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold mb-1">500+</div>
-                      <div className="text-xs opacity-90">Partenaires actifs</div>
+                  {statsLoading ? (
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                        <Skeleton className="h-8 w-16 mx-auto mb-1 bg-white/20" />
+                        <Skeleton className="h-3 w-20 mx-auto bg-white/20" />
+                      </div>
+                      <div>
+                        <Skeleton className="h-8 w-16 mx-auto mb-1 bg-white/20" />
+                        <Skeleton className="h-3 w-20 mx-auto bg-white/20" />
+                      </div>
+                      <div>
+                        <Skeleton className="h-8 w-16 mx-auto mb-1 bg-white/20" />
+                        <Skeleton className="h-3 w-20 mx-auto bg-white/20" />
+                      </div>
+                      <div>
+                        <Skeleton className="h-8 w-16 mx-auto mb-1 bg-white/20" />
+                        <Skeleton className="h-3 w-20 mx-auto bg-white/20" />
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-2xl font-bold mb-1">200+</div>
-                      <div className="text-xs opacity-90">Chauffeurs actifs</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold mb-1">
+                          {statsData?.data?.totalPartners ? `${statsData.data.totalPartners}+` : '500+'}
+                        </div>
+                        <div className="text-xs opacity-90">Partenaires actifs</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold mb-1">
+                          {statsData?.data?.totalDrivers ? `${statsData.data.totalDrivers}+` : '200+'}
+                        </div>
+                        <div className="text-xs opacity-90">Chauffeurs actifs</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold mb-1">
+                          {statsData?.data?.totalOrders ? `${(statsData.data.totalOrders / 1000).toFixed(0)}k+` : '50k+'}
+                        </div>
+                        <div className="text-xs opacity-90">Commandes effectuées</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold mb-1">
+                          {statsData?.data?.satisfactionRate ? `${statsData.data.satisfactionRate}%` : '98%'}
+                        </div>
+                        <div className="text-xs opacity-90">Satisfaction client</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-2xl font-bold mb-1">50k+</div>
-                      <div className="text-xs opacity-90">Livraisons effectuées</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold mb-1">98%</div>
-                      <div className="text-xs opacity-90">Satisfaction client</div>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
