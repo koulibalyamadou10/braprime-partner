@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, Check, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCart } from '@/hooks/use-cart';
+import { useCartContext } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface AddToCartButtonProps {
@@ -26,7 +26,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   className
 }) => {
   const { currentUser } = useAuth();
-  const { cart, addToCart, updateQuantity, removeFromCart, loading } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCart, loading } = useCartContext();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCart } from '@/hooks/use-cart';
+import { useCartContext } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface FloatingCartProps {
@@ -16,7 +16,7 @@ export const FloatingCart: React.FC<FloatingCartProps> = ({
   variant = 'bottom'
 }) => {
   const { currentUser } = useAuth();
-  const { cart, loading } = useCart();
+  const { cart, loading } = useCartContext();
 
   // Ne pas afficher si l'utilisateur n'est pas connecté ou s'il n'y a pas d'articles
   if (!currentUser || !cart || cart.item_count === 0 || loading) {

@@ -69,25 +69,25 @@ const Categories = ({ showAll = false }: CategoriesProps) => {
             <div className="col-span-full text-center text-gray-500">Aucune catégorie trouvée.</div>
           ) : (
             limitedCategories.map((category) => (
-              <Link 
-                key={category.id} 
-                to={category.link}
-                className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group"
-              >
+                <Link 
+                  key={category.id} 
+                  to={category.link}
+                  className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group"
+                >
                 <div className={`${category.color} p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
                   <span className="text-2xl" role="img" aria-label={category.name}>
                     {category.icon}
                   </span>
-                </div>
-                <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
-                  {category.name}
-                </span>
-                {category.restaurant_count > 0 && (
-                  <span className="text-xs text-gray-500">
-                    {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
+                  </div>
+                  <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
+                    {category.name}
                   </span>
-                )}
-              </Link>
+                  {category.restaurant_count > 0 && (
+                    <span className="text-xs text-gray-500">
+                      {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </Link>
             ))
           )}
         </div>

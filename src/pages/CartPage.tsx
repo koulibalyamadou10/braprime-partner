@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useCart } from '@/hooks/use-cart';
+import { useCartContext } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 
 const CartPage = () => {
-  const { cart, loading, error, removeFromCart, updateQuantity, clearCart } = useCart();
+  const { cart, loading, error, removeFromCart, updateQuantity, clearCart } = useCartContext();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 

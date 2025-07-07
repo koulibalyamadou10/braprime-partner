@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { OrderProvider } from "@/contexts/OrderContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DriverAuthProvider } from "@/contexts/DriverAuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import ScrollToTop from "./components/ScrollToTop";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
@@ -71,6 +72,7 @@ const App = () => (
       <AuthProvider>
         <UserRoleProvider>
           <DriverAuthProvider>
+            <CartProvider>
         <OrderProvider>
           <Toaster />
           <Sonner />
@@ -137,6 +139,54 @@ const App = () => (
                     <UserFavorites />
                   </ProtectedRoute>
                 } />
+                {/* Routes Partner Dashboard */}
+                <Route path="/partner-dashboard" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/orders" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/menu" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerMenu />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/reservations" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerReservations />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/drivers" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerDrivers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/drivers/:id" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerDrivers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/revenue" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerRevenue />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/profile" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerProfile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/settings" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerSettings />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Routes Partner Dashboard (anciennes pour compatibilité) */}
                 <Route path="/dashboard/partner" element={
                   <ProtectedRoute allowedRoles={["partner"]}>
                     <PartnerDashboard />
@@ -177,20 +227,110 @@ const App = () => (
                     <PartnerSettings />
                   </ProtectedRoute>
                 } />
-                <Route path="/dashboard/admin" element={<AdminDashboard />} />
-                <Route path="/dashboard/admin/orders" element={<AdminOrders />} />
-                <Route path="/dashboard/admin/businesses" element={<AdminBusinesses />} />
-                <Route path="/dashboard/admin/users" element={<AdminUsers />} />
-                <Route path="/dashboard/admin/drivers" element={<AdminDrivers />} />
-                <Route path="/dashboard/admin/requests" element={<AdminRequests />} />
-                <Route path="/dashboard/admin/content" element={<AdminContent />} />
-                <Route path="/dashboard/admin/analytics" element={<AdminAnalytics />} />
-                <Route path="/dashboard/admin/system" element={<AdminSystem />} />
+                {/* Routes Admin Dashboard */}
+                <Route path="/admin-dashboard" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/orders" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/businesses" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminBusinesses />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/users" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminUsers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/drivers" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDrivers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/requests" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminRequests />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/content" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminContent />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/analytics" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminAnalytics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/system" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminSystem />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/settings" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Routes Admin Dashboard (anciennes pour compatibilité) */}
+                <Route path="/dashboard/admin" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/orders" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/businesses" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminBusinesses />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/users" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminUsers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/drivers" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDrivers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/requests" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminRequests />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/content" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminContent />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/analytics" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminAnalytics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/system" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminSystem />
+                  </ProtectedRoute>
+                } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </BrowserRouter>
         </OrderProvider>
+            </CartProvider>
         </DriverAuthProvider>
       </UserRoleProvider>
       </AuthProvider>

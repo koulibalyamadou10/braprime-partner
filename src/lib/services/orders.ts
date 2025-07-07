@@ -299,7 +299,7 @@ export class OrderService {
 
   // Écouter les changements de commandes en temps réel
   static subscribeToOrderChanges(orderId: string, callback: (order: Order) => void) {
-    return supabase
+    const channel = supabase
       .channel(`order-${orderId}`)
       .on(
         'postgres_changes',
@@ -314,11 +314,16 @@ export class OrderService {
         }
       )
       .subscribe()
+
+    // Retourner une fonction de désabonnement
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }
 
   // Écouter les nouvelles commandes d'un commerce
   static subscribeToBusinessOrders(businessId: number, callback: (order: Order) => void) {
-    return supabase
+    const channel = supabase
       .channel(`business-orders-${businessId}`)
       .on(
         'postgres_changes',
@@ -333,11 +338,16 @@ export class OrderService {
         }
       )
       .subscribe()
+
+    // Retourner une fonction de désabonnement
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }
 
   // Écouter les changements de statut des commandes d'un utilisateur
   static subscribeToUserOrderStatus(userId: string, callback: (order: Order) => void) {
-    return supabase
+    const channel = supabase
       .channel(`user-orders-${userId}`)
       .on(
         'postgres_changes',
@@ -352,6 +362,11 @@ export class OrderService {
         }
       )
       .subscribe()
+
+    // Retourner une fonction de désabonnement
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }
 }
 

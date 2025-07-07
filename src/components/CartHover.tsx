@@ -12,7 +12,7 @@ import {
   ArrowRight,
   Package
 } from 'lucide-react';
-import { useCart } from '@/hooks/use-cart';
+import { useCartContext } from '@/contexts/CartContext';
 import { formatCurrency } from '@/lib/utils';
 import {
   HoverCard,
@@ -25,7 +25,7 @@ interface CartHoverProps {
 }
 
 const CartHover = ({ isMobile = false }: CartHoverProps) => {
-  const { cart, loading, removeFromCart, updateQuantity } = useCart();
+  const { cart, loading, removeFromCart, updateQuantity } = useCartContext();
   const [isOpen, setIsOpen] = useState(false);
 
   // Calculer le total du panier

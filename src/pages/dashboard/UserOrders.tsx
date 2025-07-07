@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Clock, ExternalLink, Filter, Package, Search, ShoppingBag, Tag, Truck } from 'lucide-react';
+import { ArrowRight, Clock, ExternalLink, Filter, Package, Search, ShoppingBag, Tag, Truck, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +22,7 @@ import { format } from 'date-fns';
 import { useDashboardOrders, type DashboardOrder } from '@/hooks/use-dashboard-orders';
 import { type Order as SupabaseOrder } from '@/lib/services/orders';
 import { UserOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { useNavigate } from 'react-router-dom';
 
 // Define the Order type
 type OrderStatus = SupabaseOrder['status'];
@@ -107,6 +108,7 @@ const formatCurrency = (amount: number) => {
 
 const UserOrders = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const { 
     orders: dashboardOrders, 
     loading, 
@@ -413,16 +415,27 @@ const UserOrders = () => {
                 </div>
                 
                 {/* Action Buttons */}
-                {selectedOrder.status === 'pending' && (
-                  <div className="flex gap-2">
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setShowOrderDetails(false);
+                      navigate(`/order-tracking/${selectedOrder.id}`);
+                    }}
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Suivre ma commande
+                  </Button>
+                  
+                  {selectedOrder.status === 'pending' && (
                     <Button 
                       variant="destructive" 
                       onClick={() => handleCancelOrder(selectedOrder.id)}
                     >
                       Annuler la commande
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useCart } from '@/hooks/use-cart';
+import { useCartContext } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderService, type CreateOrderData } from '@/lib/services/orders';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 
 const CheckoutPage = () => {
-  const { cart, loading, error, clearCart } = useCart();
+  const { cart, loading, error, clearCart } = useCartContext();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();

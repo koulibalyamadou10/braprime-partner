@@ -115,7 +115,7 @@ export class CartService {
     item: AddToCartItem, 
     businessId: number, 
     businessName: string
-  ): Promise<{ success: boolean; error: string | null }> {
+  ): Promise<{ success: boolean; error: string | null; cart: Cart | null }> {
     try {
       // Vérifier si l'utilisateur a déjà un panier
       let { cart } = await this.getCart(userId)
@@ -164,7 +164,8 @@ export class CartService {
 
       if (existingItem) {
         // Mettre à jour la quantité
-        return await this.updateQuantity(existingItem.id, existingItem.quantity + item.quantity)
+        const result = await this.updateQuantity(existingItem.id, existingItem.quantity + item.quantity)
+        return result
       }
 
       // Ajouter le nouvel article
@@ -181,20 +182,22 @@ export class CartService {
         })
 
       if (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: error.message, cart: null }
       }
 
-      return { success: true, error: null }
+      // Récupérer le panier mis à jour
+      const { cart: updatedCart } = await this.getCart(userId)
+      return { success: true, error: null, cart: updatedCart }
     } catch (error) {
       console.error('Erreur lors de l\'ajout au panier:', error)
-      return { success: false, error: 'Erreur lors de l\'ajout au panier' }
+      return { success: false, error: 'Erreur lors de l\'ajout au panier', cart: null }
     }
   }
 
   /**
    * Mettre à jour la quantité d'un article
    */
-  static async updateQuantity(itemId: string, quantity: number): Promise<{ success: boolean; error: string | null }> {
+  static async updateQuantity(itemId: string, quantity: number): Promise<{ success: boolean; error: string | null; cart: Cart | null }> {
     try {
       if (quantity <= 0) {
         // Si quantité <= 0, supprimer l'article

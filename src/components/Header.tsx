@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ShoppingCart, Menu, X, User, LogOut, Settings, Package, Calendar, Star, Search, Truck, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/hooks/use-cart';
+import { useCartContext } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
 import { RealTimeNotifications } from './RealTimeNotifications';
 import CartHover from './CartHover';
@@ -28,7 +28,7 @@ const Header = () => {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
   const { currentUser, logout } = useAuth();
-  const { cart, loading } = useCart();
+  const { cart, loading } = useCartContext();
   const location = useLocation();
   const navigate = useNavigate();
 
