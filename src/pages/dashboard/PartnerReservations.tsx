@@ -11,6 +11,14 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import {
   Calendar as CalendarIcon,
   Check,
   Clock,
@@ -18,8 +26,12 @@ import {
   XCircle,
   ClipboardList,
   MoreHorizontal,
-  Table,
-  X
+  Table as TableIcon,
+  X,
+  Users,
+  Phone,
+  Mail,
+  Filter
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import {
@@ -161,21 +173,6 @@ const PartnerReservations = () => {
     return true;
   });
 
-  // Debug: Afficher les informations de débogage
-  console.log('Debug PartnerReservations:', {
-    totalReservations: reservations.length,
-    filteredReservations: filteredReservations.length,
-    selectedDate: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : 'none',
-    selectedStatus,
-    searchQuery,
-    reservations: reservations.map(r => ({
-      id: r.id,
-      date: r.date,
-      status: r.status,
-      customer_name: r.customer_name
-    }))
-  });
-
   // Gérer le changement de date
   const handleDateChange = (date: Date | undefined) => {
     setSelectedDate(date);
@@ -311,20 +308,6 @@ const PartnerReservations = () => {
 
   // Vérifier si des filtres sont actifs
   const hasActiveFilters = dateFilterType !== 'none' || selectedStatus !== 'all' || searchQuery;
-
-  // Obtenir le texte du filtre de date actif
-  const getDateFilterText = () => {
-    switch (dateFilterType) {
-      case 'today':
-        return 'Aujourd\'hui';
-      case 'week':
-        return 'Cette semaine';
-      case 'custom':
-        return selectedDate ? format(selectedDate, 'dd/MM/yyyy') : '';
-      default:
-        return '';
-    }
-  };
 
   return (
     <DashboardLayout navItems={partnerNavItems} title="Réservations">
@@ -524,12 +507,12 @@ const PartnerReservations = () => {
           </CardContent>
         </Card>
 
-        {/* Liste des réservations */}
+        {/* Tableau des réservations */}
         <Card>
           <CardHeader>
             <CardTitle>Réservations ({filteredReservations.length})</CardTitle>
             <CardDescription>
-              Liste des réservations filtrées
+              Liste des réservations avec toutes les informations
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -543,110 +526,145 @@ const PartnerReservations = () => {
                     : 'Aucune réservation pour le moment.'}
                 </p>
                 {hasActiveFilters && (
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>Filtres actifs :</p>
-                    <ul className="list-disc list-inside space-y-1">
-                      {selectedDate && (
-                        <li>Date : {format(selectedDate, 'dd/MM/yyyy')}</li>
-                      )}
-                      {selectedStatus !== 'all' && (
-                        <li>Statut : {getStatusLabel(selectedStatus as any)}</li>
-                      )}
-                      {searchQuery && (
-                        <li>Recherche : "{searchQuery}"</li>
-                      )}
-                    </ul>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {
-                        setSelectedDate(undefined);
-                        setSelectedStatus('all');
-                        setSearchQuery('');
-                      }}
-                      className="mt-4"
-                    >
-                      Effacer tous les filtres
-                    </Button>
-                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setSelectedDate(undefined);
+                      setSelectedStatus('all');
+                      setSearchQuery('');
+                    }}
+                  >
+                    Effacer tous les filtres
+                  </Button>
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredReservations.map((reservation) => (
-                  <div key={reservation.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold">{reservation.customer_name}</h4>
-                          <Badge className={getStatusColor(reservation.status)}>
-                            {getStatusIcon(reservation.status)}
-                            {getStatusLabel(reservation.status)}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <p>📅 {format(new Date(reservation.date), 'dd/MM/yyyy')} à {reservation.time}</p>
-                          <p>👥 {reservation.guests} personnes</p>
-                          {reservation.table_number && (
-                            <p>🪑 Table {reservation.table_number}</p>
-                          )}
-                          {reservation.customer_phone && (
-                            <p>📞 {reservation.customer_phone}</p>
-                          )}
-                          {reservation.special_requests && (
-                            <p>💬 {reservation.special_requests}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewReservation(reservation)}
-                        >
-                          Détails
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {reservation.status === 'pending' && (
-                              <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'confirmed')}>
-                                <Check className="mr-2 h-4 w-4" />
-                                Confirmer
-                              </DropdownMenuItem>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Date & Heure</TableHead>
+                      <TableHead>Personnes</TableHead>
+                      <TableHead>Table</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredReservations
+                      .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime())
+                      .map((reservation) => (
+                        <TableRow key={reservation.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{reservation.customer_name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                ID: {reservation.id.slice(0, 8)}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {reservation.customer_phone && (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Phone className="h-3 w-3" />
+                                  {reservation.customer_phone}
+                                </div>
+                              )}
+                              {reservation.customer_email && (
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Mail className="h-3 w-3" />
+                                  {reservation.customer_email}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">
+                                {format(new Date(reservation.date), 'dd/MM/yyyy')}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {reservation.time}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span>{reservation.guests}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {reservation.table_number ? (
+                              <Badge variant="outline">
+                                Table {reservation.table_number}
+                              </Badge>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Non assignée</span>
                             )}
-                            {reservation.status === 'confirmed' && (
-                              <>
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'completed')}>
-                                  <Check className="mr-2 h-4 w-4" />
-                                  Marquer comme terminée
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'no_show')}>
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Marquer comme absent
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            <DropdownMenuItem onClick={() => handleOpenAssignTable(reservation)}>
-                              <Table className="mr-2 h-4 w-4" />
-                              {reservation.table_number ? 'Modifier la table' : 'Assigner une table'}
-                            </DropdownMenuItem>
-                            {reservation.status !== 'cancelled' && reservation.status !== 'completed' && reservation.status !== 'no_show' && (
-                              <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Annuler
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(reservation.status)}>
+                              {getStatusIcon(reservation.status)}
+                              {getStatusLabel(reservation.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewReservation(reservation)}
+                              >
+                                Détails
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {reservation.status === 'pending' && (
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'confirmed')}>
+                                      <Check className="mr-2 h-4 w-4" />
+                                      Confirmer
+                                    </DropdownMenuItem>
+                                  )}
+                                  {reservation.status === 'confirmed' && (
+                                    <>
+                                      <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'completed')}>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        Marquer comme terminée
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'no_show')}>
+                                        <XCircle className="mr-2 h-4 w-4" />
+                                        Marquer comme absent
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  <DropdownMenuItem onClick={() => handleOpenAssignTable(reservation)}>
+                                    <TableIcon className="mr-2 h-4 w-4" />
+                                    {reservation.table_number ? 'Modifier la table' : 'Assigner une table'}
+                                  </DropdownMenuItem>
+                                  {reservation.status !== 'cancelled' && reservation.status !== 'completed' && reservation.status !== 'no_show' && (
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
+                                      <XCircle className="mr-2 h-4 w-4" />
+                                      Annuler
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
@@ -733,7 +751,7 @@ const PartnerReservations = () => {
                       handleOpenAssignTable(selectedReservation);
                     }}
                   >
-                    <Table className="mr-2 h-4 w-4" />
+                    <TableIcon className="mr-2 h-4 w-4" />
                     {selectedReservation.table_number ? 'Modifier la table' : 'Assigner une table'}
                   </Button>
                   {selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && selectedReservation.status !== 'no_show' && (

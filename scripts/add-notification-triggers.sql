@@ -108,6 +108,21 @@ BEGIN
         )
       );
       
+    WHEN 'out_for_delivery' THEN
+      PERFORM create_notification(
+        NEW.user_id,
+        'delivery_update',
+        'Commande en livraison',
+        format('Votre commande #%s est en cours de livraison.', order_number),
+        'high',
+        jsonb_build_object(
+          'order_id', NEW.id,
+          'business_name', business_name,
+          'driver_name', COALESCE(NEW.driver_name, 'Notre livreur'),
+          'status', NEW.status
+        )
+      );
+      
     WHEN 'delivered' THEN
       PERFORM create_notification(
         NEW.user_id,
@@ -135,6 +150,11 @@ BEGIN
           'status', NEW.status
         )
       );
+      
+    ELSE
+      -- Pour les autres statuts (pending, etc.), ne pas créer de notification
+      -- ou créer une notification générique si nécessaire
+      NULL;
   END CASE;
   
   RETURN NEW;
@@ -206,6 +226,10 @@ BEGIN
           'time', NEW.time
         )
       );
+      
+    ELSE
+      -- Pour les autres statuts (pending, etc.), ne pas créer de notification
+      NULL;
   END CASE;
   
   RETURN NEW;

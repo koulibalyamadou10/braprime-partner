@@ -657,7 +657,7 @@ const CheckoutPage = () => {
                               {scheduledDate ? format(scheduledDate, 'EEEE dd MMMM yyyy') : 'Sélectionner une date'}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent className="w-auto p-0 bg-white border border-blue-200 shadow-lg rounded-md" align="start">
                             <Calendar
                               mode="single"
                               selected={scheduledDate}
@@ -677,7 +677,7 @@ const CheckoutPage = () => {
                                 
                                 return false;
                               }}
-                              className="rounded-md border"
+                              className="bg-white rounded-md"
                             />
                           </PopoverContent>
                         </Popover>
