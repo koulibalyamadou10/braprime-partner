@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { 
   Building2, 
   TrendingUp, 
@@ -17,6 +18,7 @@ import {
   BarChart3,
   Smartphone
 } from 'lucide-react'
+import { usePartnerData } from '@/hooks/use-partner-stats'
 
 const advantages = [
   {
@@ -51,42 +53,79 @@ const advantages = [
   }
 ]
 
-const businessTypes = [
-  { name: 'Restaurants', icon: '🍽️', count: '150+' },
-  { name: 'Cafés', icon: '☕', count: '80+' },
-  { name: 'Supermarchés', icon: '🛒', count: '45+' },
-  { name: 'Pharmacies', icon: '💊', count: '30+' },
-  { name: 'Électronique', icon: '📱', count: '25+' },
-  { name: 'Beauté', icon: '💄', count: '20+' }
-]
+// Composant de chargement pour les statistiques
+const StatsSkeleton = () => (
+  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-12">
+    {Array.from({ length: 6 }).map((_, index) => (
+      <div key={index} className="text-center">
+        <Skeleton className="h-8 w-16 mx-auto mb-2" />
+        <Skeleton className="h-4 w-24 mx-auto" />
+      </div>
+    ))}
+  </div>
+);
 
-const testimonials = [
-  {
-    name: 'Fatou Diallo',
-    business: 'Restaurant Le Baoulé',
-    content: 'BraPrime a transformé mon restaurant. Mes ventes ont augmenté de 300% en 6 mois !',
-    rating: 5
-  },
-  {
-    name: 'Mamadou Barry',
-    business: 'Café Central',
-    content: 'Le dashboard est très intuitif. Je gère mes commandes en quelques clics.',
-    rating: 5
-  },
-  {
-    name: 'Aissatou Camara',
-    business: 'Market Fresh',
-    content: 'Excellente plateforme pour développer mon activité. Je recommande !',
-    rating: 5
-  }
-]
+// Composant de chargement pour les types de commerce
+const BusinessTypesSkeleton = () => (
+  <div className="grid grid-cols-2 gap-4">
+    {Array.from({ length: 6 }).map((_, index) => (
+      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div className="flex items-center gap-3">
+          <Skeleton className="w-8 h-8 rounded" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <Skeleton className="h-6 w-12" />
+      </div>
+    ))}
+  </div>
+);
+
+// Composant de chargement pour les témoignages
+const TestimonialsSkeleton = () => (
+  <div className="space-y-4">
+    {Array.from({ length: 3 }).map((_, index) => (
+      <div key={index} className="p-4 bg-blue-50 rounded-lg">
+        <div className="flex items-center gap-2 mb-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="w-4 h-4 rounded" />
+          ))}
+        </div>
+        <Skeleton className="h-4 w-full mb-2" />
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+    ))}
+  </div>
+);
 
 export function PartnerSection() {
   const navigate = useNavigate()
+  const { stats, businessTypes, testimonials, isLoading, error } = usePartnerData()
+
+
 
   const handleBecomePartner = () => {
     navigate('/requests')
   }
+
+  // Formater les nombres
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return `${(num / 1000000).toFixed(1)}M`;
+    } else if (num >= 1000) {
+      return `${(num / 1000).toFixed(0)}K`;
+    }
+    return num.toString();
+  };
+
+  // Formater les montants
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `${(amount / 1000000).toFixed(1)}M GNF`;
+    } else if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(0)}K GNF`;
+    }
+    return `${amount} GNF`;
+  };
 
   return (
     <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -107,24 +146,48 @@ export function PartnerSection() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary mb-2">500+</div>
-            <div className="text-sm text-gray-600">Partenaires actifs</div>
+        {isLoading ? (
+          <StatsSkeleton />
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-12">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary mb-2">
+                {formatNumber(stats?.totalPartners || 0)}+
+              </div>
+              <div className="text-sm text-gray-600">Partenaires</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary mb-2">
+                {formatNumber(stats?.totalOrders || 0)}+
+              </div>
+              <div className="text-sm text-gray-600">Commandes</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary mb-2">
+                {formatNumber(stats?.totalRequests || 0)}+
+              </div>
+              <div className="text-sm text-gray-600">Demandes</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary mb-2">
+                {stats?.satisfactionRate || 98}%
+              </div>
+              <div className="text-sm text-gray-600">Satisfaction</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary mb-2">
+                {stats?.averageRating || 4.5}
+              </div>
+              <div className="text-sm text-gray-600">Note moyenne</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-primary mb-2">
+                {formatNumber(stats?.pendingRequests || 0)}
+              </div>
+              <div className="text-sm text-gray-600">En attente</div>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary mb-2">50K+</div>
-            <div className="text-sm text-gray-600">Commandes livrées</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary mb-2">98%</div>
-            <div className="text-sm text-gray-600">Satisfaction client</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary mb-2">24h</div>
-            <div className="text-sm text-gray-600">Support disponible</div>
-          </div>
-        </div>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left side - Advantages */}
@@ -178,17 +241,21 @@ export function PartnerSection() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  {businessTypes.map((type, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{type.icon}</span>
-                        <span className="font-medium">{type.name}</span>
+                {isLoading ? (
+                  <BusinessTypesSkeleton />
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {businessTypes.slice(0, 6).map((type) => (
+                      <div key={type.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{type.icon}</span>
+                          <span className="font-medium">{type.name}</span>
+                        </div>
+                        <Badge variant="outline">{type.count}+</Badge>
                       </div>
-                      <Badge variant="outline">{type.count}</Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -204,23 +271,27 @@ export function PartnerSection() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {testimonials.map((testimonial, index) => (
-                    <div key={index} className="p-4 bg-blue-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        {[...Array(testimonial.rating)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        ))}
+                {isLoading ? (
+                  <TestimonialsSkeleton />
+                ) : (
+                  <div className="space-y-4">
+                    {testimonials.map((testimonial) => (
+                      <div key={testimonial.id} className="p-4 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          {[...Array(testimonial.rating)].map((_, i) => (
+                            <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          ))}
+                        </div>
+                        <p className="text-sm text-gray-700 mb-2">
+                          "{testimonial.content}"
+                        </p>
+                        <div className="text-xs text-gray-600">
+                          <strong>{testimonial.name}</strong> - {testimonial.business_name}
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-700 mb-2">
-                        "{testimonial.content}"
-                      </p>
-                      <div className="text-xs text-gray-600">
-                        <strong>{testimonial.name}</strong> - {testimonial.business}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
