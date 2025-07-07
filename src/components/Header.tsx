@@ -67,7 +67,7 @@ const Header = () => {
 
   // Gérer les clics en dehors de l'autocomplétion
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowAutocomplete(false);
         setSelectedIndex(-1);
@@ -75,8 +75,10 @@ const Header = () => {
     };
 
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
 
@@ -173,11 +175,12 @@ const Header = () => {
       <div
         key={`${result.type}-${result.id}`}
         className={cn(
-          "flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors",
+          "flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors touch-manipulation",
           isSelected && "bg-gray-50"
         )}
         onClick={() => handleAutocompleteSelect(result)}
         onMouseEnter={() => setSelectedIndex(index)}
+        onTouchStart={() => setSelectedIndex(index)}
       >
         <div className="flex-shrink-0 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
           {result.type === 'business' && <Package className="h-4 w-4 text-gray-600" />}
@@ -462,7 +465,7 @@ const Header = () => {
         </div>
 
         {/* Mobile Search */}
-        <div className="pb-4 md:hidden">
+        <div className="pb-4 md:hidden relative" ref={searchRef}>
           <form 
             onSubmit={handleSearch}
             className="flex"
@@ -486,7 +489,7 @@ const Header = () => {
           
           {/* Autocomplétion mobile */}
           {showAutocomplete && (
-            <div className="absolute left-4 right-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
               {autocompleteLoading ? (
                 <div className="px-4 py-3 text-sm text-gray-500">
                   Recherche en cours...

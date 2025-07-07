@@ -13,6 +13,9 @@ import { useBusinessById } from '@/hooks/use-business';
 import { useMenuItems } from '@/hooks/use-menu-items';
 import { useMenuCategories } from '@/hooks/use-menu-categories';
 import BusinessPageSkeleton from '@/components/BusinessPageSkeleton';
+import ShareModal from '@/components/ShareModal';
+import { useFavorites } from '@/hooks/use-favorites';
+import { cn } from '@/lib/utils';
 import { 
   Clock, Star, Phone, MapPin, ChevronLeft, 
   ChevronRight, Info, Heart, Share, ShoppingBag, Utensils
@@ -23,7 +26,9 @@ const RestaurantPage = () => {
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const { addToCart, cart } = useCart();
+  const { isBusinessFavorite, toggleBusinessFavorite, isTogglingBusiness } = useFavorites();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   
   // Récupérer les données du commerce
   const { data, isLoading, error } = useBusinessById(id);
@@ -118,6 +123,46 @@ const RestaurantPage = () => {
       image: item.image
     }, business.id, business.name);
   };
+
+  const handleToggleFavorite = () => {
+    if (!currentUser) {
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter pour ajouter aux favoris.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      toggleBusinessFavorite(business.id);
+      const isFavorite = isBusinessFavorite(business.id);
+      toast({
+        title: isFavorite ? "Retiré des favoris" : "Ajouté aux favoris",
+        description: isFavorite 
+          ? `${business.name} a été retiré de vos favoris.`
+          : `${business.name} a été ajouté à vos favoris.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier les favoris. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenShareModal = () => {
+    setShareModalOpen(true);
+    toast({
+      title: "Partage",
+      description: "Ouvrir les options de partage pour ce restaurant.",
+    });
+  };
+
+  const handleCloseShareModal = () => {
+    setShareModalOpen(false);
+  };
   
   // Filtrer les articles par catégorie sélectionnée
   const filteredItems = selectedCategory 
@@ -183,11 +228,26 @@ const RestaurantPage = () => {
             </div>
           </div>
           <div className="flex mt-6 space-x-4">
-            <Button variant="outline" className="flex items-center">
-              <Heart className="h-4 w-4 mr-2" />
-              Favoris
+            <Button 
+              variant="outline" 
+              className={cn(
+                "flex items-center transition-all duration-200",
+                isBusinessFavorite(business.id) && "bg-red-50 text-red-600 border-red-200"
+              )}
+              onClick={handleToggleFavorite}
+              disabled={isTogglingBusiness}
+            >
+              <Heart className={cn(
+                "h-4 w-4 mr-2",
+                isBusinessFavorite(business.id) && "fill-red-500 text-red-500"
+              )} />
+              {isBusinessFavorite(business.id) ? "Favori" : "Favoris"}
             </Button>
-            <Button variant="outline" className="flex items-center">
+            <Button 
+              variant="outline" 
+              className="flex items-center"
+              onClick={handleOpenShareModal}
+            >
               <Share className="h-4 w-4 mr-2" />
               Partager
             </Button>
@@ -309,6 +369,13 @@ const RestaurantPage = () => {
 
       {/* Panier flottant */}
       <FloatingCart variant="bottom" />
+
+      {/* Modal Partage */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={handleCloseShareModal}
+        business={business}
+      />
     </Layout>
   );
 };

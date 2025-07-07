@@ -144,7 +144,7 @@ const OrderTrackingPage = () => {
       
       // Afficher une notification seulement si le statut a changé
       if (previousStatus && previousStatus !== updatedOrder.status) {
-        toast({
+      toast({
           title: "Statut mis à jour",
           description: `Votre commande est maintenant ${getStatusLabel(updatedOrder.status)}`,
         });
@@ -213,8 +213,8 @@ const OrderTrackingPage = () => {
         // Vérifier que la commande appartient à l'utilisateur actuel
         if (orderData.user_id !== currentUser.id) {
           setError('Accès non autorisé');
-          return;
-        }
+        return;
+      }
 
         setOrder(orderData as OrderTrackingData);
         updateCurrentStep(orderData.status);
@@ -222,10 +222,10 @@ const OrderTrackingPage = () => {
       } catch (err) {
         setError('Erreur lors du chargement de la commande');
         console.error('Erreur:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
     loadOrder();
   }, [id, currentUser?.id]); // Retirer updateCurrentStep de la dépendance
@@ -334,19 +334,19 @@ const OrderTrackingPage = () => {
       </Layout>
     );
   }
-
+  
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
-            <div>
+                        <div>
               <h1 className="text-3xl font-bold">Suivi de commande</h1>
               <p className="text-muted-foreground">
                 Commande #{order.id} - {order.business_name}
-              </p>
-            </div>
+                          </p>
+                        </div>
             <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
@@ -365,9 +365,9 @@ const OrderTrackingPage = () => {
                 <ArrowLeft className="h-4 w-4" />
                 Retour aux commandes
               </Button>
-            </div>
-          </div>
-
+                        </div>
+                      </div>
+                      
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Timeline de suivi */}
             <div className="lg:col-span-2 space-y-6">
@@ -444,22 +444,22 @@ const OrderTrackingPage = () => {
                       <div className="flex justify-between">
                         <span>Sous-total</span>
                         <span>{formatCurrency(order.total)}</span>
-                      </div>
+                    </div>
                       <div className="flex justify-between">
                         <span>Frais de livraison</span>
                         <span>{formatCurrency(order.delivery_fee)}</span>
-                      </div>
+                  </div>
                       <Separator />
                       <div className="flex justify-between font-bold text-lg">
                         <span>Total</span>
                         <span>{formatCurrency(order.grand_total)}</span>
                       </div>
                     </div>
-                  </div>
+                </div>
                 </CardContent>
               </Card>
             </div>
-
+            
             {/* Informations de contact et livraison */}
             <div className="space-y-6">
               {/* Statut actuel */}
@@ -557,13 +557,13 @@ const OrderTrackingPage = () => {
                         {order.delivery_method === 'delivery' ? 'Livraison' : 'Retrait'}
                       </p>
                     </div>
-                    <div>
+                  <div>
                       <p className="text-sm text-gray-500">Livraison estimée</p>
                       <p className="font-medium flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
                         {format(new Date(order.estimated_delivery), 'dd/MM/yyyy HH:mm', { locale: fr })}
                       </p>
-                    </div>
+                  </div>
                     {order.delivery_instructions && (
                       <div>
                         <p className="text-sm text-gray-500">Instructions</p>
@@ -584,12 +584,12 @@ const OrderTrackingPage = () => {
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Méthode</span>
                       <span className="font-medium">{order.payment_method}</span>
-                    </div>
+                </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Total</span>
                       <span className="font-bold">{formatCurrency(order.grand_total)}</span>
-                    </div>
-                  </div>
+                </div>
+              </div>
                 </CardContent>
               </Card>
             </div>

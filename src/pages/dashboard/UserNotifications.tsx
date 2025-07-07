@@ -48,8 +48,10 @@ interface NotificationSettings {
   marketing_emails: boolean;
 }
 
+const PAGE_SIZE = 10;
+
 const UserNotifications: React.FC = () => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [settings, setSettings] = useState<NotificationSettings>({
     email_notifications: true,
@@ -64,23 +66,26 @@ const UserNotifications: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      loadNotifications();
+    if (currentUser) {
+      loadNotifications(page);
     }
-  }, [user]);
+  }, [currentUser, page]);
 
-  const loadNotifications = async () => {
+  const loadNotifications = async (pageToLoad = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const { data, error } = await NotificationService.getUserNotifications();
+      const { data, count, error } = await NotificationService.getUserNotificationsPaginated(pageToLoad, PAGE_SIZE);
       if (error) {
         setError(error);
         toast.error('Erreur lors du chargement des notifications');
       } else {
         setNotifications(data);
+        setTotalCount(count);
       }
     } catch (err) {
       setError('Erreur lors du chargement des notifications');
@@ -149,6 +154,11 @@ const UserNotifications: React.FC = () => {
     if (activeTab === 'unread') return !notification.is_read;
     return notification.type === activeTab;
   });
+
+  // Pagination helpers
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
 
   if (loading) {
     return (
@@ -620,6 +630,18 @@ const UserNotifications: React.FC = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        {/* Pagination controls */}
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={!canPrev}>
+            Précédent
+          </Button>
+          <span className="text-sm">
+            Page {page} / {totalPages || 1}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setPage(page + 1)} disabled={!canNext}>
+            Suivant
+          </Button>
+        </div>
       </div>
     </DashboardLayout>
   );

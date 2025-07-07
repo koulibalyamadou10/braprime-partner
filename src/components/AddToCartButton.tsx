@@ -4,6 +4,7 @@ import { Plus, Minus, Check, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCartContext } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export interface AddToCartButtonProps {
   item: {
@@ -27,6 +28,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { cart, addToCart, updateQuantity, removeFromCart, loading } = useCartContext();
+  const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -38,7 +40,12 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 
   const handleAddToCart = async () => {
     if (!currentUser) {
-      return; // La gestion de l'erreur est faite dans le hook useCart
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter pour ajouter des articles au panier.",
+        variant: "destructive",
+      });
+      return;
     }
 
     setIsAdding(true);
@@ -55,8 +62,18 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       // Animation de succès
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 1000);
+      
+      toast({
+        title: "Article ajouté",
+        description: `${item.name} a été ajouté à votre panier.`,
+      });
     } catch (error) {
       console.error('Erreur lors de l\'ajout au panier:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
+        variant: "destructive",
+      });
     } finally {
       setIsAdding(false);
     }
@@ -64,16 +81,44 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 
   const handleIncreaseQuantity = async () => {
     if (cartItem) {
-      await updateQuantity(cartItem.id, quantity + 1);
+      try {
+        await updateQuantity(cartItem.id, quantity + 1);
+        toast({
+          title: "Quantité mise à jour",
+          description: `Quantité de ${item.name} augmentée.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de modifier la quantité. Veuillez réessayer.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
   const handleDecreaseQuantity = async () => {
     if (cartItem) {
-      if (quantity === 1) {
-        await removeFromCart(cartItem.id);
-      } else {
-        await updateQuantity(cartItem.id, quantity - 1);
+      try {
+        if (quantity === 1) {
+          await removeFromCart(cartItem.id);
+          toast({
+            title: "Article retiré",
+            description: `${item.name} a été retiré du panier.`,
+          });
+        } else {
+          await updateQuantity(cartItem.id, quantity - 1);
+          toast({
+            title: "Quantité mise à jour",
+            description: `Quantité de ${item.name} diminuée.`,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de modifier la quantité. Veuillez réessayer.",
+          variant: "destructive",
+        });
       }
     }
   };

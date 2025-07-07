@@ -427,7 +427,7 @@ const UserOrders = () => {
                     Suivre ma commande
                   </Button>
                   
-                  {selectedOrder.status === 'pending' && (
+                {selectedOrder.status === 'pending' && (
                     <Button 
                       variant="destructive" 
                       onClick={() => handleCancelOrder(selectedOrder.id)}
@@ -435,7 +435,7 @@ const UserOrders = () => {
                       Annuler la commande
                     </Button>
                   )}
-                </div>
+                  </div>
               </div>
             </DialogContent>
           </Dialog>
