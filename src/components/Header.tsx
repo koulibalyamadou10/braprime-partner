@@ -296,27 +296,15 @@ const Header = () => {
                   {currentUser.role === 'customer' && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link to="/dashboard/orders" className="flex items-center">
+                        <Link to="/cart" className="flex items-center">
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Panier
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/dashboard" className="flex items-center">
                           <Package className="mr-2 h-4 w-4" />
-                          Mes commandes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/dashboard/reservations" className="flex items-center">
-                          <Calendar className="mr-2 h-4 w-4" />
-                          Mes réservations
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/dashboard/favorites" className="flex items-center">
-                          <Star className="mr-2 h-4 w-4" />
-                          Mes favoris
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/articles" className="flex items-center">
-                          <ChefHat className="mr-2 h-4 w-4" />
-                          Tous les articles
+                          Dashboard
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -535,28 +523,20 @@ const Header = () => {
                   {currentUser.role === 'customer' && (
                     <>
                       <Link
-                        to="/dashboard/orders"
+                        to="/cart"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <ShoppingCart className="mr-3 h-5 w-5" />
+                        Panier
+                      </Link>
+                      <Link
+                        to="/dashboard"
                         className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Package className="mr-3 h-5 w-5" />
-                        Mes commandes
-                      </Link>
-                      <Link
-                        to="/dashboard/reservations"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                        onClick={closeMobileMenu}
-                      >
-                        <Calendar className="mr-3 h-5 w-5" />
-                        Mes réservations
-                      </Link>
-                      <Link
-                        to="/dashboard/favorites"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                        onClick={closeMobileMenu}
-                      >
-                        <Star className="mr-3 h-5 w-5" />
-                        Mes favoris
+                        Dashboard
                       </Link>
                     </>
                   )}

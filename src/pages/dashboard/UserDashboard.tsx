@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
@@ -27,6 +27,7 @@ import { fr } from 'date-fns/locale';
 import { useCustomerDashboard } from '@/hooks/use-dashboard';
 import { PageSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { useUserRole } from '@/contexts/UserRoleContext';
+import { useDashboardCache } from '@/components/dashboard/DashboardCacheProvider';
 
 // Composant pour afficher les statistiques
 const StatsCard = ({ 
@@ -110,6 +111,7 @@ const UserDashboard = () => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const { isCustomer } = useUserRole();
+  const { prefetchCustomerData } = useDashboardCache();
 
   // Utiliser les hooks pour les données dynamiques
   const { 
@@ -122,6 +124,13 @@ const UserDashboard = () => {
     isAuthenticated,
     currentUser: customerCurrentUser
   } = useCustomerDashboard();
+
+  // Optimisation : Précharger les données quand le composant se monte
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.role === 'customer') {
+      prefetchCustomerData();
+    }
+  }, [isAuthenticated, currentUser?.role, prefetchCustomerData]);
 
   // Formater les montants
   const formatCurrency = (amount: number) => {
@@ -171,7 +180,8 @@ const UserDashboard = () => {
     );
   }
 
-  if (isLoading) {
+  // Optimisation : Affichage progressif des données
+  if (isLoading && !stats.data && !recentOrders.data && !notifications.data) {
     return (
       <DashboardLayout navItems={userNavItems} title="Tableau de bord">
         <PageSkeleton />

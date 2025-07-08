@@ -22,7 +22,7 @@ export const usePartnerStats = (period: 'today' | 'week' | 'month' | 'year' = 'm
   })
 }
 
-// Hook pour les statistiques du client
+// Hook pour les statistiques du client - OPTIMISÉ
 export const useCustomerStats = () => {
   const { currentUser, isAuthenticated } = useAuth()
   
@@ -30,7 +30,9 @@ export const useCustomerStats = () => {
     queryKey: ['customer-stats', currentUser?.id],
     queryFn: () => DashboardService.getCustomerStats(currentUser?.id || ''),
     enabled: !!currentUser?.id && currentUser.role === 'customer' && isAuthenticated,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 2 * 60 * 1000, // 2 minutes (réduit pour plus de fraîcheur)
+    refetchInterval: 60 * 1000, // 1 minute (rafraîchissement automatique)
+    refetchOnWindowFocus: true, // Rafraîchir quand l'utilisateur revient sur l'onglet
     retry: (failureCount, error) => {
       if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
         return false
@@ -59,7 +61,7 @@ export const useRecentPartnerOrders = (limit: number = 10) => {
   })
 }
 
-// Hook pour les commandes récentes du client
+// Hook pour les commandes récentes du client - OPTIMISÉ
 export const useRecentCustomerOrders = (limit: number = 5) => {
   const { currentUser, isAuthenticated } = useAuth()
   
@@ -67,7 +69,9 @@ export const useRecentCustomerOrders = (limit: number = 5) => {
     queryKey: ['recent-customer-orders', currentUser?.id, limit],
     queryFn: () => DashboardService.getRecentCustomerOrders(currentUser?.id || '', limit),
     enabled: !!currentUser?.id && currentUser.role === 'customer' && isAuthenticated,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 1 * 60 * 1000, // 1 minute (réduit pour plus de fraîcheur)
+    refetchInterval: 30 * 1000, // 30 secondes (rafraîchissement plus fréquent)
+    refetchOnWindowFocus: true, // Rafraîchir quand l'utilisateur revient sur l'onglet
     retry: (failureCount, error) => {
       if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
         return false
@@ -95,7 +99,7 @@ export const useTopItems = (period: 'week' | 'month' = 'month') => {
   })
 }
 
-// Hook pour les notifications
+// Hook pour les notifications - OPTIMISÉ
 export const useNotifications = (type: 'customer' | 'partner' = 'customer') => {
   const { currentUser, isAuthenticated } = useAuth()
   
@@ -103,8 +107,9 @@ export const useNotifications = (type: 'customer' | 'partner' = 'customer') => {
     queryKey: ['notifications', currentUser?.id, type],
     queryFn: () => DashboardService.getNotifications(currentUser?.id || '', type),
     enabled: !!currentUser?.id && isAuthenticated,
-    staleTime: 30 * 1000, // 30 secondes
-    refetchInterval: 15 * 1000, // 15 secondes
+    staleTime: 15 * 1000, // 15 secondes (réduit pour plus de fraîcheur)
+    refetchInterval: 10 * 1000, // 10 secondes (rafraîchissement plus fréquent)
+    refetchOnWindowFocus: true, // Rafraîchir quand l'utilisateur revient sur l'onglet
     retry: (failureCount, error) => {
       if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
         return false
@@ -132,7 +137,7 @@ export const useRevenueData = (period: 'daily' | 'weekly' | 'monthly') => {
   })
 }
 
-// Hook pour rafraîchir les données
+// Hook pour rafraîchir les données - OPTIMISÉ
 export const useRefreshDashboard = () => {
   const queryClient = useQueryClient()
   const { currentUser, isAuthenticated } = useAuth()
@@ -143,14 +148,22 @@ export const useRefreshDashboard = () => {
         throw new Error('Utilisateur non authentifié')
       }
       
-      // Invalider toutes les requêtes du dashboard
-      await queryClient.invalidateQueries({ queryKey: ['partner-stats'] })
-      await queryClient.invalidateQueries({ queryKey: ['customer-stats'] })
-      await queryClient.invalidateQueries({ queryKey: ['recent-partner-orders'] })
-      await queryClient.invalidateQueries({ queryKey: ['recent-customer-orders'] })
-      await queryClient.invalidateQueries({ queryKey: ['top-items'] })
-      await queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      await queryClient.invalidateQueries({ queryKey: ['revenue-data'] })
+      // Invalider toutes les requêtes du dashboard avec une approche plus ciblée
+      const queriesToInvalidate = [
+        ['partner-stats'],
+        ['customer-stats'],
+        ['recent-partner-orders'],
+        ['recent-customer-orders'],
+        ['top-items'],
+        ['notifications'],
+        ['revenue-data']
+      ]
+      
+      await Promise.all(
+        queriesToInvalidate.map(queryKey => 
+          queryClient.invalidateQueries({ queryKey })
+        )
+      )
     },
     onSuccess: () => {
       console.log('Dashboard data refreshed successfully')
@@ -186,7 +199,7 @@ export const usePartnerDashboard = (period: 'today' | 'week' | 'month' | 'year' 
   }
 }
 
-// Hook combiné pour le dashboard client
+// Hook combiné pour le dashboard client - OPTIMISÉ
 export const useCustomerDashboard = () => {
   const { currentUser, isAuthenticated } = useAuth()
   
@@ -195,14 +208,37 @@ export const useCustomerDashboard = () => {
   const notifications = useNotifications('customer')
   const refresh = useRefreshDashboard()
 
+  // Optimisation : Attendre que l'authentification soit complète
+  const isAuthReady = isAuthenticated && currentUser?.id && currentUser?.role === 'customer'
+  
+  // Optimisation : Gestion d'état de chargement plus précise
+  const isLoading = !isAuthReady || stats.isLoading || recentOrders.isLoading || notifications.isLoading
+  
+  // Optimisation : Gestion d'erreur plus robuste
+  const hasError = stats.error || recentOrders.error || notifications.error
+  
+  // Optimisation : Données avec fallback
+  const safeStats = stats.data || { totalOrders: 0, totalSpent: 0, favoriteRestaurants: 0, savedAddresses: 0 }
+  const safeRecentOrders = recentOrders.data || []
+  const safeNotifications = notifications.data || []
+
   return {
-    stats,
-    recentOrders,
-    notifications,
+    stats: {
+      ...stats,
+      data: safeStats
+    },
+    recentOrders: {
+      ...recentOrders,
+      data: safeRecentOrders
+    },
+    notifications: {
+      ...notifications,
+      data: safeNotifications
+    },
     refresh,
-    isLoading: stats.isLoading || recentOrders.isLoading || notifications.isLoading,
-    error: stats.error || recentOrders.error || notifications.error,
-    isAuthenticated,
+    isLoading,
+    error: hasError,
+    isAuthenticated: isAuthReady,
     currentUser
   }
 }

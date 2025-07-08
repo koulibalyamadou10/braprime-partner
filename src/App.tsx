@@ -11,6 +11,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { UserRoleProvider } from '@/contexts/UserRoleContext';
+import { DashboardCacheProvider } from '@/components/dashboard/DashboardCacheProvider';
 
 // Use dynamic imports for page components
 const Index = lazy(() => import("./pages/Index"));
@@ -74,12 +75,13 @@ const App = () => (
         <UserRoleProvider>
           <DriverAuthProvider>
             <CartProvider>
-        <OrderProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <ScrollToTop />
-            <Suspense fallback={<PageLoader />}>
+              <OrderProvider>
+                <DashboardCacheProvider>
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <ScrollToTop />
+                    <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/restaurants" element={<RestaurantsPage />} />
@@ -329,12 +331,13 @@ const App = () => (
                 } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </OrderProvider>
+                                </Suspense>
+                  </BrowserRouter>
+                </DashboardCacheProvider>
+              </OrderProvider>
             </CartProvider>
-        </DriverAuthProvider>
-      </UserRoleProvider>
+          </DriverAuthProvider>
+        </UserRoleProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
