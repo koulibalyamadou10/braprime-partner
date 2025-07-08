@@ -510,26 +510,11 @@ const Header = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4">
             <nav className="flex flex-col space-y-2">
-              {/* Cart for authenticated customers */}
-              {isAuthenticated && currentUser?.role === 'customer' && (
-                <div className="px-4 py-2">
-                  <CartHover isMobile={true} />
-                </div>
-              )}
-
               {/* User menu items */}
               {isAuthenticated ? (
                 <>
                   {currentUser.role === 'customer' && (
                     <>
-                      <Link
-                        to="/cart"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                        onClick={closeMobileMenu}
-                      >
-                        <ShoppingCart className="mr-3 h-5 w-5" />
-                        Panier
-                      </Link>
                       <Link
                         to="/dashboard"
                         className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
@@ -540,7 +525,6 @@ const Header = () => {
                       </Link>
                     </>
                   )}
-                  
                   {currentUser.role === 'partner' && (
                     <>
                       <Link
@@ -569,7 +553,6 @@ const Header = () => {
                       </Link>
                     </>
                   )}
-                  
                   {currentUser.role === 'admin' && (
                     <>
                       <Link
@@ -630,7 +613,6 @@ const Header = () => {
                       </Link>
                     </>
                   )}
-                  
                   {currentUser.role === 'driver' && (
                     <>
                       <Link
@@ -659,18 +641,8 @@ const Header = () => {
                       </Link>
                     </>
                   )}
-                  
-                  <Link
-                    to={currentUser.role === 'admin' ? "/admin-dashboard/profile" : "/dashboard/profile"}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                    onClick={closeMobileMenu}
-                  >
-                    <User className="mr-3 h-5 w-5" />
-                    Mon profil
-                  </Link>
-                  
-                  {/* Afficher Dashboard pour admin, Profile pour les autres */}
-                  {shouldShowDashboard && (
+                  {/* Afficher Dashboard et Mon profil UNIQUEMENT pour les autres rôles */}
+                  {currentUser.role !== 'customer' && shouldShowDashboard && (
                     <Link
                       to={getDashboardLink()}
                       className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
@@ -680,8 +652,7 @@ const Header = () => {
                       {isAdmin ? 'Tableau de bord' : 'Mon tableau de bord'}
                     </Link>
                   )}
-                  
-                  {shouldShowProfile && (
+                  {currentUser.role !== 'customer' && shouldShowProfile && (
                     <Link
                       to={getProfileLink()}
                       className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
@@ -691,7 +662,6 @@ const Header = () => {
                       Mon profil
                     </Link>
                   )}
-                  
                   <button
                     onClick={handleSignOut}
                     className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md w-full text-left"
