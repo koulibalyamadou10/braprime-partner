@@ -52,6 +52,7 @@ export interface PartnerOrder {
   grand_total: number
   delivery_address: string
   delivery_instructions?: string
+  landmark?: string // Point de repère
   payment_method: string
   payment_status: string
   created_at: string
@@ -393,6 +394,7 @@ export class PartnerDashboardService {
           grand_total: order.grand_total,
           delivery_address: order.delivery_address,
           delivery_instructions: order.delivery_instructions,
+          landmark: order.landmark, // Point de repère
           payment_method: order.payment_method,
           payment_status: order.payment_status,
           created_at: order.created_at,

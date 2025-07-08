@@ -556,7 +556,7 @@ const PartnerOrders = () => {
       {/* Dialogue de détails de commande */}
       {selectedOrder && (
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
                 <span>Commande {selectedOrder.id.slice(0, 8)}...</span>
@@ -567,153 +567,138 @@ const PartnerOrders = () => {
               </DialogTitle>
             </DialogHeader>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-medium">Articles de la commande</h3>
-                    <div className="mt-2 border rounded-md">
-                      <ScrollArea className="h-64">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Article</TableHead>
-                              <TableHead className="text-right">Qté</TableHead>
-                              <TableHead className="text-right">Prix</TableHead>
-                              <TableHead className="text-right">Total</TableHead>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+              {/* Colonne principale - Articles et Actions */}
+              <div className="lg:col-span-3 space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium mb-3">Articles de la commande</h3>
+                  <div className="border rounded-md">
+                    <ScrollArea className="h-80">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Article</TableHead>
+                            <TableHead className="text-right">Qté</TableHead>
+                            <TableHead className="text-right">Prix</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedOrder.items.map((item: any, index: number) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{item.name}</p>
+                                  {item.special_instructions && (
+                                    <p className="text-xs text-gray-500 mt-1">{item.special_instructions}</p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">{item.quantity}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(item.price * item.quantity)}</TableCell>
                             </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {selectedOrder.items.map((item: any, index: number) => (
-                              <TableRow key={index}>
-                                <TableCell>
-                                  <div>
-                                    <p className="font-medium">{item.name}</p>
-                                    {item.special_instructions && (
-                                      <p className="text-xs text-gray-500 mt-1">{item.special_instructions}</p>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">{item.quantity}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(item.price * item.quantity)}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </ScrollArea>
-                      <div className="p-4 border-t">
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span>Sous-total:</span>
-                            <span>{formatCurrency(selectedOrder.total)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Frais de livraison:</span>
-                            <span>{formatCurrency(selectedOrder.delivery_fee)}</span>
-                          </div>
-                          <div className="flex justify-between font-medium">
-                            <span>Total:</span>
-                            <span>{formatCurrency(selectedOrder.grand_total)}</span>
-                          </div>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </ScrollArea>
+                    <div className="p-4 border-t bg-gray-50">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span>Sous-total:</span>
+                          <span>{formatCurrency(selectedOrder.total)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Frais de livraison:</span>
+                          <span>{formatCurrency(selectedOrder.delivery_fee)}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-lg border-t pt-2">
+                          <span>Total:</span>
+                          <span>{formatCurrency(selectedOrder.grand_total)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="pt-4 border-t">
-                    <h3 className="text-lg font-medium mb-2">Mettre à jour le statut</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {getAvailableStatusOptions(selectedOrder.status).map((option) => (
-                        <Button
-                          key={option.value}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleStatusChange(selectedOrder.id, option.value as OrderStatus)}
-                        >
-                          {option.icon}
-                          <span className="ml-1">{option.label}</span>
-                        </Button>
-                      ))}
-                      {selectedOrder.status === 'ready' && (
-                        <Button
-                          onClick={() => handleAssignDriver(selectedOrder)}
-                          className="flex items-center gap-1"
-                        >
-                          <Truck className="h-4 w-4" />
-                          Assigner livreur
-                        </Button>
-                      )}
-                    </div>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <h3 className="text-lg font-medium mb-3">Actions rapides</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {getAvailableStatusOptions(selectedOrder.status).map((option) => (
+                      <Button
+                        key={option.value}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatusChange(selectedOrder.id, option.value as OrderStatus)}
+                      >
+                        {option.icon}
+                        <span className="ml-1">{option.label}</span>
+                      </Button>
+                    ))}
+                    {selectedOrder.status === 'ready' && (
+                      <Button
+                        onClick={() => handleAssignDriver(selectedOrder)}
+                        className="flex items-center gap-1"
+                      >
+                        <Truck className="h-4 w-4" />
+                        Assigner livreur
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div className="border rounded-md p-4">
-                  <h3 className="text-lg font-medium mb-2">Informations client</h3>
+              {/* Colonne latérale - Informations */}
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                {/* Informations client */}
+                <div className="border rounded-lg p-4 bg-white">
+                  <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Client
+                  </h3>
                   <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <User className="h-4 w-4 mt-0.5 text-gray-500" />
-                      <div>
-                        <p className="font-medium">{selectedOrder.customer_name}</p>
-                      </div>
+                    <div>
+                      <p className="font-semibold text-lg">{selectedOrder.customer_name}</p>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <Phone className="h-4 w-4 mt-0.5 text-gray-500" />
-                      <div>
-                        <p>{selectedOrder.customer_phone}</p>
-                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs mt-1">
-                          Appeler le client
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-500" />
+                      <span className="font-medium">{selectedOrder.customer_phone}</span>
                     </div>
+                    <Button variant="outline" size="sm" className="w-full gap-2">
+                      <Phone className="h-4 w-4" />
+                      Appeler le client
+                    </Button>
                   </div>
                 </div>
                 
-                <div className="border rounded-md p-4">
-                  <h3 className="text-lg font-medium mb-2">Détails de la commande</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Date de commande:</span>
-                      <span>{formatDate(selectedOrder.created_at)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Méthode de paiement:</span>
-                      <span>{selectedOrder.payment_method || 'Non spécifié'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Type de livraison:</span>
-                      <span className="capitalize">{selectedOrder.delivery_method || 'livraison'}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="border rounded-md p-4">
-                  <h3 className="text-lg font-medium mb-2">Informations de livraison</h3>
+                {/* Informations de livraison */}
+                <div className="border rounded-lg p-4 bg-white">
+                  <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Livraison
+                  </h3>
                   <div className="space-y-3">
-                    <div className="flex items-start gap-2">
-                      <MapPin className="h-4 w-4 mt-0.5 text-gray-500" />
-                      <div>
-                        <p className="font-medium">Adresse de livraison</p>
-                        <p className="text-sm">{selectedOrder.delivery_address}</p>
-                        {selectedOrder.landmark && (
-                          <p className="text-sm text-blue-600 mt-1">
-                            📍 Point de repère: {selectedOrder.landmark}
+                    <div>
+                      <p className="font-medium text-sm text-gray-600">Adresse</p>
+                      <p className="text-sm">{selectedOrder.delivery_address}</p>
+                      {selectedOrder.landmark && (
+                        <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+                          <p className="text-sm text-blue-700 font-medium">
+                            📍 Point de repère
                           </p>
-                        )}
-                      </div>
+                          <p className="text-sm text-blue-600">{selectedOrder.landmark}</p>
+                        </div>
+                      )}
                     </div>
                     
                     {selectedOrder.delivery_instructions && (
                       <div>
-                        <p className="font-medium text-sm">Instructions de livraison</p>
-                        <p className="text-sm text-gray-600">{selectedOrder.delivery_instructions}</p>
+                        <p className="font-medium text-sm text-gray-600">Instructions</p>
+                        <p className="text-sm bg-gray-50 p-2 rounded">{selectedOrder.delivery_instructions}</p>
                       </div>
                     )}
 
-                    {/* Informations détaillées de livraison */}
-                    <div className="pt-3 border-t">
+                    <div className="pt-2 border-t">
                       <DeliveryInfoBadge
                         deliveryType={selectedOrder.delivery_type}
                         preferredDeliveryTime={selectedOrder.preferred_delivery_time}
@@ -724,63 +709,130 @@ const PartnerOrders = () => {
                         className="w-full"
                       />
                     </div>
-
-                    {/* Informations supplémentaires */}
-                    <div className="space-y-2 text-sm">
-                      {selectedOrder.delivery_type === 'scheduled' && selectedOrder.preferred_delivery_time && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Heure préférée:</span>
-                          <span>{formatDate(selectedOrder.preferred_delivery_time)}</span>
-                        </div>
-                      )}
-                      
-                      {selectedOrder.delivery_type === 'scheduled' && selectedOrder.scheduled_delivery_window_start && selectedOrder.scheduled_delivery_window_end && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Fenêtre de livraison:</span>
-                          <span>
-                            {formatDate(selectedOrder.scheduled_delivery_window_start)} - {formatDate(selectedOrder.scheduled_delivery_window_end)}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {selectedOrder.estimated_delivery_time && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Livraison estimée:</span>
-                          <span>{formatDate(selectedOrder.estimated_delivery_time)}</span>
-                        </div>
-                      )}
-                      
-                      {selectedOrder.actual_delivery_time && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Livré à:</span>
-                          <span>{formatDate(selectedOrder.actual_delivery_time)}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Disponible pour les chauffeurs:</span>
-                        <span className={selectedOrder.available_for_drivers ? "text-green-600" : "text-red-600"}>
-                          {selectedOrder.available_for_drivers ? "Oui" : "Non"}
-                        </span>
-                      </div>
+                  </div>
+                </div>
+                
+                {/* Détails de la commande */}
+                <div className="border rounded-lg p-4 bg-white">
+                  <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Détails
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Date:</span>
+                      <span className="font-medium">{formatDate(selectedOrder.created_at)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Paiement:</span>
+                      <span className="font-medium">{selectedOrder.payment_method || 'Non spécifié'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Type:</span>
+                      <span className="font-medium capitalize">{selectedOrder.delivery_method || 'livraison'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Disponible:</span>
+                      <span className={selectedOrder.available_for_drivers ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                        {selectedOrder.available_for_drivers ? "Oui" : "Non"}
+                      </span>
                     </div>
                   </div>
                 </div>
+
+                {/* Informations de livraison détaillées */}
+                <div className="border rounded-lg p-4 bg-white">
+                  <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Horaires
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    {selectedOrder.delivery_type === 'scheduled' && selectedOrder.preferred_delivery_time && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Heure préférée:</span>
+                        <span className="font-medium">{formatDate(selectedOrder.preferred_delivery_time)}</span>
+                      </div>
+                    )}
+                    
+                    {selectedOrder.delivery_type === 'scheduled' && selectedOrder.scheduled_delivery_window_start && selectedOrder.scheduled_delivery_window_end && (
+                      <div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Fenêtre:</span>
+                          <span className="font-medium text-xs">
+                            {formatDate(selectedOrder.scheduled_delivery_window_start).split(' ')[1]} - {formatDate(selectedOrder.scheduled_delivery_window_end).split(' ')[1]}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {selectedOrder.estimated_delivery_time && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Estimée:</span>
+                        <span className="font-medium">{formatDate(selectedOrder.estimated_delivery_time)}</span>
+                      </div>
+                    )}
+                    
+                    {selectedOrder.actual_delivery_time && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Livré à:</span>
+                        <span className="font-medium">{formatDate(selectedOrder.actual_delivery_time)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Informations du livreur */}
+                {selectedOrder.driver_name && (
+                  <div className="border rounded-lg p-4 bg-white">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      Livreur
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Nom:</span>
+                        <span className="font-medium">{selectedOrder.driver_name}</span>
+                      </div>
+                      {selectedOrder.driver_phone && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Téléphone:</span>
+                            <span className="font-medium">{selectedOrder.driver_phone}</span>
+                          </div>
+                          <Button variant="outline" size="sm" className="w-full gap-2 mt-2">
+                            <Phone className="h-4 w-4" />
+                            Appeler le livreur
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
-                Fermer
-              </Button>
-              {(selectedOrder.status === 'pending' || selectedOrder.status === 'confirmed' || selectedOrder.status === 'preparing') && (
-                <Button variant="destructive" onClick={() => {
-                  handleStatusChange(selectedOrder.id, 'cancelled');
-                  setIsDetailsOpen(false);
-                }}>
-                  Annuler la commande
-                </Button>
-              )}
+            <DialogFooter className="border-t pt-4">
+              <div className="flex justify-between items-center w-full">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">ID: {selectedOrder.id.slice(0, 8)}...</span>
+                  <Badge className={`${getStatusColor(selectedOrder.status)}`}>
+                    {getStatusLabel(selectedOrder.status)}
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  {(selectedOrder.status === 'pending' || selectedOrder.status === 'confirmed' || selectedOrder.status === 'preparing') && (
+                    <Button variant="destructive" size="sm" onClick={() => {
+                      handleStatusChange(selectedOrder.id, 'cancelled');
+                      setIsDetailsOpen(false);
+                    }}>
+                      Annuler
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+                    Fermer
+                  </Button>
+                </div>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
