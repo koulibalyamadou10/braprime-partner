@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -102,7 +102,8 @@ const UserReservations = () => {
     isLoading: reservationsLoading,
     error: reservationsError,
     createReservation,
-    cancelReservation
+    cancelReservation,
+    updateReservation
   } = useReservations();
   
   const [activeTab, setActiveTab] = useState('upcoming');
@@ -121,6 +122,24 @@ const UserReservations = () => {
   // Cancellation state
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<string | null>(null);
+  
+  // --- Nouvel état pour la modification ---
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [reservationToEdit, setReservationToEdit] = useState<Reservation | null>(null);
+  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
+  const [editTime, setEditTime] = useState('');
+  const [editPartySize, setEditPartySize] = useState('2');
+  const [editNotes, setEditNotes] = useState('');
+  
+  // Pré-remplir le modal d'édition quand reservationToEdit change
+  useEffect(() => {
+    if (reservationToEdit) {
+      setEditDate(new Date(reservationToEdit.date + 'T' + reservationToEdit.time));
+      setEditTime(reservationToEdit.time);
+      setEditPartySize(reservationToEdit.guests.toString());
+      setEditNotes(reservationToEdit.special_requests || '');
+    }
+  }, [reservationToEdit]);
   
   // Handle restaurant selection
   const handleSelectRestaurant = (restaurant: Business) => {
@@ -194,6 +213,40 @@ const UserReservations = () => {
       toast({
         title: "Erreur",
         description: result.error || "Erreur lors de l'annulation",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Fonction pour soumettre la modification
+  const handleEditReservation = async () => {
+    if (!reservationToEdit || !editDate || !editTime || !editPartySize) {
+      toast({
+        title: "Information incomplète",
+        description: "Veuillez remplir tous les champs requis.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const { id } = reservationToEdit;
+    const result = await updateReservation({
+      id,
+      date: format(editDate, 'yyyy-MM-dd'),
+      time: editTime,
+      guests: parseInt(editPartySize, 10),
+      special_requests: editNotes
+    });
+    if (result.success) {
+      setEditModalOpen(false);
+      setReservationToEdit(null);
+      toast({
+        title: "Réservation modifiée",
+        description: "Votre réservation a été mise à jour.",
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: result.error || "Erreur lors de la modification",
         variant: "destructive",
       });
     }
@@ -345,16 +398,28 @@ const UserReservations = () => {
                         </CardContent>
                         <CardFooter>
                           {reservation.status !== 'cancelled' && (
-                            <Button 
-                              variant="outline" 
-                              className="w-full text-red-600 hover:text-red-700"
-                              onClick={() => {
-                                setReservationToCancel(reservation.id);
-                                setConfirmCancelOpen(true);
-                              }}
-                            >
-                              Annuler
-                            </Button>
+                            <div className="flex flex-col gap-2 w-full">
+                              <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => {
+                                  setReservationToEdit(reservation);
+                                  setEditModalOpen(true);
+                                }}
+                              >
+                                Modifier
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                className="w-full text-red-600 hover:text-red-700"
+                                onClick={() => {
+                                  setReservationToCancel(reservation.id);
+                                  setConfirmCancelOpen(true);
+                                }}
+                              >
+                                Annuler
+                              </Button>
+                            </div>
                           )}
                         </CardFooter>
                       </Card>
@@ -722,6 +787,78 @@ const UserReservations = () => {
             <Button variant="destructive" onClick={handleCancelReservation} className="w-full sm:w-auto">
               Confirmer l'annulation
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Reservation Dialog */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Modifier la réservation</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de votre réservation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left h-10">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {editDate ? format(editDate, 'PPP', { locale: fr }) : 'Choisir une date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={editDate}
+                    onSelect={setEditDate}
+                    initialFocus
+                    disabled={(date) => date < new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <Label>Heure</Label>
+              <Select value={editTime} onValueChange={setEditTime}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choisir une heure" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getTimeOptions(reservationToEdit?.business_opening_hours || '12:00-22:00').map(time => (
+                    <SelectItem key={time} value={time}>{time}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Nombre de personnes</Label>
+              <Select value={editPartySize} onValueChange={setEditPartySize}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Nombre de personnes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4,5,6,7,8,9,10].map(num => (
+                    <SelectItem key={num} value={num.toString()}>{num} {num > 1 ? 'personnes' : 'personne'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Notes spéciales</Label>
+              <Input
+                value={editNotes}
+                onChange={e => setEditNotes(e.target.value)}
+                placeholder="Instructions ou demandes spéciales..."
+              />
+            </div>
+          </div>
+          <DialogFooter className="pt-4 flex-col gap-2">
+            <Button variant="outline" onClick={() => setEditModalOpen(false)} className="w-full">Annuler</Button>
+            <Button onClick={handleEditReservation} className="w-full bg-guinea-red hover:bg-guinea-red/90">Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
