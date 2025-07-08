@@ -24,6 +24,7 @@ const DriverLoginPage = lazy(() => import("./pages/DriverLoginPage"));
 
 const UserDashboard = lazy(() => import("./pages/dashboard/UserDashboard"));
 const UserOrders = lazy(() => import("./pages/dashboard/UserOrders"));
+const OrderDetail = lazy(() => import("./pages/dashboard/OrderDetail"));
 const UserProfile = lazy(() => import("./pages/dashboard/UserProfile"));
 const UserAddresses = lazy(() => import("./pages/dashboard/UserAddresses"));
 const UserPayments = lazy(() => import("./pages/dashboard/UserPayments"));
@@ -111,6 +112,11 @@ const App = () => (
                 <Route path="/dashboard/orders" element={
                   <ProtectedRoute allowedRoles={["customer"]}>
                     <UserOrders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/orders/:orderId" element={
+                  <ProtectedRoute allowedRoles={["customer"]}>
+                    <OrderDetail />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard/profile" element={
