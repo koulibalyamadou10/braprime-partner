@@ -18,7 +18,7 @@ const CategoriesSkeleton = ({ showAll = false }: { showAll?: boolean }) => {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">
           {Array.from({ length: itemCount }).map((_, index) => (
             <div key={index} className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm">
-              <Skeleton className="w-12 h-12 rounded-full mb-3" />
+              <Skeleton className="w-16 h-16 rounded-full mb-3" />
               <Skeleton className="h-4 w-20" />
             </div>
           ))}
@@ -116,8 +116,8 @@ const Categories = ({
                   to={category.link}
                   className={`flex flex-col items-center p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group ${cardBgColor}`}
                 >
-                  <div className={`${category.color} p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
-                    <span className="text-2xl" role="img" aria-label={category.name}>
+                  <div className={`${category.color} p-4 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
+                    <span className="text-3xl" role="img" aria-label={category.name}>
                       {category.icon}
                     </span>
                   </div>
