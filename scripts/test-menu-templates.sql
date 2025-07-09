@@ -30,6 +30,7 @@ DO $$
 DECLARE
     v_business_id INTEGER;
     v_category_count INTEGER;
+    category_record RECORD;
 BEGIN
     -- Insérer un business de test (restaurant)
     INSERT INTO businesses (
@@ -96,6 +97,7 @@ DO $$
 DECLARE
     v_business_id INTEGER;
     v_category_count INTEGER;
+    category_record RECORD;
 BEGIN
     -- Créer un business de test
     INSERT INTO businesses (
