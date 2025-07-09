@@ -117,10 +117,9 @@ export class PartnerRegistrationService {
 
       console.log('Business créé avec succès:', businessData.id)
 
-      // Étape 4: Créer les catégories de menu par défaut si c'est un restaurant
-      if (data.business_type === 'restaurant') {
-        await this.createDefaultMenuCategories(businessData.id)
-      }
+      // Étape 4: Créer les catégories de menu basées sur le type de business
+      const businessTypeId = await this.getBusinessTypeId(data.business_type)
+      await this.createDefaultMenuCategories(businessData.id, businessTypeId)
 
       return {
         success: true,
@@ -158,16 +157,61 @@ export class PartnerRegistrationService {
     return typeMap[businessType] || 8 // Par défaut 'other'
   }
 
-  // Créer les catégories de menu par défaut pour un restaurant
-  private static async createDefaultMenuCategories(businessId: number) {
-    const defaultCategories = [
+  // Créer les catégories de menu basées sur le type de business
+  private static async createDefaultMenuCategories(businessId: number, businessTypeId: number) {
+    try {
+      // Récupérer les templates de catégories pour ce type de business
+      const { data: templates, error: templateError } = await supabase
+        .from('business_type_menu_templates')
+        .select('category_name, category_description, sort_order')
+        .eq('business_type_id', businessTypeId)
+        .order('sort_order')
+
+      if (templateError) {
+        console.error('Erreur récupération templates catégories:', templateError)
+        // Fallback vers les catégories par défaut
+        await this.createFallbackCategories(businessId)
+        return
+      }
+
+      if (!templates || templates.length === 0) {
+        console.log('Aucun template trouvé pour le type de business:', businessTypeId)
+        // Fallback vers les catégories par défaut
+        await this.createFallbackCategories(businessId)
+        return
+      }
+
+      // Créer les catégories basées sur les templates
+      for (const template of templates) {
+        await supabase
+          .from('menu_categories')
+          .insert({
+            name: template.category_name,
+            description: template.category_description,
+            business_id: businessId,
+            is_active: true,
+            sort_order: template.sort_order
+          })
+      }
+
+      console.log(`Catégories créées pour le business ${businessId} avec ${templates.length} templates`)
+    } catch (error) {
+      console.error('Erreur création catégories par template:', error)
+      // Fallback vers les catégories par défaut
+      await this.createFallbackCategories(businessId)
+    }
+  }
+
+  // Catégories de fallback en cas d'erreur
+  private static async createFallbackCategories(businessId: number) {
+    const fallbackCategories = [
       { name: 'Entrées', description: 'Entrées et apéritifs', sort_order: 1 },
       { name: 'Plats principaux', description: 'Plats principaux', sort_order: 2 },
       { name: 'Desserts', description: 'Desserts et pâtisseries', sort_order: 3 },
       { name: 'Boissons', description: 'Boissons et rafraîchissements', sort_order: 4 }
     ]
 
-    for (const category of defaultCategories) {
+    for (const category of fallbackCategories) {
       await supabase
         .from('menu_categories')
         .insert({

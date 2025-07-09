@@ -106,6 +106,9 @@ export class AdminAccountCreationService {
           }
 
           console.log('Business créé avec succès:', businessData);
+
+          // Créer les catégories de menu basées sur le type de business
+          await this.createMenuCategoriesFromTemplate(businessData.id, defaultBusinessType?.id || 1);
         } catch (businessError) {
           console.error('Erreur lors de la création du business:', businessError);
           // Ne pas faire échouer la création du compte pour cette erreur
@@ -160,6 +163,45 @@ export class AdminAccountCreationService {
     } catch (error) {
       console.error('Erreur lors de la création du compte:', error);
       throw error;
+    }
+  }
+
+  // Créer les catégories de menu basées sur le template du type de business
+  private static async createMenuCategoriesFromTemplate(businessId: number, businessTypeId: number) {
+    try {
+      // Récupérer les templates de catégories pour ce type de business
+      const { data: templates, error: templateError } = await supabase
+        .from('business_type_menu_templates')
+        .select('category_name, category_description, sort_order')
+        .eq('business_type_id', businessTypeId)
+        .order('sort_order');
+
+      if (templateError) {
+        console.error('Erreur récupération templates catégories:', templateError);
+        return;
+      }
+
+      if (!templates || templates.length === 0) {
+        console.log('Aucun template trouvé pour le type de business:', businessTypeId);
+        return;
+      }
+
+      // Créer les catégories basées sur les templates
+      for (const template of templates) {
+        await supabase
+          .from('menu_categories')
+          .insert({
+            name: template.category_name,
+            description: template.category_description,
+            business_id: businessId,
+            is_active: true,
+            sort_order: template.sort_order
+          });
+      }
+
+      console.log(`Catégories créées pour le business ${businessId} avec ${templates.length} templates`);
+    } catch (error) {
+      console.error('Erreur création catégories par template:', error);
     }
   }
 
