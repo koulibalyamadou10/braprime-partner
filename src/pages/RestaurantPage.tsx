@@ -367,8 +367,8 @@ const RestaurantPage = () => {
         </div>
       </div>
 
-      {/* Panier flottant */}
-      <FloatingCart variant="bottom" />
+      {/* Panier flottant optimisé mobile */}
+      <FloatingCart variant="mobile" />
 
       {/* Modal Partage */}
       <ShareModal
