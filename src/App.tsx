@@ -12,6 +12,7 @@ import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { UserRoleProvider } from '@/contexts/UserRoleContext';
 import { DashboardCacheProvider } from '@/components/dashboard/DashboardCacheProvider';
+import PreloadManager from '@/components/PreloadManager';
 
 // Use dynamic imports for page components
 const Index = lazy(() => import("./pages/Index"));
@@ -78,6 +79,7 @@ const App = () => (
             <CartProvider>
               <OrderProvider>
                 <DashboardCacheProvider>
+                  <PreloadManager />
                   <Toaster />
                   <Sonner />
                   <BrowserRouter>

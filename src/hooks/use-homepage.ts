@@ -1,19 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { HomepageService } from '@/lib/services/homepage'
 
-// Hook pour les statistiques de la page d'accueil
+// Hook pour les statistiques de la page d'accueil - Optimisé
 export const useHomepageStats = () => {
   return useQuery({
     queryKey: ['homepage-stats'],
     queryFn: () => HomepageService.getHomepageStats(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 2 * 60 * 1000, // 2 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes (augmenté)
+    refetchInterval: 5 * 60 * 1000, // 5 minutes (augmenté)
+    refetchOnWindowFocus: false, // Désactiver le refetch automatique
     retry: (failureCount, error: any) => {
       // Ne pas relancer si l'erreur est 401 (non autorisé)
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 3
+      return failureCount < 2 // Réduire le nombre de tentatives
     }
   })
 }
@@ -76,13 +77,14 @@ export const usePopularRestaurants = (limit: number = 8) => {
   })
 }
 
-// Hook pour les catégories avec compteurs
+// Hook pour les catégories avec compteurs - Optimisé
 export const useCategoriesWithCounts = () => {
   return useQuery({
     queryKey: ['categories-with-counts'],
     queryFn: () => HomepageService.getCategoriesWithCounts(),
-    staleTime: 15 * 60 * 1000, // 15 minutes
-    refetchInterval: 10 * 60 * 1000, // 10 minutes
+    staleTime: 20 * 60 * 1000, // 20 minutes (augmenté)
+    refetchInterval: 15 * 60 * 1000, // 15 minutes (augmenté)
+    refetchOnWindowFocus: false, // Désactiver le refetch automatique
   })
 }
 
@@ -106,7 +108,7 @@ export const useRestaurantsByCategory = (categoryName: string, limit: number = 6
   })
 }
 
-// Hook combiné pour la page d'accueil
+// Hook combiné pour la page d'accueil - Optimisé pour les performances
 export const useHomepage = () => {
   const stats = useHomepageStats()
   const popularRestaurants = usePopularRestaurants(8)
@@ -121,6 +123,20 @@ export const useHomepage = () => {
     isLoading: stats.isLoading || popularRestaurants.isLoading || categories.isLoading || featuredItems.isLoading,
     error: stats.error || popularRestaurants.error || categories.error || featuredItems.error,
     isSuccess: stats.isSuccess && popularRestaurants.isSuccess && categories.isSuccess && featuredItems.isSuccess
+  }
+}
+
+// Hook optimisé pour charger seulement les données essentielles
+export const useHomepageEssential = () => {
+  const stats = useHomepageStats()
+  const categories = useCategoriesWithCounts()
+
+  return {
+    stats,
+    categories,
+    isLoading: stats.isLoading || categories.isLoading,
+    error: stats.error || categories.error,
+    isSuccess: stats.isSuccess && categories.isSuccess
   }
 }
 

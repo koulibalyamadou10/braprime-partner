@@ -88,7 +88,9 @@ const Hero = () => {
   const { currentUser } = useAuth();
   const { isAdmin, isPartner, isDriver } = useUserRole();
 
-  if (isLoading) {
+  // Afficher le skeleton seulement si les stats sont en cours de chargement
+  // et qu'il n'y a pas de données en cache
+  if (isLoading && !stats) {
     return <HeroSkeleton />;
   }
 
@@ -148,12 +150,12 @@ const Hero = () => {
               <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl bg-white">
                 <div className="guinea-gradient h-1/3 w-full"></div>
                 <div className="p-8">
-                  <div className="w-full h-32 bg-gray-200 rounded-lg mb-6 animate-pulse"></div>
-                  <div className="w-3/4 h-6 bg-gray-300 rounded-md mb-4 animate-pulse"></div>
-                  <div className="w-1/2 h-6 bg-gray-300 rounded-md mb-8 animate-pulse"></div>
+                  <div className="w-full h-32 bg-gray-200 rounded-lg mb-6"></div>
+                  <div className="w-3/4 h-6 bg-gray-300 rounded-md mb-4"></div>
+                  <div className="w-1/2 h-6 bg-gray-300 rounded-md mb-8"></div>
                   <div className="flex justify-between items-center">
-                    <div className="w-1/3 h-10 bg-guinea-green rounded-md animate-pulse"></div>
-                    <div className="w-1/3 h-10 bg-guinea-red rounded-md animate-pulse"></div>
+                    <div className="w-1/3 h-10 bg-guinea-green rounded-md"></div>
+                    <div className="w-1/3 h-10 bg-guinea-red rounded-md"></div>
                   </div>
                 </div>
               </div>
