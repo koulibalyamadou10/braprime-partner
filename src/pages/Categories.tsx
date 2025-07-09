@@ -3,7 +3,11 @@ import Layout from '@/components/Layout';
 import CategoriesGrid from '@/components/Categories';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, X, Loader2 } from 'lucide-react';
+import { 
+  Search, X, Loader2, Utensils, Coffee, ShoppingBasket, ShoppingCart, 
+  Pill, Tv, Sparkles, Scissors, Hammer, BookOpen, FileText, Package, 
+  Gift, Briefcase 
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useSearch } from '@/hooks/use-search';
@@ -30,11 +34,74 @@ const tabToSearchType = {
   'other': 'business'
 };
 
+// Fonction pour convertir les noms d'icônes en composants Lucide React
+const getIconComponent = (iconName: string) => {
+  const iconMap: { [key: string]: any } = {
+    'Utensils': Utensils,
+    'Coffee': Coffee,
+    'ShoppingBasket': ShoppingBasket,
+    'ShoppingCart': ShoppingCart,
+    'Pill': Pill,
+    'Tv': Tv,
+    'Sparkles': Sparkles,
+    'Scissors': Scissors,
+    'Hammer': Hammer,
+    'BookOpen': BookOpen,
+    'FileText': FileText,
+    'Package': Package,
+    'Gift': Gift,
+    'Briefcase': Briefcase,
+  };
+  
+  const IconComponent = iconMap[iconName] || Utensils; // Icône par défaut
+  return (
+    <IconComponent 
+      className="h-6 w-6" 
+      strokeWidth={2}
+      fill="none"
+      style={{ 
+        minWidth: '24px', 
+        minHeight: '24px',
+        display: 'block',
+        flexShrink: 0,
+        color: 'white',
+        stroke: 'white'
+      }} 
+    />
+  );
+};
+
 const Categories = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAllPopular, setShowAllPopular] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [isSearching, setIsSearching] = useState(false);
+
+  // Fonction pour générer une couleur aléatoire basée sur l'ID de la catégorie
+  const getRandomColor = (id: number) => {
+    const colors = [
+      '#ef4444', // red
+      '#3b82f6', // blue
+      '#10b981', // green
+      '#f59e0b', // yellow
+      '#8b5cf6', // purple
+      '#ec4899', // pink
+      '#6366f1', // indigo
+      '#f97316', // orange
+      '#14b8a6', // teal
+      '#06b6d4', // cyan
+      '#84cc16', // lime
+      '#059669', // emerald
+      '#f43f5e', // rose
+      '#7c3aed', // violet
+      '#d946ef', // fuchsia
+      '#0ea5e9', // sky
+      '#dc2626', // guinea-red
+      '#fbbf24', // guinea-yellow
+      '#059669', // guinea-green
+    ];
+    return colors[id % colors.length];
+  };
 
   // Récupérer les catégories depuis Supabase
   const { data: categories, isLoading: categoriesLoading } = useCategoriesWithCounts();
@@ -311,27 +378,32 @@ const Categories = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">
-                {filteredCategories.map((category) => (
-                  <div 
-                    key={category.id} 
-                    className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group cursor-pointer"
-                    onClick={() => window.location.href = category.link}
-                  >
-                    <div className={`${category.color} p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
-                      <span className="text-2xl" role="img" aria-label={category.name}>
-                        {category.icon}
+                {filteredCategories.map((category) => {
+                  const iconBgColor = getRandomColor(category.id);
+                  
+                  return (
+                    <div 
+                      key={category.id} 
+                      className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group cursor-pointer"
+                      onClick={() => window.location.href = category.link}
+                    >
+                      <div 
+                        className="p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center"
+                        style={{ backgroundColor: iconBgColor }}
+                      >
+                        {getIconComponent(category.icon)}
+                      </div>
+                      <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
+                        {category.name}
                       </span>
+                      {category.restaurant_count > 0 && (
+                        <span className="text-xs text-gray-500">
+                          {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
-                    <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
-                      {category.name}
-                    </span>
-                    {category.restaurant_count > 0 && (
-                      <span className="text-xs text-gray-500">
-                        {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

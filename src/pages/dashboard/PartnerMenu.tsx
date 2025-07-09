@@ -68,33 +68,11 @@ import { usePartnerMenu, useCreateMenuItem, useUpdateMenuItem, useDeleteMenuItem
 import { PartnerMenuItem, MenuItemCreate, MenuItemUpdate } from '@/lib/services/partner-menu';
 import MenuCategoryManager from '@/components/dashboard/MenuCategoryManager';
 import { usePartnerProfile } from '@/hooks/use-partner-profile';
-import ImageUpload from '@/components/ui/image-upload';
-import { UploadService } from '@/lib/services/upload';
+import { AddMenuItemDialog } from '@/components/dashboard/AddMenuItemDialog';
 import { useToast } from '@/hooks/use-toast';
 import { PartnerMenuSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
-// Schema de validation pour les articles de menu
-const menuItemSchema = z.object({
-  name: z.string().min(1, 'Le nom est requis').max(200, 'Le nom ne peut pas dépasser 200 caractères'),
-  description: z.string().min(1, 'La description est requise').max(1000, 'La description ne peut pas dépasser 1000 caractères'),
-  price: z.number().min(0, 'Le prix doit être positif'),
-  category_id: z.number().min(1, 'La catégorie est requise'),
-  preparation_time: z.number().min(1, 'Le temps de préparation doit être positif'),
-  is_available: z.boolean(),
-  is_popular: z.boolean(),
-  sort_order: z.number().min(0, 'L\'ordre doit être positif'),
-  image: z.string().optional(),
-  allergens: z.array(z.string()).default([]),
-  nutritional_info: z.object({
-    calories: z.number().optional(),
-    proteines: z.number().optional(),
-    glucides: z.number().optional(),
-    lipides: z.number().optional(),
-    fibres: z.number().optional(),
-  }).default({}),
-});
-
-type MenuItemFormValues = z.infer<typeof menuItemSchema>;
+// Le schema de validation est maintenant géré par le composant AddMenuItemDialog
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('fr-FR', {
@@ -113,11 +91,21 @@ const PartnerMenu = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<PartnerMenuItem | null>(null);
   const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-
-  // Récupérer le profil partenaire pour obtenir le business_id
+  // Récupérer le profil partenaire pour obtenir le business_id et le type de business
   const { profile: partnerProfile, isLoading: profileLoading } = usePartnerProfile();
   const businessId = partnerProfile?.id;
+  const businessType = partnerProfile?.business_type_id ? 
+    (partnerProfile.business_type_id === 1 ? 'restaurant' : 
+     partnerProfile.business_type_id === 2 ? 'cafe' : 
+     partnerProfile.business_type_id === 3 ? 'market' : 
+     partnerProfile.business_type_id === 4 ? 'supermarket' : 
+     partnerProfile.business_type_id === 5 ? 'pharmacy' : 
+     partnerProfile.business_type_id === 6 ? 'electronics' : 
+     partnerProfile.business_type_id === 7 ? 'beauty' : 
+     partnerProfile.business_type_id === 8 ? 'hairdressing' : 
+     partnerProfile.business_type_id === 9 ? 'hardware' : 
+     partnerProfile.business_type_id === 10 ? 'bookstore' : 
+     partnerProfile.business_type_id === 11 ? 'document_service' : 'restaurant') : 'restaurant';
 
   // Hooks pour les données et mutations
   const { data: menuData, isLoading, error, refetch } = usePartnerMenu(businessId || 0);
@@ -127,28 +115,7 @@ const PartnerMenu = () => {
   const toggleAvailabilityMutation = useToggleMenuItemAvailability();
   const { toast } = useToast();
 
-  const form = useForm<MenuItemFormValues>({
-    resolver: zodResolver(menuItemSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      price: 0,
-      category_id: 0,
-      preparation_time: 15,
-      is_available: true,
-      is_popular: false,
-      sort_order: 0,
-      image: '',
-      allergens: [],
-      nutritional_info: {
-        calories: undefined,
-        proteines: undefined,
-        glucides: undefined,
-        lipides: undefined,
-        fibres: undefined,
-      },
-    },
-  });
+  // Le formulaire est maintenant géré par le composant AddMenuItemDialog
 
   // Données extraites
   const categories = menuData?.categories || [];
@@ -184,50 +151,12 @@ const PartnerMenu = () => {
 
     setFormMode('add');
     setCurrentItem(null);
-    form.reset({
-      name: '',
-      description: '',
-      price: 0,
-      category_id: categories.length > 0 ? categories[0].id : 0,
-      preparation_time: 15,
-      is_available: true,
-      is_popular: false,
-      sort_order: items.length + 1,
-      image: '',
-      allergens: [],
-      nutritional_info: {
-        calories: undefined,
-        proteines: undefined,
-        glucides: undefined,
-        lipides: undefined,
-        fibres: undefined,
-      },
-    });
     setIsAddEditOpen(true);
   };
 
   const handleEditItem = (item: PartnerMenuItem) => {
     setFormMode('edit');
     setCurrentItem(item);
-    form.reset({
-      name: item.name,
-      description: item.description,
-      price: item.price,
-      category_id: item.category_id,
-      preparation_time: item.preparation_time,
-      is_available: item.is_available,
-      is_popular: item.is_popular,
-      sort_order: item.sort_order,
-      image: item.image || '',
-      allergens: item.allergens || [],
-      nutritional_info: item.nutritional_info || {
-        calories: undefined,
-        proteines: undefined,
-        glucides: undefined,
-        lipides: undefined,
-        fibres: undefined,
-      },
-    });
     setIsAddEditOpen(true);
   };
 
@@ -663,380 +592,17 @@ const PartnerMenu = () => {
       </div>
       
       {/* Dialog d'ajout/modification d'article */}
-      <Dialog open={isAddEditOpen} onOpenChange={setIsAddEditOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {formMode === 'add' ? 'Ajouter un Article' : 'Modifier l\'Article'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Informations de base */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">Informations de base</h3>
-                
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nom de l'article *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: Poulet Yassa" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description *</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Description détaillée de l'article..." 
-                          className="resize-none min-h-[100px]" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Upload d'image */}
-                <FormField
-                  control={form.control}
-                  name="image"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <ImageUpload
-                          value={field.value}
-                          onChange={field.onChange}
-                          onUpload={handleImageUpload}
-                          placeholder="Cliquez ou glissez une image ici"
-                          disabled={isUploadingImage}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Format recommandé: JPG, PNG ou WebP. Taille max: 5MB. L'image sera automatiquement redimensionnée.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prix (GNF) *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                            <Input 
-                              type="number" 
-                              className="pl-9" 
-                              {...field} 
-                              onChange={e => field.onChange(e.target.valueAsNumber || 0)}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="preparation_time"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Temps de Préparation (min) *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                            <Input 
-                              type="number" 
-                              className="pl-9" 
-                              {...field} 
-                              onChange={e => field.onChange(e.target.valueAsNumber || 0)}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="sort_order"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ordre d'affichage</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            min="0"
-                            {...field} 
-                            onChange={e => field.onChange(e.target.valueAsNumber || 0)}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Détermine l'ordre d'affichage (plus petit = premier)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="category_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Catégorie *</FormLabel>
-                      <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value.toString()}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sélectionner une catégorie" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories
-                            .filter(cat => cat.is_active)
-                            .sort((a, b) => a.sort_order - b.sort_order)
-                            .map(category => (
-                              <SelectItem key={category.id} value={category.id.toString()}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Informations nutritionnelles */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">Informations nutritionnelles</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="nutritional_info.calories"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Calories (kcal)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="250"
-                            {...field} 
-                            onChange={e => field.onChange(e.target.valueAsNumber || undefined)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="nutritional_info.proteines"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Protéines (g)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="15"
-                            {...field} 
-                            onChange={e => field.onChange(e.target.valueAsNumber || undefined)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="nutritional_info.glucides"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Glucides (g)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="30"
-                            {...field} 
-                            onChange={e => field.onChange(e.target.valueAsNumber || undefined)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="nutritional_info.lipides"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Lipides (g)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="8"
-                            {...field} 
-                            onChange={e => field.onChange(e.target.valueAsNumber || undefined)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="nutritional_info.fibres"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Fibres (g)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="5"
-                            {...field} 
-                            onChange={e => field.onChange(e.target.valueAsNumber || undefined)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Allergènes */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">Allergènes</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {[
-                    'Gluten', 'Lactose', 'Œufs', 'Poisson', 
-                    'Crustacés', 'Arachides', 'Noix', 'Soja',
-                    'Sulfites', 'Céleri', 'Moutarde', 'Sésame'
-                  ].map((allergen) => (
-                    <div key={allergen} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={allergen}
-                        className="rounded border-gray-300"
-                        checked={form.watch('allergens').includes(allergen)}
-                        onChange={(e) => {
-                          const currentAllergens = form.watch('allergens');
-                          if (e.target.checked) {
-                            form.setValue('allergens', [...currentAllergens, allergen]);
-                          } else {
-                            form.setValue('allergens', currentAllergens.filter(a => a !== allergen));
-                          }
-                        }}
-                      />
-                      <Label htmlFor={allergen} className="text-sm">{allergen}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Options */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">Options</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="is_available"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Disponible</FormLabel>
-                          <FormDescription>
-                            L'article peut être commandé par les clients
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="is_popular"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Marquer comme Populaire</FormLabel>
-                          <FormDescription>
-                            Mettre en avant comme article populaire
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-              
-              <div className="pt-4 space-x-2 flex justify-end">
-                <Button 
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsAddEditOpen(false)}
-                  disabled={isUploadingImage}
-                >
-                  Annuler
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={createMenuItemMutation.isPending || updateMenuItemMutation.isPending || isUploadingImage}
-                >
-                  {isUploadingImage ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Upload en cours...
-                    </>
-                  ) : (
-                    formMode === 'add' ? 'Ajouter' : 'Sauvegarder'
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <AddMenuItemDialog
+        open={isAddEditOpen}
+        onOpenChange={setIsAddEditOpen}
+        businessType={businessType}
+        businessId={businessId}
+        categories={categories}
+        mode={formMode}
+        currentItem={currentItem}
+        onSubmit={onSubmit}
+        isLoading={createMenuItemMutation.isPending || updateMenuItemMutation.isPending}
+      />
       
       {/* Dialog de confirmation de suppression */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>

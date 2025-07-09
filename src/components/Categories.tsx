@@ -177,6 +177,42 @@ const Categories = ({
 
               const cardBgColor = getCardBgColor(category.color);
               
+              // Générer une couleur aléatoire basée sur l'ID de la catégorie pour avoir des couleurs cohérentes
+              const getRandomColor = (id: number) => {
+                const colors = [
+                  '#ef4444', // red
+                  '#3b82f6', // blue
+                  '#10b981', // green
+                  '#f59e0b', // yellow
+                  '#8b5cf6', // purple
+                  '#ec4899', // pink
+                  '#6366f1', // indigo
+                  '#f97316', // orange
+                  '#14b8a6', // teal
+                  '#06b6d4', // cyan
+                  '#84cc16', // lime
+                  '#059669', // emerald
+                  '#f43f5e', // rose
+                  '#7c3aed', // violet
+                  '#d946ef', // fuchsia
+                  '#0ea5e9', // sky
+                  '#dc2626', // guinea-red
+                  '#fbbf24', // guinea-yellow
+                  '#059669', // guinea-green
+                ];
+                return colors[id % colors.length];
+              };
+              
+              const iconBgColor = getRandomColor(category.id);
+              
+              // Debug: Afficher les informations de couleur
+              console.log('Category colors:', {
+                name: category.name,
+                id: category.id,
+                iconBgColor: iconBgColor,
+                cardBgColor: cardBgColor
+              });
+              
               // Récupérer l'icône Lucide
               const IconComponent = getIconComponent(category.icon);
               
@@ -186,8 +222,20 @@ const Categories = ({
                   to={category.link}
                   className={`flex flex-col items-center p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group ${cardBgColor}`}
                 >
-                  <div className={`${category.color} p-4 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
-                    <IconComponent className="h-6 w-6 text-white" />
+                  <div className="p-4 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center" style={{ backgroundColor: iconBgColor }}>
+                    <IconComponent 
+                      className="h-6 w-6" 
+                      strokeWidth={2}
+                      fill="none"
+                      style={{ 
+                        minWidth: '24px', 
+                        minHeight: '24px',
+                        display: 'block',
+                        flexShrink: 0,
+                        color: 'white',
+                        stroke: 'white'
+                      }} 
+                    />
                   </div>
                   <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
                     {category.name}

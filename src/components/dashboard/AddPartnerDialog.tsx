@@ -20,7 +20,8 @@ import {
   XCircle,
   Upload,
   Camera,
-  Zap
+  Zap,
+  Tag
 } from 'lucide-react';
 import { adminUsersService } from '@/lib/services/admin-users';
 import { supabase } from '@/lib/supabase';
@@ -38,12 +39,22 @@ interface BusinessType {
   description: string;
 }
 
+interface MenuTemplate {
+  id: number;
+  business_type_id: number;
+  category_name: string;
+  category_description: string;
+  sort_order: number;
+  is_required: boolean;
+}
+
 const AddPartnerDialog: React.FC<AddPartnerDialogProps> = ({ onPartnerAdded }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
+  const [menuTemplates, setMenuTemplates] = useState<MenuTemplate[]>([]);
 
   // Form data pré-rempli avec des données par défaut
   const [formData, setFormData] = useState({
@@ -106,6 +117,35 @@ const AddPartnerDialog: React.FC<AddPartnerDialogProps> = ({ onPartnerAdded }) =
       loadBusinessTypes();
     }
   }, [open]);
+
+  // Charger les templates de catégories quand le type de business change
+  useEffect(() => {
+    const loadMenuTemplates = async () => {
+      if (!formData.business_type_id) {
+        setMenuTemplates([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('business_type_menu_templates')
+          .select('*')
+          .eq('business_type_id', formData.business_type_id)
+          .order('sort_order');
+
+        if (error) {
+          console.error('Erreur chargement templates de catégories:', error);
+          return;
+        }
+
+        setMenuTemplates(data || []);
+      } catch (error) {
+        console.error('Erreur chargement templates de catégories:', error);
+      }
+    };
+
+    loadMenuTemplates();
+  }, [formData.business_type_id]);
 
   // Gérer la sélection d'image
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -458,7 +498,54 @@ const AddPartnerDialog: React.FC<AddPartnerDialogProps> = ({ onPartnerAdded }) =
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
+              {/* Affichage des templates de catégories */}
+              {menuTemplates.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Catégories de menu suggérées pour ce type de commerce :
+                  </Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {menuTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className={`p-3 rounded-lg border ${
+                          template.is_required 
+                            ? 'border-blue-200 bg-blue-50' 
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-sm text-gray-900">
+                              {template.category_name}
+                              {template.is_required && (
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  Requis
+                                </Badge>
+                              )}
+                            </h4>
+                            {template.category_description && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                {template.category_description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Ordre: {template.sort_order}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Ces catégories seront automatiquement créées lors de la création du commerce.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="business_phone">Téléphone du commerce *</Label>
                   <Input
