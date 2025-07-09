@@ -29,7 +29,6 @@ export interface NewBusiness {
   name: string;
   description: string;
   business_type_id: number;
-  category_id: number;
   address: string;
   phone?: string;
   email?: string;
@@ -58,21 +57,7 @@ export const adminBusinessesService = {
     return data || [];
   },
 
-  // Récupérer les catégories
-  async getCategories(): Promise<Category[]> {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
 
-    if (error) {
-      console.error('Erreur lors de la récupération des catégories:', error);
-      throw new Error('Impossible de récupérer les catégories');
-    }
-
-    return data || [];
-  },
 
   // Rechercher des partenaires
   async searchPartners(searchTerm: string): Promise<Partner[]> {
@@ -136,7 +121,6 @@ export const adminBusinessesService = {
         .select(`
           *,
           business_types(name),
-          categories(name),
           user_profiles!owner_id(name, email)
         `)
         .single();

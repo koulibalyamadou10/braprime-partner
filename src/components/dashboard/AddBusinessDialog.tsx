@@ -21,14 +21,65 @@ import {
   Clock, 
   Star,
   CheckCircle,
-  XCircle
+  XCircle,
+  Store,
+  Coffee,
+  ShoppingCart,
+  Pill,
+  Tv,
+  Heart,
+  Briefcase
 } from 'lucide-react';
-import { adminBusinessesService, BusinessType, Category, Partner } from '@/lib/services/admin-businesses';
+import { adminBusinessesService, BusinessType, Partner } from '@/lib/services/admin-businesses';
 import { toast } from 'sonner';
 
 interface AddBusinessDialogProps {
   onBusinessAdded: () => void;
 }
+
+// Mapping des types de business avec leurs traductions et icônes
+const businessTypeMapping: { [key: string]: { label: string; icon: React.ReactNode; description: string } } = {
+  'Restaurant': {
+    label: 'Restaurant',
+    icon: <Store className="h-4 w-4" />,
+    description: 'Restaurants et établissements de restauration'
+  },
+  'Café': {
+    label: 'Café',
+    icon: <Coffee className="h-4 w-4" />,
+    description: 'Cafés et établissements de boissons'
+  },
+  'Marché': {
+    label: 'Marché',
+    icon: <ShoppingCart className="h-4 w-4" />,
+    description: 'Marchés et épiceries locales'
+  },
+  'Supermarché': {
+    label: 'Supermarché',
+    icon: <Building2 className="h-4 w-4" />,
+    description: 'Supermarchés et grandes surfaces'
+  },
+  'Pharmacie': {
+    label: 'Pharmacie',
+    icon: <Pill className="h-4 w-4" />,
+    description: 'Pharmacies et parapharmacies'
+  },
+  'Électronique': {
+    label: 'Électronique',
+    icon: <Tv className="h-4 w-4" />,
+    description: 'Magasins d\'électronique et technologie'
+  },
+  'Beauté': {
+    label: 'Beauté',
+    icon: <Heart className="h-4 w-4" />,
+    description: 'Salons de beauté et cosmétiques'
+  },
+  'Autre': {
+    label: 'Autre',
+    icon: <Briefcase className="h-4 w-4" />,
+    description: 'Autres types de commerces'
+  }
+};
 
 const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }) => {
   const [open, setOpen] = useState(false);
@@ -36,7 +87,6 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
   const [searchingPartner, setSearchingPartner] = useState(false);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -45,7 +95,6 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
     name: '',
     description: '',
     business_type_id: '',
-    category_id: '',
     address: '',
     phone: '',
     email: '',
@@ -57,19 +106,14 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
     is_open: true
   });
 
-  // Charger les types de commerce et catégories
+  // Charger les types de commerce
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [types, cats] = await Promise.all([
-          adminBusinessesService.getBusinessTypes(),
-          adminBusinessesService.getCategories()
-        ]);
-
+        const types = await adminBusinessesService.getBusinessTypes();
         setBusinessTypes(types);
-        setCategories(cats);
       } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
+        console.error('Erreur lors du chargement des types de business:', error);
         toast.error('Erreur lors du chargement des données');
       }
     };
@@ -112,7 +156,6 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
       await adminBusinessesService.addBusiness({
         ...formData,
         business_type_id: parseInt(formData.business_type_id),
-        category_id: parseInt(formData.category_id),
         delivery_fee: parseInt(formData.delivery_fee.toString()),
         owner_id: selectedPartner.id
       });
@@ -135,7 +178,6 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
       name: '',
       description: '',
       business_type_id: '',
-      category_id: '',
       address: '',
       phone: '',
       email: '',
@@ -149,6 +191,15 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
     setSelectedPartner(null);
     setSearchTerm('');
     setPartners([]);
+  };
+
+  // Obtenir les informations du type de business
+  const getBusinessTypeInfo = (typeName: string) => {
+    return businessTypeMapping[typeName] || {
+      label: typeName,
+      icon: <Store className="h-4 w-4" />,
+      description: 'Type de commerce'
+    };
   };
 
   return (
@@ -309,36 +360,20 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
                       <SelectValue placeholder="Sélectionner un type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {businessTypes.map((type) => (
-                        <SelectItem key={type.id} value={type.id.toString()}>
-                          <div className="flex items-center gap-2">
-                            <span>{type.icon}</span>
-                            {type.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="category">Catégorie *</Label>
-                  <Select
-                    value={formData.category_id}
-                    onValueChange={(value) => setFormData({ ...formData, category_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une catégorie" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
-                          <div className="flex items-center gap-2">
-                            <span>{category.icon}</span>
-                            {category.name}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {businessTypes.map((type) => {
+                        const typeInfo = getBusinessTypeInfo(type.name);
+                        return (
+                          <SelectItem key={type.id} value={type.id.toString()}>
+                            <div className="flex items-center gap-2">
+                              {typeInfo.icon}
+                              <div>
+                                <div className="font-medium">{typeInfo.label}</div>
+                                <div className="text-xs text-gray-500">{typeInfo.description}</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -350,6 +385,16 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
                     value={formData.cuisine_type}
                     onChange={(e) => setFormData({ ...formData, cuisine_type: e.target.value })}
                     placeholder="Ex: Italienne, Africaine, etc."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Téléphone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+224 123 456 789"
                   />
                 </div>
               </div>
@@ -378,16 +423,6 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Téléphone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+224 123 456 789"
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
@@ -397,9 +432,7 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
                     placeholder="contact@commerce.com"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="opening_hours">Heures d'ouverture</Label>
                   <Input
@@ -409,7 +442,9 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
                     placeholder="Ex: 8h-22h"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="delivery_time">Temps de livraison</Label>
                   <Input
@@ -462,7 +497,7 @@ const AddBusinessDialog: React.FC<AddBusinessDialogProps> = ({ onBusinessAdded }
           <Button 
             type="submit" 
             onClick={handleSubmit}
-            disabled={loading || !selectedPartner || !formData.name || !formData.address}
+            disabled={loading || !selectedPartner || !formData.name || !formData.address || !formData.business_type_id}
           >
             {loading ? 'Ajout en cours...' : 'Ajouter le Commerce'}
           </Button>
