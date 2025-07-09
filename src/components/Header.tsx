@@ -464,19 +464,19 @@ const Header = () => {
               </Button>
             )}
 
-            {/* Mobile menu button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleMobileMenu}
-            >
-              {isMobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-              <span className="sr-only">Menu mobile</span>
-            </Button>
+          {/* Mobile menu button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMobileMenu}
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+            <span className="sr-only">Menu mobile</span>
+          </Button>
           </div>
         </div>
 

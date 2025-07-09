@@ -453,7 +453,7 @@ const UserOrders = () => {
                     Suivre ma commande
                   </Button>
                   
-                  {selectedOrder.status === 'pending' && (
+                {selectedOrder.status === 'pending' && (
                     <Button 
                       variant="destructive" 
                       className="w-full sm:w-auto"
@@ -462,7 +462,7 @@ const UserOrders = () => {
                       Annuler la commande
                     </Button>
                   )}
-                </div>
+                  </div>
               </div>
             </DialogContent>
           </Dialog>

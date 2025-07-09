@@ -10,22 +10,6 @@ CREATE TABLE public.app_settings (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT app_settings_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.available_orders (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  order_id uuid NOT NULL,
-  business_id integer NOT NULL,
-  business_name character varying NOT NULL,
-  delivery_address text NOT NULL,
-  estimated_delivery_time timestamp with time zone,
-  delivery_fee integer DEFAULT 0,
-  total_amount integer NOT NULL,
-  is_urgent boolean DEFAULT false,
-  expires_at timestamp with time zone,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT available_orders_pkey PRIMARY KEY (id),
-  CONSTRAINT available_orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT available_orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
-);
 CREATE TABLE public.business_types (
   id integer NOT NULL DEFAULT nextval('business_types_id_seq'::regclass),
   name character varying NOT NULL UNIQUE,
@@ -62,9 +46,13 @@ CREATE TABLE public.businesses (
   owner_id uuid,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  delivery_slots jsonb DEFAULT '[]'::jsonb,
+  delivery_zone_id integer,
+  delivery_zones jsonb DEFAULT '[]'::jsonb,
+  max_orders_per_slot integer DEFAULT 10,
   CONSTRAINT businesses_pkey PRIMARY KEY (id),
-  CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
-  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id)
+  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id),
+  CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
 CREATE TABLE public.cart (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -109,6 +97,21 @@ CREATE TABLE public.categories (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT categories_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.delivery_batch_orders (
+  batch_id uuid NOT NULL,
+  order_id uuid NOT NULL,
+  CONSTRAINT delivery_batch_orders_pkey PRIMARY KEY (batch_id, order_id),
+  CONSTRAINT delivery_batch_orders_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES public.delivery_batches(id),
+  CONSTRAINT delivery_batch_orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
+);
+CREATE TABLE public.delivery_batches (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  driver_id uuid,
+  status character varying NOT NULL DEFAULT 'pending'::character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT delivery_batches_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.delivery_offers (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   order_id uuid,
@@ -122,31 +125,8 @@ CREATE TABLE public.delivery_offers (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT delivery_offers_pkey PRIMARY KEY (id),
-  CONSTRAINT delivery_offers_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
-  CONSTRAINT delivery_offers_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id)
-);
-CREATE TABLE public.delivery_time_slots (
-  id integer NOT NULL DEFAULT nextval('delivery_time_slots_id_seq'::regclass),
-  business_id integer,
-  day_of_week integer NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
-  start_time time without time zone NOT NULL,
-  end_time time without time zone NOT NULL,
-  is_active boolean DEFAULT true,
-  max_orders_per_slot integer DEFAULT 10,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT delivery_time_slots_pkey PRIMARY KEY (id),
-  CONSTRAINT delivery_time_slots_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
-);
-CREATE TABLE public.delivery_zones (
-  id integer NOT NULL DEFAULT nextval('delivery_zones_id_seq'::regclass),
-  name character varying NOT NULL,
-  delivery_fee integer NOT NULL DEFAULT 5000,
-  delivery_time character varying NOT NULL DEFAULT '30-45 min'::character varying,
-  is_active boolean DEFAULT true,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT delivery_zones_pkey PRIMARY KEY (id)
+  CONSTRAINT delivery_offers_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id),
+  CONSTRAINT delivery_offers_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
 );
 CREATE TABLE public.driver_documents (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -199,8 +179,8 @@ CREATE TABLE public.drivers (
   last_active timestamp with time zone,
   user_id uuid,
   CONSTRAINT drivers_pkey PRIMARY KEY (id),
-  CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT drivers_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT drivers_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.favorite_businesses (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -249,8 +229,8 @@ CREATE TABLE public.menu_items (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT menu_items_pkey PRIMARY KEY (id),
-  CONSTRAINT menu_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.menu_categories(id),
-  CONSTRAINT menu_items_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT menu_items_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT menu_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.menu_categories(id)
 );
 CREATE TABLE public.notification_types (
   id integer NOT NULL DEFAULT nextval('notification_types_id_seq'::regclass),
@@ -335,8 +315,8 @@ CREATE TABLE public.orders (
   landmark character varying,
   order_number character varying,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
-  CONSTRAINT orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT orders_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id)
+  CONSTRAINT orders_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id),
+  CONSTRAINT orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.payment_methods (
   id integer NOT NULL DEFAULT nextval('payment_methods_id_seq'::regclass),
@@ -460,8 +440,8 @@ CREATE TABLE public.user_profiles (
   is_verified boolean DEFAULT false,
   is_manual_creation boolean DEFAULT false,
   CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id),
-  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id)
 );
 CREATE TABLE public.user_push_tokens (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

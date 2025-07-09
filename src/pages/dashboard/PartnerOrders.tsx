@@ -31,7 +31,8 @@ import {
   Truck,
   Zap,
   Timer,
-  AlertCircle
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
@@ -39,6 +40,10 @@ import { toast } from 'sonner';
 import { AssignDriverDialog } from '@/components/AssignDriverDialog';
 import { PartnerOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { supabase } from '@/lib/supabase';
+import { DriverService } from '@/lib/services/drivers';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -61,6 +66,17 @@ const PartnerOrders = () => {
   // État pour l'assignation de livreur
   const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
   const [orderToAssign, setOrderToAssign] = useState<DashboardOrder | null>(null);
+
+  // État pour la sélection multiple de commandes prêtes
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
+
+  // État pour l'assignation multiple de livreur
+  const [isMultipleAssignOpen, setIsMultipleAssignOpen] = useState(false);
+  const [ordersToAssign, setOrdersToAssign] = useState<DashboardOrder[]>([]);
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
 
   // Charger les commandes du business
   const loadOrders = async () => {
@@ -124,6 +140,35 @@ const PartnerOrders = () => {
     setFilteredOrders(filtered);
   }, [orders, filterStatus, filterDeliveryType, searchQuery]);
 
+  // Charger les livreurs disponibles pour l'assignation multiple
+  const loadAvailableDrivers = async () => {
+    if (!business) return;
+    
+    try {
+      setIsLoadingDrivers(true);
+      const { drivers, error } = await DriverService.getBusinessDrivers(business.id);
+      
+      if (error) {
+        toast.error('Erreur lors du chargement des livreurs');
+        return;
+      }
+      
+      // Filtrer les livreurs disponibles (max 5 commandes pour l'assignation multiple)
+      const available = drivers.filter(driver => 
+        driver.is_active && 
+        driver.is_verified && 
+        (driver.active_orders_count || 0) < 5
+      );
+      
+      setAvailableDrivers(available);
+    } catch (err) {
+      console.error('Erreur chargement livreurs:', err);
+      toast.error('Erreur lors du chargement des livreurs');
+    } finally {
+      setIsLoadingDrivers(false);
+    }
+  };
+
   // Gérer le changement de statut
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const success = await updateOrderStatus(orderId, newStatus);
@@ -137,16 +182,65 @@ const PartnerOrders = () => {
     }
   };
 
-  // Gérer la sélection d'une commande
+  // Gérer la sélection d'une commande pour le modal
   const handleOrderSelect = (order: DashboardOrder) => {
     setSelectedOrder(order);
     setIsDetailsOpen(true);
   };
 
-  // Gérer l'ouverture du dialogue d'assignation de livreur
-  const handleAssignDriver = (order: DashboardOrder) => {
+  // Gérer la sélection multiple pour les batchs
+  const handleBatchSelection = (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    setSelectedOrderIds((prev) => {
+      if (prev.includes(orderId)) {
+        return prev.filter(id => id !== orderId);
+      } else {
+        // Vérifier que toutes les commandes sélectionnées sont du même type
+        const selectedOrders = orders.filter(o => prev.includes(o.id) || o.id === orderId);
+        const allSameType = selectedOrders.every(o => o.delivery_type === order.delivery_type);
+        
+        if (allSameType) {
+          return [...prev, orderId];
+        } else {
+          toast.error('Vous ne pouvez sélectionner que des commandes du même type de livraison');
+          return prev;
+        }
+      }
+    });
+  };
+
+  // Obtenir le type de livraison des commandes sélectionnées
+  const getSelectedOrdersDeliveryType = () => {
+    if (selectedOrderIds.length === 0) return null;
+    const firstOrder = orders.find(o => o.id === selectedOrderIds[0]);
+    return firstOrder?.delivery_type;
+  };
+
+  // Fonction pour gérer l'action selon le type de livraison
+  const handleBatchAction = () => {
+    const deliveryType = getSelectedOrdersDeliveryType();
+    
+    if (deliveryType === 'asap') {
+      // Pour les commandes ASAP : assignation directe
+      if (selectedOrderIds.length === 1) {
+        const order = orders.find(o => o.id === selectedOrderIds[0]);
+        if (order) {
     setOrderToAssign(order);
     setIsAssignDriverOpen(true);
+        }
+      } else {
+        // Assigner un livreur pour toutes les commandes ASAP sélectionnées
+        const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+        setOrdersToAssign(selectedOrders);
+        setIsMultipleAssignOpen(true);
+        loadAvailableDrivers(); // Charger les livreurs quand le modal s'ouvre
+      }
+    } else {
+      // Pour les commandes Scheduled : créer un batch
+      createBatch();
+    }
   };
 
   // Gérer l'assignation réussie d'un livreur
@@ -167,6 +261,48 @@ const PartnerOrders = () => {
     } catch (err) {
       console.error('Erreur lors de l\'assignation:', err);
       toast.error('Erreur lors de l\'assignation du livreur');
+    }
+  };
+
+  // Gérer l'assignation multiple réussie d'un livreur
+  const handleMultipleDriverAssigned = async () => {
+    if (!selectedDriverId) {
+      toast.error('Veuillez sélectionner un livreur');
+      return;
+    }
+
+    const selectedDriver = availableDrivers.find(d => d.id === selectedDriverId);
+    if (!selectedDriver) {
+      toast.error('Livreur non trouvé');
+      return;
+    }
+
+    try {
+      let successCount = 0;
+      
+      for (const order of ordersToAssign) {
+        // Mettre à jour le statut de chaque commande vers "out_for_delivery"
+        const success = await updateOrderStatus(order.id, 'out_for_delivery');
+        if (success) {
+          successCount++;
+        }
+      }
+      
+      if (successCount === ordersToAssign.length) {
+        toast.success(`${successCount} commande(s) ASAP assignée(s) au livreur ${selectedDriver.name}`);
+      } else {
+        toast.warning(`${successCount}/${ordersToAssign.length} commande(s) assignée(s) avec succès`);
+      }
+      
+      // Recharger les commandes et fermer le modal
+      await loadOrders();
+      setIsMultipleAssignOpen(false);
+      setOrdersToAssign([]);
+      setSelectedOrderIds([]);
+      setSelectedDriverId('');
+    } catch (err) {
+      console.error('Erreur lors de l\'assignation multiple:', err);
+      toast.error('Erreur lors de l\'assignation multiple');
     }
   };
 
@@ -291,6 +427,51 @@ const PartnerOrders = () => {
   };
 
   const stats = getOrderStats();
+
+  // Fonction pour créer un batch
+  const createBatch = async () => {
+    if (selectedOrderIds.length < 2) return;
+    setIsBatchLoading(true);
+    try {
+      // 1. Créer le batch
+      const { data: batch, error: batchError } = await supabase
+        .from('delivery_batches')
+        .insert({ status: 'pending' })
+        .select()
+        .single();
+      if (batchError) {
+        toast.error('Erreur création batch');
+        setIsBatchLoading(false);
+        return;
+      }
+      // 2. Associer les commandes
+      const batchOrders = selectedOrderIds.map(orderId => ({
+        batch_id: batch.id,
+        order_id: orderId,
+      }));
+      const { error: linkError } = await supabase
+        .from('delivery_batch_orders')
+        .insert(batchOrders);
+      if (linkError) {
+        toast.error('Erreur association commandes');
+        setIsBatchLoading(false);
+        return;
+      }
+      toast.success('Batch créé avec succès !');
+      setSelectedOrderIds([]);
+      await loadOrders();
+    } catch (e) {
+      toast.error('Erreur inattendue');
+    } finally {
+      setIsBatchLoading(false);
+    }
+  };
+
+  // Gérer l'ouverture du dialogue d'assignation de livreur
+  const handleAssignDriver = (order: DashboardOrder) => {
+    setOrderToAssign(order);
+    setIsAssignDriverOpen(true);
+  };
 
   if (!business) {
     return (
@@ -439,6 +620,22 @@ const PartnerOrders = () => {
           </Card>
         </div>
 
+        {/* Bouton d'action selon le type */}
+        {selectedOrderIds.length >= 1 && (
+          <Button onClick={handleBatchAction} disabled={isBatchLoading} className="mb-4">
+            {isBatchLoading ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                {getSelectedOrdersDeliveryType() === 'asap' ? 'Assignation en cours...' : 'Création en cours...'}
+              </>
+            ) : (
+              getSelectedOrdersDeliveryType() === 'asap' 
+                ? `Assigner livreur (${selectedOrderIds.length} commande${selectedOrderIds.length > 1 ? 's' : ''} ASAP)`
+                : `Créer un batch de livraison (${selectedOrderIds.length} commande${selectedOrderIds.length > 1 ? 's' : ''} programmée${selectedOrderIds.length > 1 ? 's' : ''})`
+            )}
+          </Button>
+        )}
+
         {/* Liste des commandes */}
         <Card>
           <CardHeader>
@@ -452,6 +649,26 @@ const PartnerOrders = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>
+                      <Checkbox
+                        checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.filter(o => o.status === 'ready').length}
+                        onCheckedChange={() => {
+                          const readyOrders = filteredOrders.filter(o => o.status === 'ready');
+                          if (readyOrders.length === 0) return;
+                          
+                          // Vérifier que toutes les commandes prêtes sont du même type
+                          const firstType = readyOrders[0].delivery_type;
+                          const allSameType = readyOrders.every(o => o.delivery_type === firstType);
+                          
+                          if (allSameType) {
+                            const readyIds = readyOrders.map(o => o.id);
+                            setSelectedOrderIds(selectedOrderIds.length === readyIds.length ? [] : readyIds);
+                          } else {
+                            toast.error('Les commandes prêtes sont de types différents. Sélectionnez manuellement.');
+                          }
+                        }}
+                      />
+                    </TableHead>
                     <TableHead>Numéro</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
@@ -464,6 +681,14 @@ const PartnerOrders = () => {
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
+                      <TableCell>
+                        {order.status === 'ready' && (
+                          <Checkbox
+                            checked={selectedOrderIds.includes(order.id)}
+                            onCheckedChange={() => handleBatchSelection(order.id)}
+                          />
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
                       <TableCell>{order.customer_name}</TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
@@ -729,7 +954,7 @@ const PartnerOrders = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Type:</span>
-                      <span className="font-medium capitalize">{selectedOrder.delivery_method || 'livraison'}</span>
+                      <span className="font-medium capitalize">{selectedOrder.delivery_type || 'livraison'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Disponible:</span>
@@ -846,11 +1071,146 @@ const PartnerOrders = () => {
             setIsAssignDriverOpen(false);
             setOrderToAssign(null);
           }}
-          orderId={orderToAssign.order_number || orderToAssign.id.slice(0, 8)}
+          orderId={orderToAssign.id}
           orderNumber={orderToAssign.order_number || orderToAssign.id.slice(0, 8)}
           businessId={business.id}
           onDriverAssigned={handleDriverAssigned}
         />
+      )}
+
+      {/* Dialogue d'assignation multiple de livreur */}
+      {ordersToAssign.length > 0 && (
+        <Dialog open={isMultipleAssignOpen} onOpenChange={setIsMultipleAssignOpen}>
+          <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Assigner un livreur à {ordersToAssign.length} commande(s) ASAP
+              </DialogTitle>
+              <DialogDescription>
+                Sélectionnez un livreur pour prendre en charge toutes ces commandes de livraison rapide.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+              {/* Liste des commandes à assigner */}
+              <div className="space-y-4 flex flex-col">
+                <h3 className="text-lg font-medium flex-shrink-0">Commandes à assigner</h3>
+                <ScrollArea className="flex-1">
+                  <div className="space-y-3 pr-4">
+                    {ordersToAssign.map((order) => (
+                      <Card key={order.id} className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-medium">#{order.order_number || order.id.slice(0, 8)}</h4>
+                            <p className="text-sm text-gray-600">{order.customer_name}</p>
+                            <p className="text-sm text-gray-500">{order.delivery_address}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge className="bg-green-100 text-green-800">
+                                <Zap className="h-3 w-3 mr-1" />
+                                ASAP
+                              </Badge>
+                              <span className="text-sm font-medium">{formatCurrency(order.grand_total)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+              
+              {/* Sélection du livreur */}
+              <div className="space-y-4 flex flex-col flex-1 min-h-0">
+                <h3 className="text-lg font-medium flex-shrink-0">Sélectionner un livreur</h3>
+                
+                {isLoadingDrivers ? (
+                  <div className="space-y-3 flex-1">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center space-x-3 p-3 border rounded-lg">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : availableDrivers.length === 0 ? (
+                  <div className="text-center py-8 flex-1 flex items-center justify-center">
+                    <p className="text-gray-500">Aucun livreur disponible</p>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <ScrollArea className="flex-1">
+                      <div className="space-y-3 pr-4">
+                        {availableDrivers.map((driver) => (
+                          <Card 
+                            key={driver.id} 
+                            className={`p-4 cursor-pointer transition-colors ${
+                              selectedDriverId === driver.id 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'hover:border-gray-300'
+                            }`}
+                            onClick={() => setSelectedDriverId(driver.id)}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                                  <User className="h-5 w-5 text-gray-600" />
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900">{driver.name}</p>
+                                <p className="text-sm text-gray-500">{driver.phone}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    {driver.active_orders_count || 0} commande{(driver.active_orders_count || 0) > 1 ? 's' : ''}
+                                  </Badge>
+                                  {driver.vehicle_type && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {driver.vehicle_type}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              {selectedDriverId === driver.id && (
+                                <div className="flex-shrink-0">
+                                  <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <Check className="h-3 w-3 text-white" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+                
+                {selectedDriverId && (
+                  <div className="pt-4 border-t flex-shrink-0">
+                    <Button 
+                      onClick={handleMultipleDriverAssigned}
+                      className="w-full"
+                      disabled={isBatchLoading}
+                    >
+                      {isBatchLoading ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Assignation en cours...
+                        </>
+                      ) : (
+                        `Assigner ${ordersToAssign.length} commande(s) au livreur`
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </DashboardLayout>
   );

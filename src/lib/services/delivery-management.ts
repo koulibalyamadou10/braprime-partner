@@ -1,13 +1,18 @@
 import { supabase } from '../supabase';
 
 export interface DeliverySlot {
-  id: number;
-  business_id: number;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_active: boolean;
-  max_orders_per_slot: number;
+  day: number;
+  start: string;
+  end: string;
+  active: boolean;
+  max_orders: number;
+}
+
+export interface DeliveryZone {
+  name: string;
+  fee: number;
+  time: string;
+  active: boolean;
 }
 
 export interface AvailableOrder {
@@ -33,53 +38,236 @@ export class DeliveryManagementService {
     preferredTime: Date
   ): Promise<{ available: boolean; slot?: DeliverySlot; error?: string }> {
     try {
-      const dayOfWeek = preferredTime.getDay();
-      const timeString = preferredTime.toTimeString().slice(0, 5); // HH:MM
-
-      const { data: slots, error } = await supabase
-        .from('delivery_time_slots')
-        .select('*')
-        .eq('business_id', businessId)
-        .eq('day_of_week', dayOfWeek)
-        .eq('is_active', true)
-        .gte('start_time', timeString)
-        .lte('end_time', timeString)
-        .limit(1);
+      // Utiliser la nouvelle fonction PostgreSQL
+      const { data, error } = await supabase
+        .rpc('check_delivery_slot_availability', {
+          business_id_param: businessId,
+          preferred_time: preferredTime.toISOString()
+        });
 
       if (error) {
         console.error('Erreur vérification créneau:', error);
         return { available: false, error: error.message };
       }
 
-      if (!slots || slots.length === 0) {
+      if (!data) {
         return { available: false, error: 'Aucun créneau disponible pour cette heure' };
       }
 
-      // Vérifier le nombre de commandes dans ce créneau
-      const { count: orderCount, error: countError } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('business_id', businessId)
-        .eq('delivery_type', 'scheduled')
-        .gte('preferred_delivery_time', preferredTime.toISOString())
-        .lt('preferred_delivery_time', new Date(preferredTime.getTime() + 30 * 60000).toISOString());
+      // Si le créneau est disponible, récupérer les détails du créneau
+      if (data) {
+        const { data: slots } = await supabase
+          .rpc('get_business_delivery_slots', { business_id_param: businessId });
 
-      if (countError) {
-        console.error('Erreur comptage commandes:', countError);
-        return { available: false, error: countError.message };
+        if (slots && Array.isArray(slots)) {
+          const dayOfWeek = preferredTime.getDay();
+          const timeString = preferredTime.toTimeString().slice(0, 5);
+          
+          const matchingSlot = slots.find((slot: any) => 
+            slot.day === dayOfWeek &&
+            slot.active === true &&
+            slot.start <= timeString &&
+            slot.end >= timeString
+          );
+
+          if (matchingSlot) {
+            return {
+              available: true,
+              slot: {
+                day: matchingSlot.day,
+                start: matchingSlot.start,
+                end: matchingSlot.end,
+                active: matchingSlot.active,
+                max_orders: matchingSlot.max_orders
+              }
+            };
+          }
+        }
       }
 
-      const slot = slots[0];
-      const isAvailable = (orderCount || 0) < slot.max_orders_per_slot;
-
-      return {
-        available: isAvailable,
-        slot: isAvailable ? slot : undefined,
-        error: isAvailable ? undefined : 'Créneau complet'
-      };
+      return { available: false, error: 'Créneau non disponible' };
     } catch (error) {
       console.error('Erreur lors de la vérification du créneau:', error);
       return { available: false, error: 'Erreur lors de la vérification du créneau' };
+    }
+  }
+
+  /**
+   * Obtenir les créneaux de livraison d'un business
+   */
+  static async getBusinessDeliverySlots(businessId: number): Promise<{ slots: DeliverySlot[]; error?: string }> {
+    try {
+      const { data: slots, error } = await supabase
+        .rpc('get_business_delivery_slots', { business_id_param: businessId });
+
+      if (error) {
+        console.error('Erreur récupération créneaux:', error);
+        return { slots: [], error: error.message };
+      }
+
+      if (!slots || !Array.isArray(slots)) {
+        return { slots: [] };
+      }
+
+      const deliverySlots: DeliverySlot[] = slots.map((slot: any) => ({
+        day: slot.day,
+        start: slot.start,
+        end: slot.end,
+        active: slot.active,
+        max_orders: slot.max_orders
+      }));
+
+      return { slots: deliverySlots };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des créneaux:', error);
+      return { slots: [], error: 'Erreur lors de la récupération des créneaux' };
+    }
+  }
+
+  /**
+   * Ajouter un créneau de livraison
+   */
+  static async addDeliverySlot(
+    businessId: number,
+    dayOfWeek: number,
+    startTime: string,
+    endTime: string,
+    isActive: boolean = true,
+    maxOrders: number = 10
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .rpc('add_delivery_slot', {
+          business_id_param: businessId,
+          day_of_week_param: dayOfWeek,
+          start_time_param: startTime,
+          end_time_param: endTime,
+          is_active_param: isActive,
+          max_orders_param: maxOrders
+        });
+
+      if (error) {
+        console.error('Erreur ajout créneau:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du créneau:', error);
+      return { success: false, error: 'Erreur lors de l\'ajout du créneau' };
+    }
+  }
+
+  /**
+   * Obtenir les zones de livraison d'un business
+   */
+  static async getBusinessDeliveryZones(businessId: number): Promise<{ zones: DeliveryZone[]; error?: string }> {
+    try {
+      const { data: business, error } = await supabase
+        .from('businesses')
+        .select('delivery_zones')
+        .eq('id', businessId)
+        .single();
+
+      if (error) {
+        console.error('Erreur récupération zones:', error);
+        return { zones: [], error: error.message };
+      }
+
+      if (!business.delivery_zones || !Array.isArray(business.delivery_zones)) {
+        return { zones: [] };
+      }
+
+      const deliveryZones: DeliveryZone[] = business.delivery_zones
+        .filter((zone: any) => zone.active)
+        .map((zone: any) => ({
+          name: zone.name,
+          fee: zone.fee,
+          time: zone.time,
+          active: zone.active
+        }));
+
+      return { zones: deliveryZones };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des zones:', error);
+      return { zones: [], error: 'Erreur lors de la récupération des zones' };
+    }
+  }
+
+  /**
+   * Mettre à jour les zones de livraison d'un business
+   */
+  static async updateBusinessDeliveryZones(
+    businessId: number,
+    zones: DeliveryZone[]
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('businesses')
+        .update({ delivery_zones: zones })
+        .eq('id', businessId);
+
+      if (error) {
+        console.error('Erreur mise à jour zones:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour des zones:', error);
+      return { success: false, error: 'Erreur lors de la mise à jour des zones' };
+    }
+  }
+
+  /**
+   * Obtenir les informations complètes de livraison d'un business
+   */
+  static async getBusinessDeliveryInfo(businessId: number): Promise<{
+    slots: DeliverySlot[];
+    zones: DeliveryZone[];
+    maxOrdersPerSlot: number;
+    error?: string;
+  }> {
+    try {
+      const { data: business, error } = await supabase
+        .from('businesses')
+        .select('delivery_slots, delivery_zones, max_orders_per_slot')
+        .eq('id', businessId)
+        .single();
+
+      if (error) {
+        console.error('Erreur récupération infos livraison:', error);
+        return { slots: [], zones: [], maxOrdersPerSlot: 10, error: error.message };
+      }
+
+      const slots: DeliverySlot[] = business.delivery_slots?.map((slot: any) => ({
+        day: slot.day,
+        start: slot.start,
+        end: slot.end,
+        active: slot.active,
+        max_orders: slot.max_orders
+      })) || [];
+
+      const zones: DeliveryZone[] = business.delivery_zones?.map((zone: any) => ({
+        name: zone.name,
+        fee: zone.fee,
+        time: zone.time,
+        active: zone.active
+      })) || [];
+
+      return {
+        slots,
+        zones,
+        maxOrdersPerSlot: business.max_orders_per_slot || 10
+      };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des infos de livraison:', error);
+      return { 
+        slots: [], 
+        zones: [], 
+        maxOrdersPerSlot: 10, 
+        error: 'Erreur lors de la récupération des infos de livraison' 
+      };
     }
   }
 
@@ -222,7 +410,7 @@ export class DeliveryManagementService {
   static async getAvailableOrdersForDrivers(
     driverId: string,
     limit: number = 20
-  ): Promise<{ orders: AvailableOrder[] | null; error?: string }> {
+  ): Promise<{ orders: any[] | null; error?: string }> {
     try {
       const { data: orders, error } = await supabase
         .from('available_orders')

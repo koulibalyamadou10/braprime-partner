@@ -255,7 +255,7 @@ const OrderTrackingPage = () => {
     if (!id || !currentUser?.id) return;
 
     console.log('🔄 Initialisation de la subscription temps réel pour la commande:', id);
-    
+
     // S'abonner aux changements de la commande spécifique
     const unsubscribe = OrderService.subscribeToOrderChanges(id, (updatedOrder) => {
       console.log('📡 Mise à jour temps réel reçue:', updatedOrder);
@@ -291,12 +291,12 @@ const OrderTrackingPage = () => {
     if (!id || !currentUser?.id || isSubscribed) return;
 
     console.log('⏰ Activation du fallback périodique');
-    
+
     const interval = setInterval(async () => {
-      try {
+        try {
         console.log('🔄 Vérification périodique de la commande:', id);
-        const { order: updatedOrder, error: fetchError } = await OrderService.getOrderById(id);
-        
+          const { order: updatedOrder, error: fetchError } = await OrderService.getOrderById(id);
+          
         if (fetchError) {
           console.error('❌ Erreur lors de la vérification périodique:', fetchError);
           return;
@@ -304,11 +304,11 @@ const OrderTrackingPage = () => {
         
         if (updatedOrder && order && updatedOrder.status !== order.status) {
           console.log('📡 Changement détecté via fallback:', updatedOrder.status);
-          if (handleOrderUpdateRef.current) {
-            handleOrderUpdateRef.current(updatedOrder as OrderTrackingData);
+            if (handleOrderUpdateRef.current) {
+              handleOrderUpdateRef.current(updatedOrder as OrderTrackingData);
+            }
           }
-        }
-      } catch (err) {
+        } catch (err) {
         console.error('❌ Erreur lors de la vérification périodique:', err);
       }
     }, 30000); // 30 secondes pour le fallback
@@ -392,7 +392,7 @@ const OrderTrackingPage = () => {
                 Commande #{order.order_number || order.id.slice(0, 8)} - {order.business_name}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
                 onClick={refreshOrder}
@@ -422,7 +422,7 @@ const OrderTrackingPage = () => {
                 <ArrowLeft className="h-4 w-4" />
                 Retour aux commandes
               </Button>
-            </div>
+                        </div>
                       </div>
                       
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

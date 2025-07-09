@@ -36,6 +36,70 @@ interface CategoriesProps {
   className?: string;
 }
 
+// Mapping des icônes Lucide
+const iconMapping: { [key: string]: any } = {
+  'Coffee': Coffee,
+  'Utensils': Utensils,
+  'ShoppingBasket': ShoppingBasket,
+  'ShoppingCart': ShoppingCart,
+  'Package': Package,
+  'Gift': Gift,
+  'Pill': Pill,
+  'Tv': Tv,
+  'Briefcase': Briefcase,
+  'Apple': Apple,
+  'FileText': FileText,
+  'Shirt': Shirt,
+  'BookOpen': BookOpen,
+  'Flower': Flower,
+  'Dog': Dog,
+  'Sparkles': Sparkles,
+  'Hammer': Hammer,
+  'Dumbbell': Dumbbell,
+  'Gamepad2': Gamepad2,
+  'Home': Home,
+  'Bike': Bike,
+  'Baby': Baby,
+  'Wine': Wine,
+  'Scissors': Scissors,
+  'Car': Car,
+  'Wrench': Wrench,
+  'Store': Store,
+  'Heart': Heart,
+  'Zap': Zap,
+  'Camera': Camera,
+  'Music': Music,
+  'Palette': Palette,
+  'Globe': Globe,
+  'Shield': Shield,
+  'Truck': Truck,
+  'MapPin': MapPin,
+  'Calendar': Calendar,
+  'Users': Users,
+  'Settings': Settings,
+  'Star': Star,
+  'Award': Award,
+  'Target': Target,
+  'TrendingUp': TrendingUp,
+  'Cake': Cake,
+  'Eye': Eye,
+  'Smartphone': Smartphone,
+  'Monitor': Monitor,
+  'Headphones': Headphones,
+  'Key': Key,
+};
+
+// Fonction pour obtenir l'icône Lucide
+const getIconComponent = (iconName: string) => {
+  if (!iconName) return Utensils;
+  
+  // Normaliser le nom de l'icône
+  const normalizedIcon = iconName.trim();
+  
+  // Retourner l'icône Lucide correspondante ou Utensils par défaut
+  return iconMapping[normalizedIcon] || Utensils;
+};
+
 const Categories = ({ 
   showAll = false, 
   customCategories, 
@@ -104,11 +168,17 @@ const Categories = ({
                   'bg-zinc-500': 'bg-zinc-50 hover:bg-zinc-100',
                   'bg-gray-500': 'bg-gray-50 hover:bg-gray-100',
                   'bg-slate-500': 'bg-slate-50 hover:bg-slate-100',
+                  'bg-guinea-red': 'bg-red-50 hover:bg-red-100',
+                  'bg-guinea-yellow': 'bg-yellow-50 hover:bg-yellow-100',
+                  'bg-guinea-green': 'bg-green-50 hover:bg-green-100',
                 };
                 return colorMap[iconColor] || 'bg-white hover:bg-gray-50';
               };
 
               const cardBgColor = getCardBgColor(category.color);
+              
+              // Récupérer l'icône Lucide
+              const IconComponent = getIconComponent(category.icon);
               
               return (
                 <Link 
@@ -117,9 +187,7 @@ const Categories = ({
                   className={`flex flex-col items-center p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group ${cardBgColor}`}
                 >
                   <div className={`${category.color} p-4 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
-                    <span className="text-3xl" role="img" aria-label={category.name}>
-                      {category.icon}
-                    </span>
+                    <IconComponent className="h-6 w-6 text-white" />
                   </div>
                   <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
                     {category.name}
