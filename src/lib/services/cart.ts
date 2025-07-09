@@ -201,7 +201,16 @@ export class CartService {
     try {
       if (quantity <= 0) {
         // Si quantité <= 0, supprimer l'article
-        return await this.removeFromCart(itemId)
+        const result = await this.removeFromCart(itemId)
+        if (result.success) {
+          // Récupérer le panier mis à jour après suppression
+          const userId = await this.getUserIdFromCartItem(itemId)
+          if (userId) {
+            const { cart } = await this.getCart(userId)
+            return { success: true, error: null, cart }
+          }
+        }
+        return { success: result.success, error: result.error, cart: null }
       }
 
       const { error } = await supabase
@@ -210,46 +219,94 @@ export class CartService {
         .eq('id', itemId)
 
       if (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: error.message, cart: null }
       }
 
-      return { success: true, error: null }
+      // Récupérer le panier mis à jour
+      const userId = await this.getUserIdFromCartItem(itemId)
+      if (userId) {
+        const { cart } = await this.getCart(userId)
+        return { success: true, error: null, cart }
+      }
+
+      return { success: true, error: null, cart: null }
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la quantité:', error)
-      return { success: false, error: 'Erreur lors de la mise à jour de la quantité' }
+      return { success: false, error: 'Erreur lors de la mise à jour de la quantité', cart: null }
+    }
+  }
+
+  /**
+   * Récupérer l'ID de l'utilisateur à partir d'un article du panier
+   */
+  static async getUserIdFromCartItem(itemId: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
+        .from('cart_items')
+        .select('cart_id')
+        .eq('id', itemId)
+        .single()
+
+      if (error || !data) {
+        return null
+      }
+
+      const { data: cartData, error: cartError } = await supabase
+        .from('cart')
+        .select('user_id')
+        .eq('id', data.cart_id)
+        .single()
+
+      if (cartError || !cartData) {
+        return null
+      }
+
+      return cartData.user_id
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'utilisateur:', error)
+      return null
     }
   }
 
   /**
    * Supprimer un article du panier
    */
-  static async removeFromCart(itemId: string): Promise<{ success: boolean; error: string | null }> {
+  static async removeFromCart(itemId: string): Promise<{ success: boolean; error: string | null; cart: Cart | null }> {
     try {
+      // Récupérer l'ID de l'utilisateur avant de supprimer
+      const userId = await this.getUserIdFromCartItem(itemId)
+      
       const { error } = await supabase
         .from('cart_items')
         .delete()
         .eq('id', itemId)
 
       if (error) {
-        return { success: false, error: error.message }
+        return { success: false, error: error.message, cart: null }
       }
 
-      return { success: true, error: null }
+      // Récupérer le panier mis à jour
+      if (userId) {
+        const { cart } = await this.getCart(userId)
+        return { success: true, error: null, cart }
+      }
+
+      return { success: true, error: null, cart: null }
     } catch (error) {
       console.error('Erreur lors de la suppression du panier:', error)
-      return { success: false, error: 'Erreur lors de la suppression du panier' }
+      return { success: false, error: 'Erreur lors de la suppression du panier', cart: null }
     }
   }
 
   /**
    * Vider le panier d'un utilisateur
    */
-  static async clearCart(userId: string): Promise<{ success: boolean; error: string | null }> {
+  static async clearCart(userId: string): Promise<{ success: boolean; error: string | null; cart: Cart | null }> {
     try {
       // Récupérer le panier
       const { cart } = await this.getCart(userId)
       if (!cart) {
-        return { success: true, error: null } // Pas de panier à vider
+        return { success: true, error: null, cart: null } // Pas de panier à vider
       }
 
       // Supprimer tous les articles
@@ -259,7 +316,7 @@ export class CartService {
         .eq('cart_id', cart.id)
 
       if (itemsError) {
-        return { success: false, error: itemsError.message }
+        return { success: false, error: itemsError.message, cart: null }
       }
 
       // Supprimer le panier
@@ -269,13 +326,13 @@ export class CartService {
         .eq('id', cart.id)
 
       if (cartError) {
-        return { success: false, error: cartError.message }
+        return { success: false, error: cartError.message, cart: null }
       }
 
-      return { success: true, error: null }
+      return { success: true, error: null, cart: null }
     } catch (error) {
       console.error('Erreur lors du vidage du panier:', error)
-      return { success: false, error: 'Erreur lors du vidage du panier' }
+      return { success: false, error: 'Erreur lors du vidage du panier', cart: null }
     }
   }
 

@@ -252,7 +252,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setCart(null);
 
     try {
-      const { success, error: clearError } = await CartService.clearCart(currentUser.id);
+      const { success, error: clearError, cart: updatedCart } = await CartService.clearCart(currentUser.id);
 
       if (clearError) {
         // En cas d'erreur, recharger le panier
@@ -264,6 +264,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           variant: "destructive",
         });
       } else if (success) {
+        // Mettre à jour avec les données du serveur
+        updateLocalCart(updatedCart);
         toast({
           title: "Panier vidé",
           description: "Votre panier a été vidé avec succès.",

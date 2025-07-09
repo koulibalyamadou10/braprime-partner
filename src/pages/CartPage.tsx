@@ -33,22 +33,30 @@ const CartPage = () => {
   const totalItems = cart?.item_count || 0;
 
   // Gérer la mise à jour de la quantité
-  const handleQuantityChange = async (itemId: string, newQuantity: number) => {
+  const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      await removeFromCart(itemId);
+      removeFromCart(itemId).catch(error => {
+        console.error('Erreur lors de la suppression:', error);
+      });
     } else {
-      await updateQuantity(itemId, newQuantity);
+      updateQuantity(itemId, newQuantity).catch(error => {
+        console.error('Erreur lors de la mise à jour:', error);
+      });
     }
   };
 
   // Gérer la suppression d'un article
-  const handleRemoveItem = async (itemId: string) => {
-    await removeFromCart(itemId);
+  const handleRemoveItem = (itemId: string) => {
+    removeFromCart(itemId).catch(error => {
+      console.error('Erreur lors de la suppression:', error);
+    });
   };
 
   // Gérer le vidage du panier
-  const handleClearCart = async () => {
-    await clearCart();
+  const handleClearCart = () => {
+    clearCart().catch(error => {
+      console.error('Erreur lors du vidage:', error);
+    });
   };
 
   // Gérer le passage au checkout
@@ -170,7 +178,12 @@ const CartPage = () => {
                       variant="ghost" 
                       size="sm" 
                       className="text-red-500 hover:text-red-700"
-                      onClick={handleClearCart}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleClearCart();
+                      }}
+                      type="button"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Vider le panier
@@ -208,9 +221,14 @@ const CartPage = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleRemoveItem(item.id)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleRemoveItem(item.id);
+                              }}
                               disabled={loading}
                               className="text-red-500 hover:text-red-700 p-1"
+                              type="button"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -222,9 +240,14 @@ const CartPage = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleQuantityChange(item.id, item.quantity - 1);
+                                }}
                                 disabled={loading}
                                 className="h-8 w-8 p-0"
+                                type="button"
                               >
                                 <Minus className="h-3 w-3" />
                               </Button>
@@ -234,9 +257,14 @@ const CartPage = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleQuantityChange(item.id, item.quantity + 1);
+                                }}
                                 disabled={loading}
                                 className="h-8 w-8 p-0"
+                                type="button"
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
@@ -281,8 +309,13 @@ const CartPage = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleQuantityChange(item.id, item.quantity - 1);
+                          }}
                           disabled={loading}
+                          type="button"
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -292,8 +325,13 @@ const CartPage = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleQuantityChange(item.id, item.quantity + 1);
+                          }}
                           disabled={loading}
+                          type="button"
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -310,9 +348,14 @@ const CartPage = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRemoveItem(item.id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleRemoveItem(item.id);
+                        }}
                         disabled={loading}
                         className="text-red-500 hover:text-red-700"
+                        type="button"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
