@@ -300,6 +300,8 @@ export class OrderService {
 
   // Écouter les changements de commandes en temps réel
   static subscribeToOrderChanges(orderId: string, callback: (order: Order) => void) {
+    console.log('🔌 Tentative de subscription pour la commande:', orderId);
+    
     const channel = supabase
       .channel(`order-${orderId}`)
       .on(
@@ -311,13 +313,25 @@ export class OrderService {
           filter: `id=eq.${orderId}`
         },
         (payload) => {
+          console.log('📡 Changement détecté pour la commande:', orderId, payload);
           callback(payload.new as Order)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('📡 Statut de la subscription:', status, 'pour la commande:', orderId);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Subscription réussie pour la commande:', orderId);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Erreur de canal pour la commande:', orderId);
+        } else if (status === 'TIMED_OUT') {
+          console.error('⏰ Timeout de la subscription pour la commande:', orderId);
+        }
+      })
 
     // Retourner une fonction de désabonnement
     return () => {
+      console.log('🔌 Désabonnement de la commande:', orderId);
       supabase.removeChannel(channel)
     }
   }

@@ -175,6 +175,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  orderNumber?: string; // Numéro de commande formaté
   userId: string;
   businessId: number;
   businessName: string;

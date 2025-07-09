@@ -202,7 +202,7 @@ const OrderDetail = () => {
   const timeline = getStatusTimeline(order);
 
   return (
-    <DashboardLayout navItems={userNavItems} title={`Commande #${order.id.substring(0, 8)}`}>
+    <DashboardLayout navItems={userNavItems} title={`Commande #${order.order_number || order.id.substring(0, 8)}`}>
       <div className="space-y-6">
         {/* Header avec boutons d'action */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -214,7 +214,7 @@ const OrderDetail = () => {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Commande #{order.id.substring(0, 8)}</h1>
+              <h1 className="text-2xl font-bold">Commande #{order.order_number || order.id.substring(0, 8)}</h1>
               <p className="text-muted-foreground">
                 Passée le {format(new Date(order.created_at), 'dd MMMM yyyy à HH:mm', { locale: fr })}
               </p>

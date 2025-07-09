@@ -349,7 +349,7 @@ const UserOrders = () => {
               <DialogHeader className="pb-4">
                 <DialogTitle className="text-lg md:text-xl">Détails de la commande</DialogTitle>
                 <DialogDescription className="text-sm">
-                  Commande #{selectedOrder.id.slice(0, 8)}... - {format(new Date(selectedOrder.orderDate), 'dd MMM yyyy')}
+                  Commande #{selectedOrder.order_number || selectedOrder.id.slice(0, 8)} - {format(new Date(selectedOrder.orderDate), 'dd MMM yyyy')}
                 </DialogDescription>
               </DialogHeader>
               
@@ -485,7 +485,7 @@ const OrdersTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Commande #</TableHead>
+            <TableHead>Commande</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Statut</TableHead>
             <TableHead>Articles</TableHead>
@@ -496,7 +496,7 @@ const OrdersTable = ({
         <TableBody>
           {orders.map((order) => (
             <TableRow key={order.id}>
-              <TableCell className="font-medium">{order.id}</TableCell>
+              <TableCell className="font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
               <TableCell>{format(order.date, 'dd MMM yyyy')}</TableCell>
               <TableCell>
                 <div className="flex items-center">

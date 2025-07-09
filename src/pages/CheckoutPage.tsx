@@ -666,13 +666,13 @@ const CheckoutPage = () => {
                           <PopoverTrigger asChild>
                             <Button 
                               variant="outline" 
-                              className="w-full justify-start text-left font-normal border-blue-300 hover:border-blue-400"
+                              className="w-full justify-start text-left font-normal border-blue-300 hover:border-blue-400 bg-white shadow-sm hover:shadow-md transition focus:ring-2 focus:ring-blue-300"
                             >
                               <Calendar className="mr-2 h-4 w-4 text-blue-600" />
                               {scheduledDate ? format(scheduledDate, 'EEEE dd MMMM yyyy') : 'Sélectionner une date'}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 bg-white border border-blue-200 shadow-lg rounded-md" align="start">
+                          <PopoverContent asChild={false} style={{ zIndex: 50 }} className="w-auto p-0 bg-white border border-blue-200 shadow-lg rounded-md" align="start">
                             <Calendar
                               mode="single"
                               selected={scheduledDate}
@@ -681,18 +681,38 @@ const CheckoutPage = () => {
                               disabled={(date) => {
                                 const today = new Date();
                                 today.setHours(0, 0, 0, 0);
-                                
                                 // Désactiver les dates passées
                                 if (date < today) return true;
-                                
                                 // Désactiver les dates trop éloignées (max 30 jours)
                                 const maxDate = new Date();
                                 maxDate.setDate(maxDate.getDate() + 30);
                                 if (date > maxDate) return true;
-                                
                                 return false;
                               }}
-                              className="bg-white rounded-md"
+                              className="bg-white rounded-md p-3"
+                              classNames={{
+                                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                                month: "space-y-4",
+                                caption: "flex justify-center pt-1 relative items-center",
+                                caption_label: "text-sm font-medium",
+                                nav: "space-x-1 flex items-center",
+                                nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                                nav_button_previous: "absolute left-1",
+                                nav_button_next: "absolute right-1",
+                                table: "w-full border-collapse space-y-1",
+                                head_row: "flex",
+                                head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
+                                row: "flex w-full mt-2",
+                                cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                                day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
+                                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                                day_today: "bg-accent text-accent-foreground",
+                                day_outside: "text-muted-foreground opacity-50",
+                                day_disabled: "text-muted-foreground opacity-50",
+                                day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                                day_hidden: "invisible",
+                                vhidden: "hidden"
+                              }}
                             />
                           </PopoverContent>
                         </Popover>

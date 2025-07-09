@@ -54,6 +54,7 @@ interface OrderTrackingData {
   delivery_method: 'delivery' | 'pickup';
   payment_method: string;
   delivery_instructions?: string;
+  order_number?: string;
 }
 
 // Étapes du suivi de commande - déplacé en dehors du composant pour éviter les re-renders
@@ -114,6 +115,7 @@ const OrderTrackingPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   // Ref pour stabiliser la fonction de mise à jour
   const handleOrderUpdateRef = useRef<((updatedOrder: OrderTrackingData) => void) | null>(null);
@@ -168,9 +170,21 @@ const OrderTrackingPage = () => {
 
     setRefreshing(true);
     try {
+      console.log('🔄 Rafraîchissement manuel de la commande:', id);
       const { order: orderData, error: fetchError } = await OrderService.getOrderById(id);
       
-      if (!fetchError && orderData) {
+      if (fetchError) {
+        console.error('❌ Erreur lors du rafraîchissement:', fetchError);
+        toast({
+          title: "Erreur",
+          description: fetchError,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (orderData) {
+        console.log('✅ Données mises à jour:', orderData);
         setOrder(orderData as OrderTrackingData);
         updateCurrentStep(orderData.status);
         toast({
@@ -179,7 +193,12 @@ const OrderTrackingPage = () => {
         });
       }
     } catch (err) {
-      console.error('Erreur lors du rafraîchissement:', err);
+      console.error('❌ Erreur lors du rafraîchissement:', err);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors du rafraîchissement",
+        variant: "destructive",
+      });
     } finally {
       setRefreshing(false);
     }
@@ -233,47 +252,72 @@ const OrderTrackingPage = () => {
 
   // Subscription en temps réel pour les mises à jour
   useEffect(() => {
-    if (!id || !currentUser?.id || !order || isSubscribed) return;
+    if (!id || !currentUser?.id) return;
 
+    console.log('🔄 Initialisation de la subscription temps réel pour la commande:', id);
+    
     // S'abonner aux changements de la commande spécifique
     const unsubscribe = OrderService.subscribeToOrderChanges(id, (updatedOrder) => {
+      console.log('📡 Mise à jour temps réel reçue:', updatedOrder);
+      
       if (handleOrderUpdateRef.current) {
         handleOrderUpdateRef.current(updatedOrder as OrderTrackingData);
       }
     });
+
+    // Vérifier l'état de la subscription après un délai
+    setTimeout(() => {
+      if (!isSubscribed) {
+        console.log('⚠️ Subscription non établie après 3 secondes');
+        setConnectionStatus('error');
+      }
+    }, 3000);
+
     setIsSubscribed(true);
+    setConnectionStatus('connected');
 
     return () => {
-      if (unsubscribe) {
+      console.log('🔌 Déconnexion de la subscription temps réel');
+      if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe();
-        setIsSubscribed(false);
       }
+      setIsSubscribed(false);
+      setConnectionStatus('connecting');
     };
-  }, [id, currentUser?.id, order?.id, isSubscribed]);
+  }, [id, currentUser?.id]); // Suppression des dépendances order?.id et isSubscribed
 
-  // Fallback : vérification périodique si la subscription échoue
+  // Vérification de sécurité périodique (fallback uniquement)
   useEffect(() => {
-    if (!order?.id || !id) return;
+    if (!id || !currentUser?.id || isSubscribed) return;
 
-    // Vérification de sécurité toutes les 2 minutes seulement si pas de subscription
+    console.log('⏰ Activation du fallback périodique');
+    
     const interval = setInterval(async () => {
-      if (!isSubscribed) {
-        try {
-          const { order: updatedOrder, error: fetchError } = await OrderService.getOrderById(id);
-          
-          if (!fetchError && updatedOrder && updatedOrder.status !== order.status) {
-            if (handleOrderUpdateRef.current) {
-              handleOrderUpdateRef.current(updatedOrder as OrderTrackingData);
-            }
-          }
-        } catch (err) {
-          console.error('Erreur lors de la vérification périodique:', err);
+      try {
+        console.log('🔄 Vérification périodique de la commande:', id);
+        const { order: updatedOrder, error: fetchError } = await OrderService.getOrderById(id);
+        
+        if (fetchError) {
+          console.error('❌ Erreur lors de la vérification périodique:', fetchError);
+          return;
         }
+        
+        if (updatedOrder && order && updatedOrder.status !== order.status) {
+          console.log('📡 Changement détecté via fallback:', updatedOrder.status);
+          if (handleOrderUpdateRef.current) {
+            handleOrderUpdateRef.current(updatedOrder as OrderTrackingData);
+          }
+        }
+      } catch (err) {
+        console.error('❌ Erreur lors de la vérification périodique:', err);
       }
-    }, 120000); // 2 minutes au lieu de 30 secondes
+    }, 30000); // 30 secondes pour le fallback
 
-    return () => clearInterval(interval);
-  }, [order?.id, order?.status, id, isSubscribed]);
+    return () => {
+      console.log('⏰ Arrêt du fallback périodique');
+      clearInterval(interval);
+    };
+  }, [id, currentUser?.id, order?.status, isSubscribed]);
 
 
 
@@ -345,10 +389,10 @@ const OrderTrackingPage = () => {
                         <div>
               <h1 className="text-3xl font-bold">Suivi de commande</h1>
               <p className="text-muted-foreground">
-                Commande #{order.id} - {order.business_name}
+                Commande #{order.order_number || order.id.slice(0, 8)} - {order.business_name}
                           </p>
                         </div>
-            <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
                 onClick={refreshOrder}
@@ -360,13 +404,25 @@ const OrderTrackingPage = () => {
               </Button>
               <Button 
                 variant="outline" 
+                onClick={() => {
+                  console.log('🔍 État actuel de la subscription:', { isSubscribed, connectionStatus });
+                  console.log('🔍 État actuel de la commande:', order);
+                }}
+                className="gap-2"
+                title="Debug - Voir les logs dans la console"
+              >
+                <AlertCircle className="h-4 w-4" />
+                Debug
+              </Button>
+              <Button 
+                variant="outline" 
                 onClick={() => navigate('/dashboard/orders')}
                 className="gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Retour aux commandes
               </Button>
-                        </div>
+            </div>
                       </div>
                       
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -474,9 +530,20 @@ const OrderTrackingPage = () => {
                       {getStatusLabel(order.status)}
                     </Badge>
                     <div className="flex items-center justify-center gap-2 mt-2">
-                      <div className={`w-2 h-2 rounded-full ${isSubscribed ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+                      <div className={`w-2 h-2 rounded-full ${
+                        connectionStatus === 'connected' 
+                          ? 'bg-green-500 animate-pulse' 
+                          : connectionStatus === 'error'
+                          ? 'bg-red-500 animate-pulse'
+                          : 'bg-yellow-500 animate-pulse'
+                      }`}></div>
                       <p className="text-sm text-gray-500">
-                        {isSubscribed ? 'Synchronisation active' : 'Synchronisation en cours...'}
+                        {connectionStatus === 'connected' 
+                          ? 'Synchronisation temps réel active' 
+                          : connectionStatus === 'error'
+                          ? 'Erreur de connexion - Reconnexion...'
+                          : 'Connexion en cours...'
+                        }
                       </p>
                     </div>
                   </div>

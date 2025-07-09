@@ -132,7 +132,7 @@ const OrderConfirmationPage = () => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-bold text-lg">Détails de la commande</h2>
                 <span className="text-sm bg-gray-100 px-3 py-1 rounded">
-                  #{order.id}
+                  #{order.order_number || order.id.slice(0, 8)}
                 </span>
               </div>
               

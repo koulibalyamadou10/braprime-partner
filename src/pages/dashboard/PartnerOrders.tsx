@@ -452,7 +452,7 @@ const PartnerOrders = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID Commande</TableHead>
+                    <TableHead>Numéro</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Livraison</TableHead>
@@ -464,7 +464,7 @@ const PartnerOrders = () => {
                 <TableBody>
                   {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.id.slice(0, 8)}...</TableCell>
+                      <TableCell className="font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
                       <TableCell>{order.customer_name}</TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
                       <TableCell>
@@ -559,7 +559,7 @@ const PartnerOrders = () => {
           <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
-                <span>Commande {selectedOrder.id.slice(0, 8)}...</span>
+                <span>Commande {selectedOrder.order_number || selectedOrder.id.slice(0, 8)}...</span>
                 <Badge className={`${getStatusColor(selectedOrder.status)} flex items-center gap-1`}>
                   {getStatusIcon(selectedOrder.status)}
                   <span className="capitalize">{getStatusLabel(selectedOrder.status)}</span>
@@ -814,7 +814,7 @@ const PartnerOrders = () => {
             <DialogFooter className="border-t pt-4">
               <div className="flex justify-between items-center w-full">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">ID: {selectedOrder.id.slice(0, 8)}...</span>
+                  <span className="text-sm text-gray-500">ID: {selectedOrder.order_number || selectedOrder.id.slice(0, 8)}...</span>
                   <Badge className={`${getStatusColor(selectedOrder.status)}`}>
                     {getStatusLabel(selectedOrder.status)}
                   </Badge>
@@ -846,8 +846,8 @@ const PartnerOrders = () => {
             setIsAssignDriverOpen(false);
             setOrderToAssign(null);
           }}
-          orderId={orderToAssign.id}
-          orderNumber={orderToAssign.id.slice(0, 8)}
+          orderId={orderToAssign.order_number || orderToAssign.id.slice(0, 8)}
+          orderNumber={orderToAssign.order_number || orderToAssign.id.slice(0, 8)}
           businessId={business.id}
           onDriverAssigned={handleDriverAssigned}
         />

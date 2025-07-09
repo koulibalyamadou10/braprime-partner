@@ -250,6 +250,7 @@ export interface Database {
       orders: {
         Row: {
           id: string
+          order_number?: string
           user_id: string
           restaurant_id: number
           restaurant_name: string
@@ -270,6 +271,7 @@ export interface Database {
         }
         Insert: {
           id?: string
+          order_number?: string
           user_id: string
           restaurant_id: number
           restaurant_name: string

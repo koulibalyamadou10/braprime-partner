@@ -442,20 +442,42 @@ const Header = () => {
             )}
           </nav>
 
-          {/* Mobile menu button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={toggleMobileMenu}
-          >
-            {isMobileMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
+          {/* Mobile Navigation */}
+          <div className="md:hidden flex items-center space-x-2">
+            {/* Mobile Cart Button - Only for authenticated customers */}
+            {isAuthenticated && currentUser?.role === 'customer' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                asChild
+              >
+                <Link to="/cart">
+                  <ShoppingCart className="h-5 w-5" />
+                  {!loading && cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-guinea-red text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {cartCount}
+                    </span>
+                  )}
+                  <span className="sr-only">Panier</span>
+                </Link>
+              </Button>
             )}
-            <span className="sr-only">Menu mobile</span>
-          </Button>
+
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleMobileMenu}
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+              <span className="sr-only">Menu mobile</span>
+            </Button>
+          </div>
         </div>
 
         {/* Mobile Search */}
@@ -515,6 +537,19 @@ const Header = () => {
                 <>
                   {currentUser.role === 'customer' && (
                     <>
+                      <Link
+                        to="/cart"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <ShoppingCart className="mr-3 h-5 w-5" />
+                        Panier
+                        {!loading && cartCount > 0 && (
+                          <span className="ml-auto bg-guinea-red text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {cartCount}
+                          </span>
+                        )}
+                      </Link>
                       <Link
                         to="/dashboard"
                         className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"

@@ -42,6 +42,7 @@ export interface PartnerStats {
 
 export interface PartnerOrder {
   id: string
+  order_number?: string // Numéro de commande lisible
   user_id: string
   customer_name: string
   customer_phone: string
@@ -321,6 +322,7 @@ export class PartnerDashboardService {
         .from('orders')
         .select(`
           id,
+          order_number,
           user_id,
           items,
           status,
@@ -384,6 +386,7 @@ export class PartnerDashboardService {
         const profile = profilesMap.get(order.user_id)
         return {
           id: order.id,
+          order_number: order.order_number,
           user_id: order.user_id,
           customer_name: profile?.name || 'Client',
           customer_phone: profile?.phone_number || '',
