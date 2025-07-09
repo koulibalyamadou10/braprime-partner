@@ -16,9 +16,59 @@ import {
   CheckCircle,
   DollarSign,
   BarChart3,
-  Smartphone
+  Smartphone,
+  Utensils,
+  Coffee,
+  ShoppingBasket,
+  ShoppingCart,
+  Pill,
+  Tv,
+  Sparkles,
+  Scissors,
+  Hammer,
+  BookOpen,
+  FileText,
+  Package,
+  Gift,
+  Briefcase
 } from 'lucide-react'
 import { usePartnerData } from '@/hooks/use-partner-stats'
+
+// Fonction pour convertir les noms d'icônes en composants Lucide React
+const getIconComponent = (iconName: string) => {
+  const iconMap: { [key: string]: any } = {
+    'Utensils': Utensils,
+    'Coffee': Coffee,
+    'ShoppingBasket': ShoppingBasket,
+    'ShoppingCart': ShoppingCart,
+    'Pill': Pill,
+    'Tv': Tv,
+    'Sparkles': Sparkles,
+    'Scissors': Scissors,
+    'Hammer': Hammer,
+    'BookOpen': BookOpen,
+    'FileText': FileText,
+    'Package': Package,
+    'Gift': Gift,
+    'Briefcase': Briefcase,
+  };
+  
+  const IconComponent = iconMap[iconName] || Utensils; // Icône par défaut
+  return (
+    <IconComponent 
+      className="h-5 w-5" 
+      strokeWidth={2}
+      fill="none"
+      style={{ 
+        minWidth: '20px', 
+        minHeight: '20px',
+        display: 'block',
+        flexShrink: 0,
+        color: 'currentColor'
+      }} 
+    />
+  );
+};
 
 const advantages = [
   {
@@ -248,7 +298,9 @@ export function PartnerSection() {
                     {businessTypes.slice(0, 6).map((type) => (
                       <div key={type.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{type.icon}</span>
+                          <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
+                            {getIconComponent(type.icon)}
+                          </div>
                           <span className="font-medium">{type.name}</span>
                         </div>
                         <Badge variant="outline">{type.count}+</Badge>
