@@ -9,7 +9,7 @@ import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddToCartButton } from '@/components/AddToCartButton';
 import { FloatingCart } from '@/components/FloatingCart';
-import { useRestaurantData } from '@/hooks/use-restaurant-data';
+import { useRestaurantData, useRestaurantEssential, useRestaurantMenuItems } from '@/hooks/use-restaurant-data';
 import BusinessPageSkeleton from '@/components/BusinessPageSkeleton';
 import ShareModal from '@/components/ShareModal';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -19,7 +19,7 @@ import {
   ChevronRight, Info, Heart, Share, ShoppingBag, Utensils
 } from 'lucide-react';
 
-const RestaurantPage = () => {
+const RestaurantPageOptimized = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const { currentUser } = useAuth();
@@ -27,18 +27,36 @@ const RestaurantPage = () => {
   const { isBusinessFavorite, toggleBusinessFavorite, isTogglingBusiness } = useFavorites();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [showMenuItems, setShowMenuItems] = useState(false);
   
-  // Récupérer toutes les données du restaurant en une seule requête optimisée
+  // Option 1: Récupérer toutes les données en une seule requête (recommandé)
   const { 
     data: restaurantData, 
-    isLoading, 
-    error 
+    isLoading: isLoadingAll, 
+    error: errorAll 
   } = useRestaurantData(id);
 
-  // Extraire les données
-  const business = restaurantData?.business;
-  const categories = restaurantData?.categories || [];
-  const menuItems = restaurantData?.menuItems || [];
+  // Option 2: Récupérer les données essentielles d'abord, puis les articles de menu
+  const { 
+    data: essentialData, 
+    isLoading: isLoadingEssential, 
+    error: errorEssential 
+  } = useRestaurantEssential(id);
+
+  // Charger les articles de menu seulement quand nécessaire
+  const { 
+    data: menuItems, 
+    isLoading: menuItemsLoading, 
+    error: menuItemsError 
+  } = useRestaurantMenuItems(id, showMenuItems);
+
+  // Utiliser les données de l'option 1 si disponibles, sinon l'option 2
+  const business = restaurantData?.business || essentialData?.business;
+  const categories = restaurantData?.categories || essentialData?.categories;
+  const allMenuItems = restaurantData?.menuItems || menuItems || [];
+  
+  const isLoading = isLoadingAll || isLoadingEssential;
+  const error = errorAll || errorEssential;
   
   // Sélectionner automatiquement la première catégorie si aucune n'est sélectionnée
   useEffect(() => {
@@ -46,7 +64,14 @@ const RestaurantPage = () => {
       setSelectedCategory(categories[0].id);
     }
   }, [categories, selectedCategory]);
-  
+
+  // Charger les articles de menu quand l'utilisateur interagit avec les catégories
+  useEffect(() => {
+    if (selectedCategory && !restaurantData) {
+      setShowMenuItems(true);
+    }
+  }, [selectedCategory, restaurantData]);
+
   // Gestion des erreurs
   if (error) {
     return (
@@ -152,8 +177,8 @@ const RestaurantPage = () => {
   
   // Filtrer les articles par catégorie sélectionnée
   const filteredItems = selectedCategory 
-    ? menuItems?.filter(item => item.category_id === selectedCategory) || []
-    : menuItems || [];
+    ? allMenuItems.filter(item => item.category_id === selectedCategory) || []
+    : allMenuItems || [];
   
   return (
     <Layout>
@@ -242,13 +267,12 @@ const RestaurantPage = () => {
 
         {/* Menu avec onglets de catégories */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          {/* <h2 className="text-xl font-bold mb-6 flex items-center">
-            <Utensils className="h-5 w-5 mr-2" />
-            Menu ({menuItems?.length || 0} articles)
-          </h2>
-           */}
           {/* Onglets des catégories */}
-          {categories.length > 0 ? (
+          {!categories || categories.length === 0 ? (
+            <div className="text-center py-4 text-gray-500 mb-6">
+              Aucune catégorie disponible
+            </div>
+          ) : (
             <div className="flex flex-wrap gap-2 mb-6 border-b">
               {categories.map(category => (
                 <button
@@ -264,14 +288,27 @@ const RestaurantPage = () => {
                 </button>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-4 text-gray-500 mb-6">
-              Aucune catégorie disponible
-            </div>
           )}
           
           {/* Liste des articles de la catégorie sélectionnée */}
-          {filteredItems.length > 0 ? (
+          {menuItemsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="border rounded-lg p-4 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-3"></div>
+                  <div className="flex justify-between">
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    <div className="h-8 bg-gray-200 rounded w-24"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : menuItemsError ? (
+            <div className="text-center py-8 text-red-500">
+              Erreur lors du chargement du menu: {menuItemsError.message}
+            </div>
+          ) : filteredItems.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {filteredItems.map(item => (
                 <div key={item.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white">
@@ -339,4 +376,4 @@ const RestaurantPage = () => {
   );
 };
 
-export default RestaurantPage;
+export default RestaurantPageOptimized; 

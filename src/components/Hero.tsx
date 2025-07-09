@@ -49,32 +49,32 @@ const StatsDisplay = ({ stats }: { stats: any }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
       <div className="flex flex-col items-center text-center">
-        <div className="bg-guinea-red/10 p-2 rounded-full mb-2">
-          <ShoppingBag className="h-5 w-5 text-guinea-red" />
+        <div className="bg-guinea-red/10 p-3 md:p-2 rounded-full mb-3 md:mb-2">
+          <ShoppingBag className="h-7 w-7 md:h-5 md:w-5 text-guinea-red" />
         </div>
         <div className="text-lg font-bold text-gray-900">{formatNumber(stats.totalRestaurants)}</div>
         <div className="text-xs text-gray-600">Services</div>
       </div>
       
       <div className="flex flex-col items-center text-center">
-        <div className="bg-guinea-yellow/10 p-2 rounded-full mb-2">
-          <Users className="h-5 w-5 text-guinea-yellow" />
+        <div className="bg-guinea-yellow/10 p-3 md:p-2 rounded-full mb-3 md:mb-2">
+          <Users className="h-7 w-7 md:h-5 md:w-5 text-guinea-yellow" />
         </div>
         <div className="text-lg font-bold text-gray-900">{formatNumber(stats.totalCustomers)}</div>
         <div className="text-xs text-gray-600">Clients</div>
       </div>
       
       <div className="flex flex-col items-center text-center">
-        <div className="bg-guinea-green/10 p-2 rounded-full mb-2">
-          <ShoppingBag className="h-5 w-5 text-guinea-green" />
+        <div className="bg-guinea-green/10 p-3 md:p-2 rounded-full mb-3 md:mb-2">
+          <ShoppingBag className="h-7 w-7 md:h-5 md:w-5 text-guinea-green" />
         </div>
         <div className="text-lg font-bold text-gray-900">{formatNumber(stats.totalOrders)}</div>
         <div className="text-xs text-gray-600">Commandes</div>
       </div>
       
       <div className="flex flex-col items-center text-center">
-        <div className="bg-blue-500/10 p-2 rounded-full mb-2">
-          <Clock className="h-5 w-5 text-blue-500" />
+        <div className="bg-blue-500/10 p-3 md:p-2 rounded-full mb-3 md:mb-2">
+          <Clock className="h-7 w-7 md:h-5 md:w-5 text-blue-500" />
         </div>
         <div className="text-lg font-bold text-gray-900">{stats.averageDeliveryTime}min</div>
         <div className="text-xs text-gray-600">Livraison</div>
