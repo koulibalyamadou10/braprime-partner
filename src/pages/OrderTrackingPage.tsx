@@ -337,11 +337,11 @@ const OrderTrackingPage = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-50 py-12">
+        <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
           <div className="container mx-auto px-4">
             <div className="space-y-6">
-              <Skeleton className="h-8 w-64" />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Skeleton className="h-8 w-48 sm:w-64" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
                 <div className="lg:col-span-2 space-y-4">
                   <Skeleton className="h-32" />
                   <Skeleton className="h-64" />
@@ -361,12 +361,12 @@ const OrderTrackingPage = () => {
   if (error || !order) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-50 py-12">
+        <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
           <div className="container mx-auto px-4">
-            <div className="flex flex-col items-center justify-center py-16">
-              <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Erreur</h2>
-              <p className="text-muted-foreground text-center mb-6">
+            <div className="flex flex-col items-center justify-center py-8 sm:py-16">
+              <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-red-500 mb-4" />
+              <h2 className="text-xl sm:text-2xl font-bold mb-2 text-center">Erreur</h2>
+              <p className="text-muted-foreground text-center mb-6 px-4">
                 {error || 'Commande non trouvée'}
               </p>
               <Button onClick={() => navigate('/dashboard/orders')}>
@@ -382,25 +382,26 @@ const OrderTrackingPage = () => {
   
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 py-12">
+      <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-                        <div>
-              <h1 className="text-3xl font-bold">Suivi de commande</h1>
-              <p className="text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold">Suivi de commande</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">
                 Commande #{order.order_number || order.id.slice(0, 8)} - {order.business_name}
-                          </p>
-                        </div>
-            <div className="flex items-center gap-2">
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Button 
                 variant="outline" 
                 onClick={refreshOrder}
                 disabled={refreshing}
+                size="sm"
                 className="gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Actualiser
+                <span className="hidden sm:inline">Actualiser</span>
               </Button>
               <Button 
                 variant="outline" 
@@ -408,64 +409,66 @@ const OrderTrackingPage = () => {
                   console.log('🔍 État actuel de la subscription:', { isSubscribed, connectionStatus });
                   console.log('🔍 État actuel de la commande:', order);
                 }}
+                size="sm"
                 className="gap-2"
                 title="Debug - Voir les logs dans la console"
               >
                 <AlertCircle className="h-4 w-4" />
-                Debug
+                <span className="hidden sm:inline">Debug</span>
               </Button>
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/dashboard/orders')}
+                size="sm"
                 className="gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Retour aux commandes
+                <span className="hidden sm:inline">Retour</span>
               </Button>
-                        </div>
-                      </div>
+            </div>
+          </div>
                       
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
             {/* Timeline de suivi */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <Navigation className="h-5 w-5" />
                     Statut de votre commande
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     Suivez l'avancement de votre commande en temps réel
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     {TRACKING_STEPS.map((step, index) => {
                       const isCompleted = index <= currentStep;
                       const isCurrent = index === currentStep;
                       const Icon = step.icon;
 
                       return (
-                        <div key={step.id} className="flex items-start gap-4">
-                          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                        <div key={step.id} className="flex items-start gap-3 sm:gap-4">
+                          <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
                             isCompleted ? step.color : 'bg-gray-200'
                           } text-white`}>
-                            <Icon className="h-5 w-5" />
+                            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className={`font-medium ${
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
+                              <h3 className={`font-medium text-sm sm:text-base ${
                                 isCompleted ? 'text-gray-900' : 'text-gray-500'
                               }`}>
                                 {step.title}
                               </h3>
                               {isCurrent && (
-                                <Badge variant="secondary" className="animate-pulse">
+                                <Badge variant="secondary" className="animate-pulse w-fit text-xs">
                                   En cours
                                 </Badge>
                               )}
                             </div>
-                            <p className={`text-sm ${
+                            <p className={`text-xs sm:text-sm ${
                               isCompleted ? 'text-gray-600' : 'text-gray-400'
                             }`}>
                               {step.description}
@@ -480,34 +483,34 @@ const OrderTrackingPage = () => {
 
               {/* Détails de la commande */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Détails de la commande</CardTitle>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg sm:text-xl">Détails de la commande</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {order.items.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-gray-500">Quantité: {item.quantity}</p>
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 bg-gray-50 rounded-lg gap-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm sm:text-base">{item.name}</p>
+                          <p className="text-xs sm:text-sm text-gray-500">Quantité: {item.quantity}</p>
                         </div>
-                        <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
+                        <p className="font-medium text-sm sm:text-base">{formatCurrency(item.price * item.quantity)}</p>
                       </div>
                     ))}
                     
                     <Separator />
                     
                     <div className="space-y-2">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between text-sm sm:text-base">
                         <span>Sous-total</span>
                         <span>{formatCurrency(order.total)}</span>
                     </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between text-sm sm:text-base">
                         <span>Frais de livraison</span>
                         <span>{formatCurrency(order.delivery_fee)}</span>
                   </div>
                       <Separator />
-                      <div className="flex justify-between font-bold text-lg">
+                      <div className="flex justify-between font-bold text-base sm:text-lg">
                         <span>Total</span>
                         <span>{formatCurrency(order.grand_total)}</span>
                       </div>
@@ -518,15 +521,15 @@ const OrderTrackingPage = () => {
             </div>
             
             {/* Informations de contact et livraison */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Statut actuel */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Statut actuel</CardTitle>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg sm:text-xl">Statut actuel</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center">
-                    <Badge className={`${getStatusColor(order.status)} text-lg px-4 py-2`}>
+                    <Badge className={`${getStatusColor(order.status)} text-sm sm:text-lg px-3 sm:px-4 py-2`}>
                       {getStatusLabel(order.status)}
                     </Badge>
                     <div className="flex items-center justify-center gap-2 mt-2">
@@ -537,7 +540,7 @@ const OrderTrackingPage = () => {
                           ? 'bg-red-500 animate-pulse'
                           : 'bg-yellow-500 animate-pulse'
                       }`}></div>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {connectionStatus === 'connected' 
                           ? 'Synchronisation temps réel active' 
                           : connectionStatus === 'error'
@@ -552,8 +555,8 @@ const OrderTrackingPage = () => {
 
               {/* Informations du restaurant */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <Store className="h-5 w-5" />
                     Restaurant
                   </CardTitle>
@@ -561,16 +564,16 @@ const OrderTrackingPage = () => {
                 <CardContent>
                   <div className="space-y-3">
                     <div>
-                      <p className="font-medium">{order.business_name}</p>
+                      <p className="font-medium text-sm sm:text-base">{order.business_name}</p>
                       {order.business_address && (
-                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                          {order.business_address}
+                        <p className="text-xs sm:text-sm text-gray-500 flex items-start gap-1 mt-1">
+                          <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                          <span className="break-words">{order.business_address}</span>
                         </p>
                       )}
                     </div>
                     {order.business_phone && (
-                      <Button variant="outline" size="sm" className="w-full gap-2">
+                      <Button variant="outline" size="sm" className="w-full gap-2 text-sm">
                         <Phone className="h-4 w-4" />
                         Appeler le restaurant
                       </Button>
@@ -582,8 +585,8 @@ const OrderTrackingPage = () => {
               {/* Informations du livreur */}
               {order.driver_name && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                       <Truck className="h-5 w-5" />
                       Livreur
                     </CardTitle>
@@ -592,10 +595,10 @@ const OrderTrackingPage = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-gray-500" />
-                        <span className="font-medium">{order.driver_name}</span>
+                        <span className="font-medium text-sm sm:text-base">{order.driver_name}</span>
                       </div>
                       {order.driver_phone && (
-                        <Button variant="outline" size="sm" className="w-full gap-2">
+                        <Button variant="outline" size="sm" className="w-full gap-2 text-sm">
                           <Phone className="h-4 w-4" />
                           Appeler le livreur
                         </Button>
@@ -607,8 +610,8 @@ const OrderTrackingPage = () => {
 
               {/* Informations de livraison */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                     <MapPin className="h-5 w-5" />
                     Livraison
                   </CardTitle>
@@ -616,32 +619,32 @@ const OrderTrackingPage = () => {
                 <CardContent>
                   <div className="space-y-3">
                     <div>
-                      <p className="text-sm text-gray-500">Adresse de livraison</p>
-                      <p className="font-medium">{order.delivery_address}</p>
+                      <p className="text-xs sm:text-sm text-gray-500">Adresse de livraison</p>
+                      <p className="font-medium text-sm sm:text-base break-words">{order.delivery_address}</p>
                     </div>
                     {order.landmark && (
                       <div>
-                        <p className="text-sm text-gray-500">Point de repère</p>
-                        <p className="font-medium text-blue-600">{order.landmark}</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Point de repère</p>
+                        <p className="font-medium text-blue-600 text-sm sm:text-base">{order.landmark}</p>
                       </div>
                     )}
                     <div>
-                      <p className="text-sm text-gray-500">Méthode</p>
-                      <p className="font-medium">
+                      <p className="text-xs sm:text-sm text-gray-500">Méthode</p>
+                      <p className="font-medium text-sm sm:text-base">
                         {order.delivery_method === 'delivery' ? 'Livraison' : 'Retrait'}
                       </p>
                     </div>
                   <div>
-                      <p className="text-sm text-gray-500">Livraison estimée</p>
-                      <p className="font-medium flex items-center gap-1">
+                      <p className="text-xs sm:text-sm text-gray-500">Livraison estimée</p>
+                      <p className="font-medium flex items-center gap-1 text-sm sm:text-base">
                         <Calendar className="h-4 w-4" />
                         {format(new Date(order.estimated_delivery), 'dd/MM/yyyy HH:mm', { locale: fr })}
                       </p>
                   </div>
                     {order.delivery_instructions && (
                       <div>
-                        <p className="text-sm text-gray-500">Instructions</p>
-                        <p className="text-sm">{order.delivery_instructions}</p>
+                        <p className="text-xs sm:text-sm text-gray-500">Instructions</p>
+                        <p className="text-xs sm:text-sm break-words">{order.delivery_instructions}</p>
                       </div>
                     )}
                   </div>
@@ -650,17 +653,17 @@ const OrderTrackingPage = () => {
 
               {/* Informations de paiement */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Paiement</CardTitle>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg sm:text-xl">Paiement</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Méthode</span>
+                    <div className="flex justify-between text-sm sm:text-base">
+                      <span className="text-gray-500">Méthode</span>
                       <span className="font-medium">{order.payment_method}</span>
                 </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Total</span>
+                    <div className="flex justify-between text-sm sm:text-base">
+                      <span className="text-gray-500">Total</span>
                       <span className="font-bold">{formatCurrency(order.grand_total)}</span>
                 </div>
               </div>
