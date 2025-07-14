@@ -1,13 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ShoppingCart, Menu, X, User, LogOut, Settings, Package, Calendar, Star, Search, Truck, MapPin, ChefHat } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useCartContext } from '@/contexts/CartContext';
-import { cn } from '@/lib/utils';
-import { RealTimeNotifications } from './RealTimeNotifications';
-import CartHover from './CartHover';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,9 +7,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCartContext } from '@/contexts/CartContext';
 import { useUserRole } from '@/contexts/UserRoleContext';
 import { useQuickSearch } from '@/hooks/use-search';
 import { SearchResult } from '@/lib/services/search';
+import { cn } from '@/lib/utils';
+import { Calendar, LogOut, MapPin, Menu, Package, Search, Settings, ShoppingCart, Star, Truck, User, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import CartHover from './CartHover';
+import { RealTimeNotifications } from './RealTimeNotifications';
 
 
 const Header = () => {
@@ -207,10 +207,7 @@ const Header = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2" onClick={closeMobileMenu}>
-            <div className="w-8 h-8 bg-guinea-red rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">B</span>
-            </div>
-            <span className="font-bold text-xl text-gray-900">BraPrime</span>
+            <img src="/logo.jpg" alt="BraPrime Logo" className="block h-8 sm:h-10 md:h-[50px] w-auto" />
           </Link>
 
           {/* Barre de recherche - Desktop */}
