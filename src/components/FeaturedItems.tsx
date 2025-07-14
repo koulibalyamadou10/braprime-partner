@@ -1,12 +1,12 @@
-import { Link } from "react-router-dom";
-import { Star, Clock, ShoppingCart, Package, MapPin, ChefHat } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useFeaturedItems } from "@/hooks/use-homepage";
-import { useCartContext } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCartContext } from "@/contexts/CartContext";
+import { useFeaturedItems } from "@/hooks/use-homepage";
+import { ChefHat, Clock, MapPin, ShoppingCart, Star } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 // Composant de chargement pour les articles en vedette
 const FeaturedItemsSkeleton = () => {

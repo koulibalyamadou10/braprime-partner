@@ -1,9 +1,9 @@
-import { Link } from "react-router-dom";
-import { Clock, Star, TrendingUp, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { usePopularRestaurants } from "@/hooks/use-homepage";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePopularRestaurants } from "@/hooks/use-homepage";
+import { Clock, Star, TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // Composant de chargement pour les services populaires
 const PopularItemsSkeleton = () => {

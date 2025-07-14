@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { HomepageService } from '@/lib/services/homepage'
+import { useQuery } from '@tanstack/react-query'
 
 // Hook pour les statistiques de la page d'accueil - Optimisé
 export const useHomepageStats = () => {

@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { useHomepageEssential } from '@/hooks/use-homepage';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useHomepageEssential } from '@/hooks/use-homepage';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
 // Lazy loading des composants
 const Categories = lazy(() => import('@/components/Categories'));

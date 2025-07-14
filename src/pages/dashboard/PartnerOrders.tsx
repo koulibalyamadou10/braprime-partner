@@ -1,49 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import DashboardLayout, { partnerNavItems } from '../../components/dashboard/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../../components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
-import { ScrollArea } from '../../components/ui/scroll-area';
-import { 
-  ShoppingBag, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Search, 
-  Filter, 
-  Eye, 
-  RefreshCw,
-  Package,
-  User,
-  MapPin,
-  Phone,
-  Calendar,
-  DollarSign,
-  MoreHorizontal,
-  ChevronDown,
-  Truck,
-  Zap,
-  Timer,
-  AlertCircle,
-  Check
-} from 'lucide-react';
-import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
-import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
-import { toast } from 'sonner';
 import { AssignDriverDialog } from '@/components/AssignDriverDialog';
 import { PartnerOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { supabase } from '@/lib/supabase';
-import { DriverService } from '@/lib/services/drivers';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
+import { DriverService } from '@/lib/services/drivers';
+import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
+import { supabase } from '@/lib/supabase';
+import {
+    AlertCircle,
+    Check,
+    CheckCircle,
+    Clock,
+    Eye,
+    Filter,
+    MapPin,
+    MoreHorizontal,
+    Package,
+    Phone,
+    RefreshCw,
+    Search,
+    Timer,
+    Truck,
+    User,
+    XCircle,
+    Zap
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import DashboardLayout, { partnerNavItems } from '../../components/dashboard/DashboardLayout';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
+import { Input } from '../../components/ui/input';
+import { ScrollArea } from '../../components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
