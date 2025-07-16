@@ -1,9 +1,9 @@
 
-import { Link } from 'react-router-dom';
-import { ArrowRight, Facebook, Instagram, Twitter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { ArrowRight, Facebook, Instagram, Twitter } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
   return (
@@ -12,9 +12,12 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="md:col-span-1">
-            <div className="flex items-center space-x-2 mb-4">
-              <div className="h-8 w-8 rounded-full overflow-hidden guinea-gradient"></div>
-              <span className="font-bold text-xl">BraPrime</span>
+            <div className="mb-4">
+              <img 
+                src="/logo.png" 
+                alt="BraPrime Logo" 
+                className="w-full h-auto max-w-xs object-cover"
+              />
             </div>
             <p className="text-gray-400 mb-4">
               Service de livraison à la demande en Guinée. Nourriture, courses, et plus à votre porte.

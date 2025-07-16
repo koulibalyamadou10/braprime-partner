@@ -207,7 +207,7 @@ const Header = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2" onClick={closeMobileMenu}>
-            <img src="/logo.jpg" alt="BraPrime Logo" className="block h-8 sm:h-10 md:h-[50px] w-auto" />
+            <img src="/logo.png" alt="BraPrime Logo" className="block h-8 sm:h-10 md:h-[50px] w-auto" />
           </Link>
 
           {/* Barre de recherche - Desktop */}
