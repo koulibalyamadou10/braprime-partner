@@ -1,8 +1,8 @@
-import { Coffee, Utensils, ShoppingBasket, ShoppingCart, Package, Gift, Pill, Tv, Briefcase, Apple, FileText, Shirt, BookOpen, Flower, Dog, Sparkles, Hammer, Dumbbell, Gamepad2, Home, Bike, Baby, Wine, Scissors, Car, Wrench, ChevronRight, Store, Heart, Zap, Camera, Music, Palette, Globe, Shield, Truck, MapPin, Calendar, Users, Settings, Star, Award, Target, TrendingUp, Cake, Eye, Smartphone, Monitor, Headphones, Key } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useCategoriesWithCounts } from "@/hooks/use-homepage";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCategoriesWithCounts } from "@/hooks/use-homepage";
+import { Apple, Award, Baby, Bike, BookOpen, Briefcase, Cake, Calendar, Camera, Car, ChevronRight, Coffee, Dog, Dumbbell, Eye, FileText, Flower, Gamepad2, Gift, Globe, Hammer, Headphones, Heart, Home, Key, MapPin, Monitor, Music, Package, Palette, Pill, Scissors, Settings, Shield, Shirt, ShoppingBasket, ShoppingCart, Smartphone, Sparkles, Star, Store, Target, TrendingUp, Truck, Tv, Users, Utensils, Wine, Wrench, Zap } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // Composant de chargement pour les catégories
 const CategoriesSkeleton = ({ showAll = false }: { showAll?: boolean }) => {
@@ -97,6 +97,75 @@ const iconMapping: { [key: string]: any } = {
   'monitor': Monitor,
   'headphones': Headphones,
   'key': Key,
+};
+
+// Fonction pour traduire et capitaliser les noms de catégories
+const translateAndCapitalize = (name: string) => {
+  const translations: { [key: string]: string } = {
+    'restaurants': 'Restaurants',
+    'cafes': 'Cafés',
+    'markets': 'Marchés',
+    'pharmacies': 'Pharmacies',
+    'beauty': 'Beauté',
+    'books': 'Livres',
+    'clothing': 'Vêtements',
+    'documents': 'Documents',
+    'electronics': 'Électronique',
+    'gifts': 'Cadeaux',
+    'hardware': 'Quincaillerie',
+    'packages': 'Colis',
+    'coffee': 'Café',
+    'utensils': 'Ustensiles',
+    'shoppingbasket': 'Courses',
+    'shoppingcart': 'Panier',
+    'gift': 'Cadeau',
+    'pill': 'Médicaments',
+    'tv': 'Télévision',
+    'briefcase': 'Bureau',
+    'apple': 'Fruits',
+    'filetext': 'Documents',
+    'shirt': 'Vêtements',
+    'bookopen': 'Livres',
+    'flower': 'Fleurs',
+    'dog': 'Animaux',
+    'sparkles': 'Beauté',
+    'hammer': 'Outils',
+    'dumbbell': 'Sport',
+    'gamepad2': 'Jeux',
+    'home': 'Maison',
+    'bike': 'Vélo',
+    'baby': 'Bébé',
+    'wine': 'Vins',
+    'scissors': 'Coiffure',
+    'car': 'Automobile',
+    'wrench': 'Réparation',
+    'store': 'Magasin',
+    'heart': 'Santé',
+    'zap': 'Électricité',
+    'camera': 'Photo',
+    'music': 'Musique',
+    'palette': 'Art',
+    'globe': 'International',
+    'shield': 'Sécurité',
+    'truck': 'Transport',
+    'mappin': 'Localisation',
+    'calendar': 'Événements',
+    'users': 'Services',
+    'settings': 'Configuration',
+    'star': 'Premium',
+    'award': 'Récompenses',
+    'target': 'Objectifs',
+    'trendingup': 'Tendances',
+    'cake': 'Pâtisserie',
+    'eye': 'Optique',
+    'smartphone': 'Téléphonie',
+    'monitor': 'Informatique',
+    'headphones': 'Audio',
+    'key': 'Clés',
+  };
+  
+  const lowerName = name.toLowerCase();
+  return translations[lowerName] || name.charAt(0).toUpperCase() + name.slice(1);
 };
 
 // Fonction pour obtenir l'icône Lucide
@@ -245,7 +314,7 @@ const Categories = ({
                     />
                   </div>
                   <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
-                    {category.name}
+                    {translateAndCapitalize(category.name)}
                   </span>
                   {category.restaurant_count > 0 && (
                     <span className="text-xs text-gray-500">
