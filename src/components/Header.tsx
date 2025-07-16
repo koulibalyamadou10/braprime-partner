@@ -251,7 +251,7 @@ const Header = () => {
               </div>
             )}
             
-            <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90" onClick={handleSearch}>
+            <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90">
               Rechercher
             </Button>
           </div>
@@ -429,6 +429,9 @@ const Header = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
+                <Button variant="ghost" asChild>
+                  <Link to="/pricing">Tarifs</Link>
+                </Button>
                 <Button variant="ghost" asChild>
                   <Link to="/login">Se connecter</Link>
                 </Button>

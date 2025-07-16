@@ -1,18 +1,25 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { OrderProvider } from "@/contexts/OrderContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { DriverAuthProvider } from "@/contexts/DriverAuthContext";
-import { CartProvider } from "@/contexts/CartContext";
-import ScrollToTop from "./components/ScrollToTop";
-import { lazy, Suspense } from "react";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
-import { UserRoleProvider } from '@/contexts/UserRoleContext';
 import { DashboardCacheProvider } from '@/components/dashboard/DashboardCacheProvider';
 import PreloadManager from '@/components/PreloadManager';
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { DriverAuthProvider } from "@/contexts/DriverAuthContext";
+import { OrderProvider } from "@/contexts/OrderContext";
+import { UserRoleProvider } from '@/contexts/UserRoleContext';
+import AdminAnalytics from '@/pages/dashboard/AdminAnalytics';
+import AdminBusinesses from '@/pages/dashboard/AdminBusinesses';
+import AdminContent from '@/pages/dashboard/AdminContent';
+import AdminDrivers from '@/pages/dashboard/AdminDrivers';
+import AdminRequests from '@/pages/dashboard/AdminRequests';
+import AdminSystem from '@/pages/dashboard/AdminSystem';
+import AdminUsers from '@/pages/dashboard/AdminUsers';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import ScrollToTop from "./components/ScrollToTop";
 
 // Use dynamic imports for page components
 const Index = lazy(() => import("./pages/Index"));
@@ -44,15 +51,9 @@ const PartnerRegistrationPage = lazy(() => import("./pages/PartnerRegistrationPa
 const RequestsPage = lazy(() => import("./pages/RequestsPage"));
 const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
 const AdminOrders = lazy(() => import("./pages/dashboard/AdminOrders"));
-import AdminBusinesses from '@/pages/dashboard/AdminBusinesses';
-import AdminUsers from '@/pages/dashboard/AdminUsers';
-import AdminDrivers from '@/pages/dashboard/AdminDrivers';
-import AdminRequests from '@/pages/dashboard/AdminRequests';
-import AdminContent from '@/pages/dashboard/AdminContent';
-import AdminAnalytics from '@/pages/dashboard/AdminAnalytics';
-import AdminSystem from '@/pages/dashboard/AdminSystem';
 const ReservationPage = lazy(() => import("./pages/ReservationPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
+const Pricing = lazy(() => import("./pages/Pricing"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SearchPage = lazy(() => import("./pages/SearchPage"));
 const AllItemsPage = lazy(() => import("./pages/AllItemsPage"));
@@ -94,6 +95,7 @@ const App = () => (
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/reservations" element={<ReservationPage />} />
                 <Route path="/about" element={<AboutPage />} />
+                <Route path="/pricing" element={<Pricing />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/articles" element={<AllItemsPage />} />
                 <Route path="/cart" element={<CartPage />} />
