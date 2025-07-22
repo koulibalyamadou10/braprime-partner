@@ -323,3 +323,167 @@ CREATE TABLE public.users (
   encrypted_password text,
   CONSTRAINT users_pkey PRIMARY KEY (id)
 );
+
+-- ========================================
+-- TABLES POUR LA GESTION DES ABONNEMENTS BRAPRIME
+-- ========================================
+
+-- Types d'abonnement disponibles
+CREATE TYPE subscription_plan_type AS ENUM (
+  '1_month',
+  '3_months', 
+  '6_months',
+  '12_months'
+);
+
+-- Statuts d'abonnement
+CREATE TYPE subscription_status AS ENUM (
+  'active',
+  'expired',
+  'cancelled',
+  'pending',
+  'suspended'
+);
+
+-- Statuts de paiement
+CREATE TYPE payment_status AS ENUM (
+  'pending',
+  'completed',
+  'failed',
+  'refunded',
+  'cancelled'
+);
+
+-- Méthodes de paiement
+CREATE TYPE payment_method AS ENUM (
+  'card',
+  'bank_transfer',
+  'mobile_money',
+  'cash'
+);
+
+-- Table des plans d'abonnement
+CREATE TABLE public.subscription_plans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  plan_type subscription_plan_type NOT NULL,
+  name character varying NOT NULL,
+  description text,
+  duration_months integer NOT NULL,
+  price numeric NOT NULL,
+  monthly_price numeric NOT NULL,
+  savings_percentage numeric,
+  features jsonb,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subscription_plans_pkey PRIMARY KEY (id),
+  CONSTRAINT subscription_plans_plan_type_unique UNIQUE (plan_type)
+);
+
+-- Table des abonnements des partenaires
+CREATE TABLE public.partner_subscriptions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  partner_id uuid NOT NULL,
+  plan_id uuid NOT NULL,
+  status subscription_status NOT NULL DEFAULT 'pending',
+  start_date timestamp with time zone NOT NULL,
+  end_date timestamp with time zone NOT NULL,
+  auto_renew boolean DEFAULT false,
+  total_paid numeric NOT NULL,
+  monthly_amount numeric NOT NULL,
+  savings_amount numeric DEFAULT 0,
+  billing_email character varying,
+  billing_phone character varying,
+  billing_address text,
+  tax_id character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT partner_subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT partner_subscriptions_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES public.partners(id) ON DELETE CASCADE,
+  CONSTRAINT partner_subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.subscription_plans(id),
+  CONSTRAINT partner_subscriptions_partner_active_unique UNIQUE (partner_id, status) WHERE status = 'active'
+);
+
+-- Table des paiements d'abonnement
+CREATE TABLE public.subscription_payments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  subscription_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  payment_method payment_method NOT NULL,
+  status payment_status NOT NULL DEFAULT 'pending',
+  transaction_reference character varying,
+  payment_date timestamp with time zone,
+  processed_date timestamp with time zone,
+  failure_reason text,
+  receipt_url character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subscription_payments_pkey PRIMARY KEY (id),
+  CONSTRAINT subscription_payments_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.partner_subscriptions(id) ON DELETE CASCADE
+);
+
+-- Table des changements de plan
+CREATE TABLE public.subscription_changes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  subscription_id uuid NOT NULL,
+  old_plan_id uuid,
+  new_plan_id uuid NOT NULL,
+  change_reason text,
+  effective_date timestamp with time zone NOT NULL,
+  price_difference numeric,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subscription_changes_pkey PRIMARY KEY (id),
+  CONSTRAINT subscription_changes_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.partner_subscriptions(id) ON DELETE CASCADE,
+  CONSTRAINT subscription_changes_old_plan_id_fkey FOREIGN KEY (old_plan_id) REFERENCES public.subscription_plans(id),
+  CONSTRAINT subscription_changes_new_plan_id_fkey FOREIGN KEY (new_plan_id) REFERENCES public.subscription_plans(id)
+);
+
+-- Table des factures
+CREATE TABLE public.subscription_invoices (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  subscription_id uuid NOT NULL,
+  payment_id uuid,
+  invoice_number character varying NOT NULL UNIQUE,
+  amount numeric NOT NULL,
+  tax_amount numeric DEFAULT 0,
+  total_amount numeric NOT NULL,
+  status payment_status NOT NULL DEFAULT 'pending',
+  due_date timestamp with time zone NOT NULL,
+  paid_date timestamp with time zone,
+  invoice_url character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subscription_invoices_pkey PRIMARY KEY (id),
+  CONSTRAINT subscription_invoices_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.partner_subscriptions(id) ON DELETE CASCADE,
+  CONSTRAINT subscription_invoices_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.subscription_payments(id)
+);
+
+-- Table des notifications d'abonnement
+CREATE TABLE public.subscription_notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  subscription_id uuid NOT NULL,
+  type character varying NOT NULL,
+  title character varying NOT NULL,
+  message text NOT NULL,
+  is_read boolean DEFAULT false,
+  sent_at timestamp with time zone DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subscription_notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT subscription_notifications_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.partner_subscriptions(id) ON DELETE CASCADE
+);
+
+-- Index pour optimiser les requêtes
+CREATE INDEX idx_partner_subscriptions_partner_id ON public.partner_subscriptions(partner_id);
+CREATE INDEX idx_partner_subscriptions_status ON public.partner_subscriptions(status);
+CREATE INDEX idx_partner_subscriptions_end_date ON public.partner_subscriptions(end_date);
+CREATE INDEX idx_subscription_payments_subscription_id ON public.subscription_payments(subscription_id);
+CREATE INDEX idx_subscription_payments_status ON public.subscription_payments(status);
+CREATE INDEX idx_subscription_invoices_subscription_id ON public.subscription_invoices(subscription_id);
+CREATE INDEX idx_subscription_notifications_subscription_id ON public.subscription_notifications(subscription_id);
+
+-- Insertion des plans d'abonnement par défaut
+INSERT INTO public.subscription_plans (plan_type, name, description, duration_months, price, monthly_price, savings_percentage, features) VALUES
+('1_month', '1 Mois', 'Formule flexible pour tester nos services', 1, 200000, 200000, 0, '["Visibilité continue sur l''application BraPrime", "Accès à des centaines d''utilisateurs actifs", "Service de livraison écoresponsable", "Plateforme moderne 100% guinéenne", "Support client", "Gestion de base du menu", "Commandes en ligne", "Notifications par SMS"]'),
+('3_months', '3 Mois', 'Formule recommandée pour les commerces établis', 3, 450000, 150000, 25, '["Tout du plan 1 mois", "Économie de 25%", "Visibilité continue sur l''application BraPrime", "Accès à des centaines d''utilisateurs actifs", "Service de livraison écoresponsable", "Plateforme moderne 100% guinéenne", "Support client", "Gestion de base du menu", "Commandes en ligne", "Notifications par SMS"]'),
+('6_months', '6 Mois', 'Formule économique pour les commerces sérieux', 6, 800000, 133333, 33, '["Tout du plan 3 mois", "Économie de 33%", "Visibilité continue sur l''application BraPrime", "Accès à des centaines d''utilisateurs actifs", "Service de livraison écoresponsable", "Plateforme moderne 100% guinéenne", "Support client", "Gestion de base du menu", "Commandes en ligne", "Notifications par SMS"]'),
+('12_months', '12 Mois', 'Formule la plus économique pour les commerces fidèles', 12, 1400000, 116667, 41.7, '["Tout du plan 6 mois", "Économie de 41,7%", "Visibilité continue sur l''application BraPrime", "Accès à des centaines d''utilisateurs actifs", "Service de livraison écoresponsable", "Plateforme moderne 100% guinéenne", "Support client", "Gestion de base du menu", "Commandes en ligne", "Notifications par SMS"]');
