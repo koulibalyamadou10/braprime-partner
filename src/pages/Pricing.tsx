@@ -2,146 +2,130 @@ import Layout from '@/components/Layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Award, BarChart3, Check, CreditCard, Headphones, Star, Truck, Zap, Utensils, Coffee, Pill, ShoppingBasket, ShoppingCart } from 'lucide-react';
+import { Award, BarChart3, Check, Globe, Star, Truck, Users, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-// Plans de tarification
+// Plans de tarification selon le document officiel
 const pricingPlans = [
   {
-    id: 'starter',
-    name: 'Starter',
-    description: 'Parfait pour les petits commerces qui débutent',
-    price: 25000,
-    pricePerMonth: '25,000 FG',
+    id: '1-month',
+    name: '1 Mois',
+    description: 'Formule flexible pour tester nos services',
+    price: 200000,
+    pricePerMonth: '200,000 FG',
     features: [
+      'Visibilité continue sur l\'application BraPrime',
+      'Accès à des centaines d\'utilisateurs actifs',
+      'Service de livraison écoresponsable',
+      'Plateforme moderne 100% guinéenne',
+      'Support client',
       'Gestion de base du menu',
       'Commandes en ligne',
-      'Notifications par SMS',
-      'Support par email',
-      'Statistiques de base',
-      '1 compte utilisateur',
-      'Livraison standard',
-      'Paiement en espèces'
+      'Notifications par SMS'
     ],
     limitations: [
-      'Maximum 50 articles',
-      'Pas de réservations',
-      'Support limité'
+      'Pas de remise',
+      'Engagement court'
     ],
     popular: false,
     icon: Star,
-    color: 'bg-blue-500'
+    color: 'bg-blue-500',
+    savings: null
   },
   {
-    id: 'professional',
-    name: 'Professional',
-    description: 'Solution complète pour les commerces établis',
-    price: 75000,
-    pricePerMonth: '75,000 FG',
+    id: '3-months',
+    name: '3 Mois',
+    description: 'Formule recommandée pour les commerces établis',
+    price: 450000,
+    pricePerMonth: '150,000 FG',
     features: [
-      'Tout du plan Starter',
-      'Gestion avancée du menu',
-      'Système de réservations',
-      'Notifications push',
-      'Support téléphonique',
-      'Statistiques détaillées',
-      '3 comptes utilisateurs',
-      'Livraison express',
-      'Paiement en ligne',
-      'Gestion des stocks',
-      'Rapports personnalisés',
-      'API d\'intégration'
+      'Tout du plan 1 mois',
+      'Économie de 25%',
+      'Visibilité continue sur l\'application BraPrime',
+      'Accès à des centaines d\'utilisateurs actifs',
+      'Service de livraison écoresponsable',
+      'Plateforme moderne 100% guinéenne',
+      'Support client',
+      'Gestion de base du menu',
+      'Commandes en ligne',
+      'Notifications par SMS'
     ],
     limitations: [
-      'Maximum 200 articles',
-      'Pas de marketplace'
+      'Engagement de 3 mois'
     ],
     popular: true,
     icon: Zap,
-    color: 'bg-guinea-red'
+    color: 'bg-guinea-red',
+    savings: '25% d\'économie'
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise',
-    description: 'Solution premium pour les grandes entreprises',
-    price: 150000,
-    pricePerMonth: '150,000 FG',
+    id: '6-months',
+    name: '6 Mois',
+    description: 'Formule économique pour les commerces sérieux',
+    price: 800000,
+    pricePerMonth: '133,333 FG',
     features: [
-      'Tout du plan Professional',
-      'Menu illimité',
-      'Marketplace intégré',
-      'Support prioritaire 24/7',
-      'Statistiques avancées',
-      'Comptes utilisateurs illimités',
-      'Livraison premium',
-      'Paiements multiples',
-      'Gestion des employés',
-      'Rapports personnalisés',
-      'API complète',
-      'Formation personnalisée',
-      'Déploiement sur mesure',
-      'SLA garanti'
+      'Tout du plan 3 mois',
+      'Économie de 33%',
+      'Visibilité continue sur l\'application BraPrime',
+      'Accès à des centaines d\'utilisateurs actifs',
+      'Service de livraison écoresponsable',
+      'Plateforme moderne 100% guinéenne',
+      'Support client',
+      'Gestion de base du menu',
+      'Commandes en ligne',
+      'Notifications par SMS'
     ],
-    limitations: [],
+    limitations: [
+      'Engagement de 6 mois'
+    ],
     popular: false,
     icon: Award,
-    color: 'bg-purple-600'
+    color: 'bg-purple-600',
+    savings: '33% d\'économie'
+  },
+  {
+    id: '12-months',
+    name: '12 Mois',
+    description: 'Formule la plus économique pour les commerces fidèles',
+    price: 1400000,
+    pricePerMonth: '116,667 FG',
+    features: [
+      'Tout du plan 6 mois',
+      'Économie de 41,7%',
+      'Visibilité continue sur l\'application BraPrime',
+      'Accès à des centaines d\'utilisateurs actifs',
+      'Service de livraison écoresponsable',
+      'Plateforme moderne 100% guinéenne',
+      'Support client',
+      'Gestion de base du menu',
+      'Commandes en ligne',
+      'Notifications par SMS'
+    ],
+    limitations: [
+      'Engagement de 12 mois'
+    ],
+    popular: false,
+    icon: Award,
+    color: 'bg-green-600',
+    savings: '41,7% d\'économie'
   }
 ];
 
-// Fonctionnalités par type de business
-const businessFeatures = {
-  restaurant: [
-    'Gestion des menus',
-    'Réservations en ligne',
-    'Livraison à domicile',
-    'Gestion des tables',
-    'Commandes en temps réel'
-  ],
-  cafe: [
-    'Menu café et pâtisseries',
-    'Commandes rapides',
-    'Livraison express',
-    'Gestion des stocks'
-  ],
-  pharmacy: [
-    'Gestion des médicaments',
-    'Ordonnances en ligne',
-    'Livraison urgente',
-    'Gestion des stocks'
-  ],
-  market: [
-    'Catalogue produits',
-    'Gestion des stocks',
-    'Livraison à domicile',
-    'Paiements sécurisés'
-  ],
-  supermarket: [
-    'Catalogue complet',
-    'Gestion des stocks',
-    'Livraison express',
-    'Programme de fidélité'
-  ]
-};
+
 
 const Pricing = () => {
-  const [selectedPlan, setSelectedPlan] = useState('professional');
+  const [selectedPlan, setSelectedPlan] = useState('3-months');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
-  // Calculer les prix avec remise annuelle
+  // Calculer les prix selon la durée d'engagement
   const getDiscountedPrice = (price: number) => {
-    if (billingCycle === 'yearly') {
-      return Math.round(price * 10 * 0.8); // 20% de remise pour l'année
-    }
-    return price;
+    return price; // Les prix sont déjà calculés selon la durée
   };
 
   const getBillingText = (price: number) => {
-    if (billingCycle === 'yearly') {
-      return `${(getDiscountedPrice(price) / 10).toLocaleString()} FG/mois`;
-    }
-    return `${price.toLocaleString()} FG/mois`;
+    return `${price.toLocaleString()} FG`;
   };
 
   return (
@@ -158,25 +142,16 @@ const Pricing = () => {
                 Choisissez le plan qui correspond à vos besoins. Évoluez à votre rythme.
               </p>
               
-              {/* Toggle Billing */}
+              {/* Informations sur les tarifs */}
               <div className="flex items-center justify-center space-x-4 mb-8">
-                <span className={`text-sm ${billingCycle === 'monthly' ? 'text-white' : 'text-white/70'}`}>
-                  Mensuel
-                </span>
-                <button
-                  onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
-                  className="relative inline-flex h-6 w-11 items-center rounded-full bg-white/20 transition-colors"
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-                <span className={`text-sm ${billingCycle === 'yearly' ? 'text-white' : 'text-white/70'}`}>
-                  Annuel
-                  <Badge className="ml-2 bg-green-500 text-white">-20%</Badge>
-                </span>
+                <div className="text-center">
+                  <p className="text-white/90 text-lg">
+                    Profitez d'une visibilité continue sur l'application BraPrime, touchez de nouveaux clients et augmentez vos ventes grâce à nos forfaits flexibles.
+                  </p>
+                  <p className="text-white/80 text-sm mt-2">
+                    Plus votre engagement est long, plus vous réalisez d'économies !
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -184,7 +159,7 @@ const Pricing = () => {
 
         {/* Pricing Cards */}
         <div className="container mx-auto px-4 py-16">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
             {pricingPlans.map((plan) => {
               const IconComponent = plan.icon;
               const isSelected = selectedPlan === plan.id;
@@ -200,7 +175,14 @@ const Pricing = () => {
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                       <Badge className="bg-guinea-red text-white px-4 py-1">
-                        Plus populaire
+                        Recommandé
+                      </Badge>
+                    </div>
+                  )}
+                  {plan.savings && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <Badge className="bg-green-500 text-white px-4 py-1">
+                        {plan.savings}
                       </Badge>
                     </div>
                   )}
@@ -219,19 +201,14 @@ const Pricing = () => {
                     {/* Prix */}
                     <div className="text-center">
                       <div className="text-4xl font-bold text-gray-900">
-                        {billingCycle === 'yearly' 
-                          ? `${(discountedPrice / 10).toLocaleString()} FG`
-                          : `${plan.price.toLocaleString()} FG`
-                        }
+                        {plan.price.toLocaleString()} FG
                       </div>
                       <div className="text-gray-600">
-                        {billingCycle === 'yearly' ? 'par mois' : 'par mois'}
+                        {plan.pricePerMonth} par mois
                       </div>
-                      {billingCycle === 'yearly' && (
-                        <div className="text-sm text-gray-500 mt-1">
-                          {discountedPrice.toLocaleString()} FG facturés annuellement
-                        </div>
-                      )}
+                      <div className="text-sm text-gray-500 mt-1">
+                        Engagement {plan.name.toLowerCase()}
+                      </div>
                     </div>
 
                     {/* Fonctionnalités */}
@@ -277,77 +254,34 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* Fonctionnalités par type de business */}
+        {/* Pourquoi s'abonner */}
         <div className="bg-white py-16">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold mb-4">Fonctionnalités adaptées à votre secteur</h2>
+              <h2 className="text-3xl font-bold mb-4">Pourquoi s'abonner ?</h2>
               <p className="text-gray-600 max-w-2xl mx-auto">
-                Chaque type de commerce bénéficie de fonctionnalités spécialisées pour optimiser ses opérations.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {Object.entries(businessFeatures).map(([type, features]) => (
-                <Card key={type} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="capitalize flex items-center">
-                      {type === 'restaurant' && <Utensils className="h-5 w-5 mr-2" />}
-                      {type === 'cafe' && <Coffee className="h-5 w-5 mr-2" />}
-                      {type === 'pharmacy' && <Pill className="h-5 w-5 mr-2" />}
-                      {type === 'market' && <ShoppingBasket className="h-5 w-5 mr-2" />}
-                      {type === 'supermarket' && <ShoppingCart className="h-5 w-5 mr-2" />}
-                      {type === 'restaurant' ? 'Restaurants' : 
-                       type === 'cafe' ? 'Cafés' :
-                       type === 'pharmacy' ? 'Pharmacies' :
-                       type === 'market' ? 'Marchés' :
-                       type === 'supermarket' ? 'Supermarchés' : type}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {features.map((feature, index) => (
-                        <li key={index} className="flex items-center space-x-2">
-                          <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-                          <span className="text-gray-700">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Avantages */}
-        <div className="bg-gray-50 py-16">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold mb-4">Pourquoi choisir BraPrime ?</h2>
-              <p className="text-gray-600 max-w-2xl mx-auto">
-                Une plateforme complète pour digitaliser votre commerce et augmenter vos ventes.
+                Découvrez les avantages de rejoindre BraPrime et d'augmenter vos ventes.
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="text-center">
                 <div className="bg-guinea-red/10 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                  <Truck className="h-8 w-8 text-guinea-red" />
+                  <Users className="h-8 w-8 text-guinea-red" />
                 </div>
-                <h3 className="font-semibold mb-2">Livraison rapide</h3>
+                <h3 className="font-semibold mb-2">Gagnez en visibilité</h3>
                 <p className="text-gray-600 text-sm">
-                  Livraison en moins de 30 minutes dans votre zone
+                  Visibilité auprès de centaines d'utilisateurs actifs à Conakry
                 </p>
               </div>
               
               <div className="text-center">
                 <div className="bg-guinea-red/10 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                  <CreditCard className="h-8 w-8 text-guinea-red" />
+                  <Truck className="h-8 w-8 text-guinea-red" />
                 </div>
-                <h3 className="font-semibold mb-2">Paiements sécurisés</h3>
+                <h3 className="font-semibold mb-2">Livraison écoresponsable</h3>
                 <p className="text-gray-600 text-sm">
-                  Paiements en ligne et en espèces sécurisés
+                  Service de livraison rapide et fiable
                 </p>
               </div>
               
@@ -355,24 +289,26 @@ const Pricing = () => {
                 <div className="bg-guinea-red/10 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                   <BarChart3 className="h-8 w-8 text-guinea-red" />
                 </div>
-                <h3 className="font-semibold mb-2">Analytics avancés</h3>
+                <h3 className="font-semibold mb-2">Réduisez vos coûts</h3>
                 <p className="text-gray-600 text-sm">
-                  Statistiques détaillées pour optimiser vos ventes
+                  Réduisez vos coûts de communication et de logistique
                 </p>
               </div>
               
               <div className="text-center">
                 <div className="bg-guinea-red/10 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                  <Headphones className="h-8 w-8 text-guinea-red" />
+                  <Globe className="h-8 w-8 text-guinea-red" />
                 </div>
-                <h3 className="font-semibold mb-2">Support 24/7</h3>
+                <h3 className="font-semibold mb-2">Plateforme moderne</h3>
                 <p className="text-gray-600 text-sm">
-                  Support technique disponible à tout moment
+                  Référencé sur une plateforme moderne, 100% guinéenne
                 </p>
               </div>
             </div>
           </div>
         </div>
+
+
 
         {/* FAQ */}
         <div className="bg-white py-16">
@@ -383,9 +319,9 @@ const Pricing = () => {
             
             <div className="max-w-3xl mx-auto space-y-6">
               <div className="border rounded-lg p-6">
-                <h3 className="font-semibold mb-2">Puis-je changer de plan à tout moment ?</h3>
+                <h3 className="font-semibold mb-2">Comment fonctionne l'abonnement ?</h3>
                 <p className="text-gray-600">
-                  Oui, vous pouvez passer à un plan supérieur à tout moment. Le changement sera effectif immédiatement.
+                  Choisissez la durée d'engagement qui vous convient (1, 3, 6 ou 12 mois). Plus l'engagement est long, plus vous réalisez d'économies.
                 </p>
               </div>
               
@@ -397,16 +333,16 @@ const Pricing = () => {
               </div>
               
               <div className="border rounded-lg p-6">
-                <h3 className="font-semibold mb-2">Comment fonctionne la période d'essai ?</h3>
+                <h3 className="font-semibold mb-2">Quels sont les moyens de paiement acceptés ?</h3>
                 <p className="text-gray-600">
-                  Tous nos plans incluent une période d'essai gratuite de 14 jours. Aucune carte de crédit requise.
+                  Nous acceptons les cartes bancaires, les virements bancaires et les paiements mobiles (Orange Money, MTN Money).
                 </p>
               </div>
               
               <div className="border rounded-lg p-6">
-                <h3 className="font-semibold mb-2">Quels sont les moyens de paiement acceptés ?</h3>
+                <h3 className="font-semibold mb-2">Puis-je annuler mon abonnement ?</h3>
                 <p className="text-gray-600">
-                  Nous acceptons les cartes bancaires, les virements bancaires et les paiements mobiles (Orange Money, MTN Money).
+                  Vous pouvez annuler à tout moment, mais l'engagement choisi reste en vigueur jusqu'à la fin de la période payée.
                 </p>
               </div>
             </div>
@@ -416,14 +352,14 @@ const Pricing = () => {
         {/* CTA */}
         <div className="bg-gradient-to-r from-guinea-red to-guinea-red/90 text-white py-16">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4">Prêt à commencer ?</h2>
+            <h2 className="text-3xl font-bold mb-4">Prêt à devenir partenaire ?</h2>
             <p className="text-xl mb-8 text-white/90">
               Rejoignez des centaines de commerces qui font confiance à BraPrime
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/register">
+              <Link to="/devenir-partenaire">
                 <Button size="lg" className="bg-white text-guinea-red hover:bg-gray-100">
-                  Commencer gratuitement
+                  Devenir partenaire
                 </Button>
               </Link>
               <Link to="/contact">
