@@ -89,7 +89,7 @@ const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) =>
 
         <div className="flex flex-1 items-center gap-4 md:gap-8">
           <Link to="/" className="flex items-center space-x-2">
-            <img src="/logo.jpg" alt="BraPrime Logo" className="block h-10 sm:h-12 md:h-14 w-auto" />
+            <img src="/logo.png" alt="BraPrime Logo" className="block h-10 sm:h-12 md:h-14 w-auto" />
           </Link>
           <div className="ml-auto flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2">
