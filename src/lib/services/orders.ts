@@ -302,38 +302,86 @@ export class OrderService {
   static subscribeToOrderChanges(orderId: string, callback: (order: Order) => void) {
     console.log('🔌 Tentative de subscription pour la commande:', orderId);
     
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `id=eq.${orderId}`
-        },
-        (payload) => {
-          console.log('📡 Changement détecté pour la commande:', orderId, payload);
-          callback(payload.new as Order)
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Statut de la subscription:', status, 'pour la commande:', orderId);
-        
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Subscription réussie pour la commande:', orderId);
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Erreur de canal pour la commande:', orderId);
-        } else if (status === 'TIMED_OUT') {
-          console.error('⏰ Timeout de la subscription pour la commande:', orderId);
-        }
-      })
+    let subscriptionTimeout: NodeJS.Timeout;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const setupSubscription = () => {
+      console.log(`🔄 Tentative de subscription ${retryCount + 1}/${maxRetries + 1}`);
+      
+      const channel = supabase
+        .channel(`order-${orderId}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'orders',
+            filter: `id=eq.${orderId}`
+          },
+          (payload) => {
+            console.log('📡 Changement détecté pour la commande:', orderId, payload);
+            retryCount = 0; // Reset retry count on successful update
+            callback(payload.new as Order);
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 Statut de la subscription:', status, 'pour la commande:', orderId);
+          
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Subscription réussie pour la commande:', orderId);
+            retryCount = 0;
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('❌ Erreur de canal pour la commande:', orderId);
+            handleSubscriptionError();
+          } else if (status === 'TIMED_OUT') {
+            console.error('⏰ Timeout de la subscription pour la commande:', orderId);
+            handleSubscriptionError();
+          } else if (status === 'CLOSED') {
+            console.log('🔌 Canal fermé pour la commande:', orderId);
+            handleSubscriptionError();
+          }
+        });
+
+      // Timeout pour détecter les problèmes de connexion
+      subscriptionTimeout = setTimeout(() => {
+        console.warn('⚠️ Timeout de subscription pour la commande:', orderId);
+        handleSubscriptionError();
+      }, 10000); // 10 secondes
+
+      return channel;
+    };
+
+    const handleSubscriptionError = () => {
+      if (subscriptionTimeout) {
+        clearTimeout(subscriptionTimeout);
+      }
+      
+      if (retryCount < maxRetries) {
+        retryCount++;
+        console.log(`🔄 Nouvelle tentative de subscription (${retryCount}/${maxRetries})`);
+        setTimeout(() => {
+          setupSubscription();
+        }, 2000 * retryCount); // Délai progressif
+      } else {
+        console.error('❌ Nombre maximum de tentatives atteint pour la commande:', orderId);
+      }
+    };
+
+    const channel = setupSubscription();
 
     // Retourner une fonction de désabonnement
     return () => {
       console.log('🔌 Désabonnement de la commande:', orderId);
-      supabase.removeChannel(channel)
-    }
+      if (subscriptionTimeout) {
+        clearTimeout(subscriptionTimeout);
+      }
+      try {
+        supabase.removeChannel(channel);
+      } catch (error) {
+        console.error('❌ Erreur lors de la désabonnement:', error);
+      }
+    };
   }
 
   // Écouter les nouvelles commandes d'un commerce

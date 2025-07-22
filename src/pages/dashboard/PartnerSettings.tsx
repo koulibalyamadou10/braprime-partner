@@ -1,3 +1,4 @@
+import { CreateSubscriptionModal } from '@/components/dashboard/CreateSubscriptionModal';
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePartnerProfile } from '@/hooks/use-partner-profile';
+import { subscriptionUtils, useActivatePendingSubscription, useCreateSubscription, useCurrentUserSubscription, useCurrentUserSubscriptionHistory, useSubscriptionPlans, useUpdateBillingInfo } from '@/hooks/use-subscription';
+import { useUserBusiness } from '@/hooks/use-user-business';
 import {
+    AlertCircle,
     Bell,
     Building2,
     Calendar,
@@ -73,7 +78,31 @@ const PartnerSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showCreateSubscriptionModal, setShowCreateSubscriptionModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
   
+  // Hooks d'abonnement
+  const { data: subscriptionPlans } = useSubscriptionPlans();
+  const { data: currentSubscription, isLoading: subscriptionLoading } = useCurrentUserSubscription();
+  const { data: subscriptionHistory, isLoading: historyLoading } = useCurrentUserSubscriptionHistory();
+  const updateBillingInfo = useUpdateBillingInfo();
+  const createSubscription = useCreateSubscription();
+  const activatePendingSubscription = useActivatePendingSubscription();
+  const { data: business, isLoading: businessLoading } = useUserBusiness();
+  
+  // Hook partenaire pour diagnostic
+  const { profile: partnerProfile, isLoading: partnerLoading } = usePartnerProfile();
+  
+  console.log('🔍 [PartnerSettings] Diagnostic des hooks:');
+  console.log('  - useUserBusiness:', { business, businessLoading });
+  console.log('  - usePartnerProfile:', { partnerProfile, partnerLoading });
+  console.log('  - user:', user);
+  console.log('  - currentSubscription:', currentSubscription);
+  console.log('  - subscriptionLoading:', subscriptionLoading);
+  console.log('  - partnerProfile?.id:', partnerProfile?.id);
+  console.log('  - subscriptionHistory:', subscriptionHistory);
+  console.log('  - historyLoading:', historyLoading);
+
   const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
     name: '',
     description: '',
@@ -184,6 +213,71 @@ const PartnerSettings: React.FC = () => {
       toast.error('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSelectPlan = async (planId: string) => {
+    try {
+      // Utiliser partnerProfile si disponible, sinon userBusiness
+      const currentBusiness = partnerProfile || business;
+      const isLoading = partnerLoading || businessLoading;
+      
+      console.log('🔍 [PartnerSettings] Business sélectionné:', currentBusiness);
+      
+      // Vérifier que le business existe
+      if (!currentBusiness || isLoading) {
+        toast.error('Chargement du profil business en cours...');
+        return;
+      }
+
+      // Trouver le plan sélectionné
+      const plan = subscriptionPlans?.find(p => p.id === planId);
+      if (!plan) {
+        toast.error('Plan non trouvé');
+        return;
+      }
+
+      console.log('🔍 [PartnerSettings] Business ID pour l\'abonnement:', currentBusiness.id);
+
+      // Si l'utilisateur a déjà un abonnement, on le renouvelle
+      if (currentSubscription) {
+        const success = await updateBillingInfo.mutateAsync({
+          subscriptionId: currentSubscription.id,
+          billingInfo: {
+            email: currentSubscription.billing_email,
+            phone: currentSubscription.billing_phone,
+            address: currentSubscription.billing_address,
+            tax_id: currentSubscription.tax_id
+          }
+        });
+        
+        if (success) {
+          toast.success('Plan changé avec succès');
+        }
+      } else {
+        // Ouvrir le modal de création d'abonnement
+        setSelectedPlan(plan);
+        setShowCreateSubscriptionModal(true);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sélection du plan:', error);
+      toast.error('Erreur lors de la sélection du plan');
+    }
+  };
+
+  const handleSubscriptionCreated = (subscriptionId: string) => {
+    toast.success('Abonnement créé avec succès !');
+    setShowCreateSubscriptionModal(false);
+    setSelectedPlan(null);
+  };
+
+  const handleActivateSubscription = async () => {
+    if (!currentSubscription) return;
+    
+    try {
+      await activatePendingSubscription.mutateAsync(currentSubscription.id);
+    } catch (error) {
+      console.error('Erreur lors de l\'activation:', error);
     }
   };
 
@@ -728,127 +822,206 @@ const PartnerSettings: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Statut actuel */}
-                <div className="bg-muted p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="font-medium">Plan actuel : 3 Mois</span>
-                    <Badge className="bg-green-500 text-white">25% d'économie</Badge>
+                {subscriptionLoading ? (
+                  <div className="bg-muted p-4 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                      <span>Chargement de l'abonnement...</span>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Votre abonnement expire le 15 janvier 2025. Renouvelez pour continuer à bénéficier de nos services.
-                  </p>
-                </div>
+                ) : currentSubscription ? (
+                  <div className={`p-4 rounded-lg border ${
+                    currentSubscription.status === 'active' 
+                      ? 'bg-green-50 border-green-200' 
+                      : currentSubscription.status === 'pending'
+                      ? 'bg-yellow-50 border-yellow-200'
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      {currentSubscription.status === 'active' ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : currentSubscription.status === 'pending' ? (
+                        <Clock className="h-5 w-5 text-yellow-600" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                      )}
+                      <span className="font-medium">
+                        {currentSubscription.status === 'active' ? 'Abonnement actif' :
+                         currentSubscription.status === 'pending' ? 'Abonnement en attente' :
+                         'Abonnement inactif'}: {currentSubscription.plan?.name}
+                      </span>
+                      {currentSubscription.status === 'active' && currentSubscription.savings_amount > 0 && (
+                        <Badge className="bg-green-500 text-white">
+                          {currentSubscription.plan?.savings_percentage}% d'économie
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {currentSubscription.status === 'active' ? (
+                        <>
+                          Votre abonnement expire le {subscriptionUtils.formatDate(currentSubscription.end_date)}. 
+                          {subscriptionUtils.getDaysRemaining(currentSubscription.end_date)} jours restants.
+                        </>
+                      ) : currentSubscription.status === 'pending' ? (
+                        <>
+                          Votre abonnement est en attente d'activation. 
+                          Date de début : {subscriptionUtils.formatDate(currentSubscription.start_date)}
+                        </>
+                      ) : (
+                        'Votre abonnement n\'est pas actif.'
+                      )}
+                    </p>
+                    {currentSubscription.status === 'pending' && (
+                      <Button 
+                        onClick={handleActivateSubscription}
+                        disabled={activatePendingSubscription.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {activatePendingSubscription.isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                            Activation...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Activer l'abonnement
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertCircle className="h-5 w-5 text-yellow-600" />
+                      <span className="font-medium">Aucun abonnement actif</span>
+                    </div>
+                    <p className="text-sm text-yellow-700">
+                      Vous n'avez pas d'abonnement actif. Choisissez un plan ci-dessous pour commencer.
+                    </p>
+                  </div>
+                )}
 
                 {/* Plans disponibles */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Plans d'abonnement disponibles</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="border-2 border-gray-200">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">1 Mois</CardTitle>
-                        <CardDescription>Formule flexible</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold mb-2">200,000 GNF</div>
-                        <div className="text-sm text-muted-foreground mb-3">200,000 GNF/mois</div>
-                        <ul className="space-y-1 text-xs">
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Visibilité continue
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Accès aux utilisateurs actifs
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Service de livraison
-                          </li>
-                        </ul>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-2 border-guinea-red relative">
-                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                        <Badge className="bg-guinea-red text-white text-xs">Recommandé</Badge>
-                      </div>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">3 Mois</CardTitle>
-                        <CardDescription>Formule recommandée</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold mb-2">450,000 GNF</div>
-                        <div className="text-sm text-muted-foreground mb-3">150,000 GNF/mois</div>
-                        <Badge className="bg-green-500 text-white text-xs mb-3">25% d'économie</Badge>
-                        <ul className="space-y-1 text-xs">
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Tout du plan 1 mois
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Économie de 25%
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Support client
-                          </li>
-                        </ul>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-2 border-gray-200">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">6 Mois</CardTitle>
-                        <CardDescription>Formule économique</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold mb-2">800,000 GNF</div>
-                        <div className="text-sm text-muted-foreground mb-3">133,333 GNF/mois</div>
-                        <Badge className="bg-green-500 text-white text-xs mb-3">33% d'économie</Badge>
-                        <ul className="space-y-1 text-xs">
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Tout du plan 3 mois
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Économie de 33%
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Support prioritaire
-                          </li>
-                        </ul>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-2 border-gray-200">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">12 Mois</CardTitle>
-                        <CardDescription>Formule la plus économique</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold mb-2">1,400,000 GNF</div>
-                        <div className="text-sm text-muted-foreground mb-3">116,667 GNF/mois</div>
-                        <Badge className="bg-green-500 text-white text-xs mb-3">41,7% d'économie</Badge>
-                        <ul className="space-y-1 text-xs">
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Tout du plan 6 mois
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Économie de 41,7%
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3 text-green-600" />
-                            Support dédié
-                          </li>
-                        </ul>
-                      </CardContent>
-                    </Card>
+                    {subscriptionPlans?.map((plan) => (
+                      <Card 
+                        key={plan.id} 
+                        className={`border-2 ${
+                          plan.plan_type === '3_months' 
+                            ? 'border-guinea-red relative' 
+                            : 'border-gray-200'
+                        }`}
+                      >
+                        {plan.plan_type === '3_months' && (
+                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                            <Badge className="bg-guinea-red text-white text-xs">Recommandé</Badge>
+                          </div>
+                        )}
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">{plan.name}</CardTitle>
+                          <CardDescription>{plan.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold mb-2">
+                            {subscriptionUtils.formatPrice(plan.price)}
+                          </div>
+                          <div className="text-sm text-muted-foreground mb-3">
+                            {subscriptionUtils.formatPrice(plan.monthly_price)}/mois
+                          </div>
+                          {plan.savings_percentage > 0 && (
+                            <Badge className="bg-green-500 text-white text-xs mb-3">
+                              {plan.savings_percentage}% d'économie
+                            </Badge>
+                          )}
+                          <ul className="space-y-1 text-xs">
+                            {plan.features?.slice(0, 3).map((feature, index) => (
+                              <li key={index} className="flex items-center gap-1">
+                                <CheckCircle className="h-3 w-3 text-green-600" />
+                                {feature}
+                              </li>
+                            ))}
+                          </ul>
+                          <Button 
+                            className="w-full mt-4" 
+                            variant={plan.plan_type === '3_months' ? 'default' : 'outline'}
+                            onClick={() => handleSelectPlan(plan.id)}
+                          >
+                            {currentSubscription ? 'Changer vers ce plan' : 'Choisir ce plan'}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
+                </div>
+
+                {/* Historique des abonnements */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Historique des abonnements</h3>
+                  {historyLoading ? (
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="bg-muted p-4 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-2">
+                              <div className="h-4 bg-muted-foreground/20 rounded w-32 animate-pulse" />
+                              <div className="h-3 bg-muted-foreground/20 rounded w-24 animate-pulse" />
+                            </div>
+                            <div className="h-6 bg-muted-foreground/20 rounded w-16 animate-pulse" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : subscriptionHistory && subscriptionHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {subscriptionHistory.map((subscription) => (
+                        <Card key={subscription.id} className="border-l-4 border-l-guinea-red">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{subscription.plan?.name}</span>
+                                  <Badge 
+                                    className={subscriptionUtils.getStatusColor(subscription.status)}
+                                  >
+                                    {subscriptionUtils.getStatusLabel(subscription.status)}
+                                  </Badge>
+                                </div>
+                                <div className="text-sm text-muted-foreground space-y-1">
+                                  <div>
+                                    <span className="font-medium">Période :</span> {subscriptionUtils.formatDate(subscription.start_date)} - {subscriptionUtils.formatDate(subscription.end_date)}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Montant :</span> {subscriptionUtils.formatPrice(subscription.total_paid)}
+                                  </div>
+                                  {subscription.savings_amount > 0 && (
+                                    <div className="text-green-600">
+                                      <span className="font-medium">Économies :</span> {subscriptionUtils.formatPrice(subscription.savings_amount)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right text-sm text-muted-foreground">
+                                <div>Créé le {subscriptionUtils.formatDate(subscription.created_at)}</div>
+                                {subscription.status === 'active' && (
+                                  <div className="text-green-600 font-medium">
+                                    {subscriptionUtils.getDaysRemaining(subscription.end_date)} jours restants
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-muted p-4 rounded-lg text-center">
+                      <p className="text-muted-foreground">Aucun historique d'abonnement disponible</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -873,7 +1046,7 @@ const PartnerSettings: React.FC = () => {
                         id="billing-email"
                         type="email"
                         placeholder="facturation@entreprise.gn"
-                        defaultValue="facturation@legourmet.gn"
+                        defaultValue={currentSubscription?.billing_email || "facturation@legourmet.gn"}
                       />
                     </div>
                     <div className="space-y-2">
@@ -881,7 +1054,7 @@ const PartnerSettings: React.FC = () => {
                       <Input
                         id="billing-phone"
                         placeholder="+224 123 456 789"
-                        defaultValue="+224 123 456 789"
+                        defaultValue={currentSubscription?.billing_phone || "+224 123 456 789"}
                       />
                     </div>
                     <div className="space-y-2">
@@ -889,7 +1062,7 @@ const PartnerSettings: React.FC = () => {
                       <Textarea
                         id="billing-address"
                         placeholder="Adresse complète pour la facturation..."
-                        defaultValue="123 Avenue de la République, Conakry, Guinée"
+                        defaultValue={currentSubscription?.billing_address || "123 Avenue de la République, Conakry, Guinée"}
                         rows={2}
                       />
                     </div>
@@ -898,7 +1071,7 @@ const PartnerSettings: React.FC = () => {
                       <Input
                         id="tax-id"
                         placeholder="Numéro fiscal de l'entreprise"
-                        defaultValue="123456789"
+                        defaultValue={currentSubscription?.tax_id || "123456789"}
                       />
                     </div>
                   </div>
@@ -943,6 +1116,18 @@ const PartnerSettings: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modal de création d'abonnement */}
+      <CreateSubscriptionModal
+        isOpen={showCreateSubscriptionModal}
+        onClose={() => {
+          setShowCreateSubscriptionModal(false);
+          setSelectedPlan(null);
+        }}
+        selectedPlan={selectedPlan}
+        partnerId={partnerProfile?.id || business?.id || 0} // Utiliser partnerProfile en priorité
+        onSubscriptionCreated={handleSubscriptionCreated}
+      />
     </DashboardLayout>
   );
 };

@@ -57,7 +57,7 @@ CREATE TABLE public.subscription_plans (
 -- Table des abonnements des partenaires
 CREATE TABLE public.partner_subscriptions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  partner_id uuid NOT NULL,
+  partner_id integer NOT NULL,
   plan_id uuid NOT NULL,
   status subscription_status NOT NULL DEFAULT 'pending',
   start_date timestamp with time zone NOT NULL,
@@ -73,9 +73,8 @@ CREATE TABLE public.partner_subscriptions (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT partner_subscriptions_pkey PRIMARY KEY (id),
-  CONSTRAINT partner_subscriptions_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES public.partners(id) ON DELETE CASCADE,
-  CONSTRAINT partner_subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.subscription_plans(id),
-  CONSTRAINT partner_subscriptions_partner_active_unique UNIQUE (partner_id, status) WHERE status = 'active'
+  CONSTRAINT partner_subscriptions_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES public.businesses(id) ON DELETE CASCADE,
+  CONSTRAINT partner_subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.subscription_plans(id)
 );
 
 -- Table des paiements d'abonnement
@@ -150,6 +149,11 @@ CREATE TABLE public.subscription_notifications (
 CREATE INDEX idx_partner_subscriptions_partner_id ON public.partner_subscriptions(partner_id);
 CREATE INDEX idx_partner_subscriptions_status ON public.partner_subscriptions(status);
 CREATE INDEX idx_partner_subscriptions_end_date ON public.partner_subscriptions(end_date);
+
+-- Contrainte d'unicité pour un seul abonnement actif par partenaire
+CREATE UNIQUE INDEX idx_partner_subscriptions_active_unique 
+ON public.partner_subscriptions(partner_id) 
+WHERE status = 'active';
 CREATE INDEX idx_subscription_payments_subscription_id ON public.subscription_payments(subscription_id);
 CREATE INDEX idx_subscription_payments_status ON public.subscription_payments(status);
 CREATE INDEX idx_subscription_invoices_subscription_id ON public.subscription_invoices(subscription_id);
@@ -177,7 +181,7 @@ $$ LANGUAGE plpgsql;
 
 -- Fonction pour créer un nouvel abonnement
 CREATE OR REPLACE FUNCTION create_partner_subscription(
-  p_partner_id uuid,
+  p_partner_id integer,
   p_plan_id uuid,
   p_billing_email character varying DEFAULT NULL,
   p_billing_phone character varying DEFAULT NULL,
@@ -300,7 +304,7 @@ CREATE VIEW active_subscriptions AS
 SELECT 
   ps.id,
   ps.partner_id,
-  p.nom as partner_name,
+  b.name as partner_name,
   sp.name as plan_name,
   sp.plan_type,
   ps.status,
@@ -312,7 +316,7 @@ SELECT
   ps.billing_email,
   ps.billing_phone
 FROM partner_subscriptions ps
-JOIN partners p ON ps.partner_id = p.id
+JOIN businesses b ON ps.partner_id = b.id
 JOIN subscription_plans sp ON ps.plan_id = sp.id
 WHERE ps.status = 'active';
 
@@ -320,14 +324,14 @@ CREATE VIEW subscription_payments_summary AS
 SELECT 
   ps.id as subscription_id,
   ps.partner_id,
-  p.nom as partner_name,
+  b.name as partner_name,
   COUNT(sp.id) as total_payments,
   SUM(sp.amount) as total_amount,
   MAX(sp.payment_date) as last_payment_date
 FROM partner_subscriptions ps
-JOIN partners p ON ps.partner_id = p.id
+JOIN businesses b ON ps.partner_id = b.id
 LEFT JOIN subscription_payments sp ON ps.id = sp.subscription_id
-GROUP BY ps.id, ps.partner_id, p.nom;
+GROUP BY ps.id, ps.partner_id, b.name;
 
 -- Commentaires sur les tables
 COMMENT ON TABLE subscription_plans IS 'Plans d''abonnement disponibles pour les partenaires BraPrime';

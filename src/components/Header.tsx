@@ -1,11 +1,11 @@
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -212,19 +212,22 @@ const Header = () => {
 
           {/* Barre de recherche - Desktop */}
           <div className="hidden md:flex flex-1 max-w-md mx-8 relative" ref={searchRef}>
-            <form onSubmit={handleSearch} className="w-full">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
+            <form onSubmit={handleSearch} className="w-full flex">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  type="text"
                   placeholder="Rechercher ..."
-                className="pl-10 pr-4 py-2 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400"
-                value={searchTerm}
+                  className="pl-10 pr-4 py-2 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                  value={searchTerm}
                   onChange={handleSearchChange}
                   onFocus={handleSearchFocus}
                   onKeyDown={handleKeyDown}
-              />
-            </div>
+                />
+              </div>
+              <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90">
+                Rechercher
+              </Button>
             </form>
             
             {/* Autocomplétion */}
@@ -250,10 +253,6 @@ const Header = () => {
                 ) : null}
               </div>
             )}
-            
-            <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90">
-              Rechercher
-            </Button>
           </div>
 
           {/* Desktop Navigation */}

@@ -1,41 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useCartContext } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { OrderService, type CreateOrderData } from '@/lib/services/orders';
+import Layout from '@/components/Layout';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { 
-  ShoppingCart, 
-  MapPin, 
-  Clock, 
-  CreditCard, 
-  Truck,
-  ArrowLeft,
-  AlertCircle,
-  CheckCircle,
-  Store,
-  User,
-  Phone,
-  Mail,
-  MessageSquare,
-  Trash2
-} from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
 import { Label } from '@/components/ui/label';
-import { Loader2, Check } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCartContext } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { OrderService, type CreateOrderData } from '@/lib/services/orders';
+import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
+import {
+    AlertCircle,
+    ArrowLeft,
+    Check,
+    Clock,
+    CreditCard,
+    Loader2,
+    MapPin,
+    MessageSquare,
+    ShoppingCart,
+    Trash2,
+    Truck
+} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const CheckoutPage = () => {
   const { cart, loading, error, clearCart } = useCartContext();
@@ -80,6 +73,14 @@ const CheckoutPage = () => {
       setDeliveryMethod((cart.delivery_method as 'delivery' | 'pickup') || 'delivery');
     }
   }, [currentUser, cart]);
+
+  // Réinitialiser l'état du calendrier quand on change de mode de livraison
+  useEffect(() => {
+    if (deliveryTimeMode === 'asap') {
+      setScheduledDate(undefined);
+      setScheduledTime('12:00');
+    }
+  }, [deliveryTimeMode]);
 
   // Calculer les totaux
   const cartTotal = cart?.total || 0;
@@ -662,65 +663,33 @@ const CheckoutPage = () => {
                         <Label className="text-sm font-medium text-blue-900 mb-2 block">
                           Date de livraison *
                         </Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              className="w-full justify-start text-left font-normal border-blue-300 hover:border-blue-400 bg-white shadow-sm hover:shadow-md transition focus:ring-2 focus:ring-blue-300"
-                            >
-                              <Calendar className="mr-2 h-4 w-4 text-blue-600" />
-                              {scheduledDate ? format(scheduledDate, 'EEEE dd MMMM yyyy') : 'Sélectionner une date'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent asChild={false} style={{ zIndex: 50 }} className="w-auto p-0 bg-white border border-blue-200 shadow-lg rounded-md" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={scheduledDate}
-                              onSelect={setScheduledDate}
-                              initialFocus
-                              disabled={(date) => {
-                                const today = new Date();
-                                today.setHours(0, 0, 0, 0);
-                                // Désactiver les dates passées
-                                if (date < today) return true;
-                                // Désactiver les dates trop éloignées (max 30 jours)
-                                const maxDate = new Date();
-                                maxDate.setDate(maxDate.getDate() + 30);
-                                if (date > maxDate) return true;
-                                return false;
-                              }}
-                              className="bg-white rounded-md p-3"
-                              classNames={{
-                                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                                month: "space-y-4",
-                                caption: "flex justify-center pt-1 relative items-center",
-                                caption_label: "text-sm font-medium",
-                                nav: "space-x-1 flex items-center",
-                                nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-                                nav_button_previous: "absolute left-1",
-                                nav_button_next: "absolute right-1",
-                                table: "w-full border-collapse space-y-1",
-                                head_row: "flex",
-                                head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
-                                row: "flex w-full mt-2",
-                                cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                                day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground",
-                                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                                day_today: "bg-accent text-accent-foreground",
-                                day_outside: "text-muted-foreground opacity-50",
-                                day_disabled: "text-muted-foreground opacity-50",
-                                day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                                day_hidden: "invisible",
-                                vhidden: "hidden"
-                              }}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        {scheduledDate && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            📅 {format(scheduledDate, 'EEEE dd MMMM yyyy')}
-                          </p>
-                        )}
+                        <div className="space-y-2">
+                          <Input
+                            type="date"
+                            value={scheduledDate ? scheduledDate.toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : undefined;
+                              setScheduledDate(date);
+                            }}
+                            min={new Date().toISOString().split('T')[0]}
+                            max={(() => {
+                              const maxDate = new Date();
+                              maxDate.setDate(maxDate.getDate() + 30);
+                              return maxDate.toISOString().split('T')[0];
+                            })()}
+                            className={`w-full ${
+                              scheduledDate 
+                                ? 'border-green-300 bg-green-50 focus:border-green-400' 
+                                : 'border-blue-300 focus:border-blue-400'
+                            }`}
+                            placeholder="Sélectionner une date"
+                          />
+                          {scheduledDate && (
+                            <p className="text-xs text-green-600 font-medium">
+                              ✅ {format(scheduledDate, 'EEEE dd MMMM yyyy')}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Sélection de l'heure */}
@@ -729,8 +698,14 @@ const CheckoutPage = () => {
                           Heure de livraison *
                         </Label>
                         <Select value={scheduledTime} onValueChange={setScheduledTime}>
-                          <SelectTrigger className="w-full border-blue-300 hover:border-blue-400">
-                            <Clock className="mr-2 h-4 w-4 text-blue-600" />
+                          <SelectTrigger className={`w-full ${
+                            scheduledTime && scheduledTime !== '12:00'
+                              ? 'border-green-300 hover:border-green-400 bg-green-50' 
+                              : 'border-blue-300 hover:border-blue-400'
+                          }`}>
+                            <Clock className={`mr-2 h-4 w-4 ${
+                              scheduledTime && scheduledTime !== '12:00' ? 'text-green-600' : 'text-blue-600'
+                            }`} />
                             <SelectValue placeholder="Choisir une heure" />
                           </SelectTrigger>
                           <SelectContent>
@@ -741,8 +716,8 @@ const CheckoutPage = () => {
                             ))}
                           </SelectContent>
                         </Select>
-                        {scheduledTime && (
-                          <p className="text-xs text-blue-600 mt-1">
+                        {scheduledTime && scheduledTime !== '12:00' && (
+                          <p className="text-xs text-green-600 mt-1 font-medium">
                             ⏰ Heure sélectionnée : {scheduledTime}
                           </p>
                         )}
@@ -807,7 +782,7 @@ const CheckoutPage = () => {
                         <div>
                           {scheduledDate && scheduledTime ? (
                             <>
-                              <p>📅 Livraison programmée</p>
+                              <p>🚚 Livraison programmée</p>
                               <p className="text-blue-600 font-medium mt-1">
                                 {format(scheduledDate, 'EEEE dd MMMM yyyy')} à {scheduledTime}
                               </p>

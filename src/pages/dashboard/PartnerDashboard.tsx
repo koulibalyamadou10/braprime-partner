@@ -1,52 +1,44 @@
+import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
+import { PartnerDashboardSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { SubscriptionStatus } from '@/components/dashboard/SubscriptionStatus';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui/table';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/contexts/UserRoleContext';
+import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import {
+    AlertCircle,
+    ArrowUpRight,
+    Calendar,
+    CheckCircle,
+    ChevronRight as ChevronRightIcon,
+    Clock,
+    DollarSign,
+    Home,
+    Mail,
+    MapPin,
+    Package,
+    Phone,
+    Power,
+    PowerOff,
+    RefreshCw,
+    ShoppingBag,
+    Star,
+    Timer,
+    TrendingUp,
+    Truck,
+    Users,
+    XCircle
+} from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Progress } from '@/components/ui/progress';
-import { 
-  ShoppingBag, 
-  Clock, 
-  Check, 
-  X, 
-  Utensils,
-  DollarSign,
-  Calendar,
-  ArrowUpRight,
-  Star,
-  Bell,
-  ChevronRight as ChevronRightIcon,
-  RefreshCw,
-  TrendingUp,
-  Users,
-  Package,
-  Home,
-  MapPin,
-  Phone,
-  Mail,
-  AlertCircle,
-  Power,
-  PowerOff,
-  Timer,
-  Truck,
-  CheckCircle,
-  XCircle
-} from 'lucide-react';
-import { format, subDays, isToday, isYesterday } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from '@/components/ui/table';
-import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DashboardService } from '@/lib/services/dashboard'
 import { toast } from 'sonner';
-import { useUserRole } from '@/contexts/UserRoleContext';
-import { PartnerDashboardSkeleton } from '@/components/dashboard/DashboardSkeletons';
 
 // Composant de chargement - remplacé par PartnerDashboardSkeleton
 
@@ -501,6 +493,9 @@ const PartnerDashboard = () => {
             </Card>
           </div>
         )}
+
+        {/* Statut d'abonnement */}
+        <SubscriptionStatus />
 
         {/* Commandes récentes */}
         <Card>

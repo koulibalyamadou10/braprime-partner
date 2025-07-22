@@ -1,32 +1,32 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { OrderService } from '@/lib/services/orders';
+import Layout from '@/components/Layout';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Clock, 
-  Truck, 
-  CheckCircle, 
-  Package, 
-  Phone, 
-  Store,
-  User,
-  Calendar,
-  Navigation,
-  AlertCircle,
-  RefreshCw
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { OrderService } from '@/lib/services/orders';
+import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import Layout from '@/components/Layout';
-import { formatCurrency } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import {
+    AlertCircle,
+    ArrowLeft,
+    Calendar,
+    CheckCircle,
+    Clock,
+    MapPin,
+    Navigation,
+    Package,
+    Phone,
+    RefreshCw,
+    Store,
+    Truck,
+    User
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 interface OrderTrackingData {
   id: string;
@@ -187,6 +187,7 @@ const OrderTrackingPage = () => {
         console.log('✅ Données mises à jour:', orderData);
         setOrder(orderData as OrderTrackingData);
         updateCurrentStep(orderData.status);
+        setConnectionStatus('connected'); // Réinitialiser le statut après un rafraîchissement réussi
         toast({
           title: "Données mises à jour",
           description: "Les informations de votre commande ont été actualisées.",
@@ -203,6 +204,35 @@ const OrderTrackingPage = () => {
       setRefreshing(false);
     }
   }, [id, currentUser?.id, updateCurrentStep, toast]);
+
+  // Fonction pour tester la connexion
+  const testConnection = useCallback(async () => {
+    console.log('🔍 Test de connexion...');
+    setConnectionStatus('connecting');
+    
+    try {
+      const { order: testOrder, error } = await OrderService.getOrderById(id!);
+      if (error) {
+        console.error('❌ Erreur de connexion:', error);
+        setConnectionStatus('error');
+        toast({
+          title: "Problème de connexion",
+          description: "Impossible de récupérer les données en temps réel. Utilisez le bouton 'Actualiser' pour les mises à jour.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('✅ Connexion testée avec succès');
+        setConnectionStatus('connected');
+        toast({
+          title: "Connexion rétablie",
+          description: "La synchronisation temps réel est maintenant active.",
+        });
+      }
+    } catch (err) {
+      console.error('❌ Erreur lors du test de connexion:', err);
+      setConnectionStatus('error');
+    }
+  }, [id, toast]);
 
   // Charger les détails de la commande
   useEffect(() => {
@@ -255,36 +285,66 @@ const OrderTrackingPage = () => {
     if (!id || !currentUser?.id) return;
 
     console.log('🔄 Initialisation de la subscription temps réel pour la commande:', id);
+    setConnectionStatus('connecting');
 
-    // S'abonner aux changements de la commande spécifique
-    const unsubscribe = OrderService.subscribeToOrderChanges(id, (updatedOrder) => {
-      console.log('📡 Mise à jour temps réel reçue:', updatedOrder);
-      
-      if (handleOrderUpdateRef.current) {
-        handleOrderUpdateRef.current(updatedOrder as OrderTrackingData);
-      }
-    });
+    let unsubscribe: (() => void) | null = null;
+    let connectionTimeout: NodeJS.Timeout;
 
-    // Vérifier l'état de la subscription après un délai
-    setTimeout(() => {
-      if (!isSubscribed) {
-        console.log('⚠️ Subscription non établie après 3 secondes');
+    const setupSubscription = async () => {
+      try {
+        // S'abonner aux changements de la commande spécifique
+        unsubscribe = OrderService.subscribeToOrderChanges(id, (updatedOrder) => {
+          console.log('📡 Mise à jour temps réel reçue:', updatedOrder);
+          setConnectionStatus('connected');
+          
+          if (handleOrderUpdateRef.current) {
+            handleOrderUpdateRef.current(updatedOrder as OrderTrackingData);
+          }
+        });
+
+        // Timeout pour détecter les problèmes de connexion
+        connectionTimeout = setTimeout(() => {
+          if (connectionStatus === 'connecting') {
+            console.log('⚠️ Timeout de connexion - passage en mode fallback');
+            setConnectionStatus('error');
+          }
+        }, 5000);
+
+        setIsSubscribed(true);
+        
+        // Vérifier l'état de la subscription après un délai
+        setTimeout(() => {
+          if (connectionStatus === 'connecting') {
+            console.log('✅ Subscription établie avec succès');
+            setConnectionStatus('connected');
+          }
+        }, 2000);
+
+      } catch (error) {
+        console.error('❌ Erreur lors de l\'établissement de la subscription:', error);
         setConnectionStatus('error');
+        setIsSubscribed(false);
       }
-    }, 3000);
+    };
 
-    setIsSubscribed(true);
-    setConnectionStatus('connected');
+    setupSubscription();
 
     return () => {
       console.log('🔌 Déconnexion de la subscription temps réel');
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+      }
       if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe();
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error('❌ Erreur lors de la déconnexion:', error);
+        }
       }
       setIsSubscribed(false);
       setConnectionStatus('connecting');
     };
-  }, [id, currentUser?.id]); // Suppression des dépendances order?.id et isSubscribed
+  }, [id, currentUser?.id]);
 
   // Vérification de sécurité périodique (fallback uniquement)
   useEffect(() => {
@@ -418,6 +478,16 @@ const OrderTrackingPage = () => {
               </Button>
               <Button 
                 variant="outline" 
+                onClick={testConnection}
+                size="sm"
+                className="gap-2"
+                title="Tester la connexion temps réel"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span className="hidden sm:inline">Test Connexion</span>
+              </Button>
+              <Button 
+                variant="outline" 
                 onClick={() => navigate('/dashboard/orders')}
                 size="sm"
                 className="gap-2"
@@ -537,18 +607,31 @@ const OrderTrackingPage = () => {
                         connectionStatus === 'connected' 
                           ? 'bg-green-500 animate-pulse' 
                           : connectionStatus === 'error'
-                          ? 'bg-red-500 animate-pulse'
-                          : 'bg-yellow-500 animate-pulse'
+                          ? 'bg-yellow-500 animate-pulse'
+                          : 'bg-blue-500 animate-pulse'
                       }`}></div>
                       <p className="text-xs sm:text-sm text-gray-500">
                         {connectionStatus === 'connected' 
                           ? 'Synchronisation temps réel active' 
                           : connectionStatus === 'error'
-                          ? 'Erreur de connexion - Reconnexion...'
+                          ? 'Mode hors ligne - Actualisation manuelle'
                           : 'Connexion en cours...'
                         }
                       </p>
                     </div>
+                    {connectionStatus === 'error' && (
+                      <div className="mt-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={refreshOrder}
+                          className="text-xs"
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Actualiser maintenant
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
