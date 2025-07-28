@@ -1,6 +1,8 @@
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEmailService } from '@/hooks/use-email-service';
 import { useToast } from "@/hooks/use-toast";
 import { OrderService, type Order } from '@/lib/services/orders';
 import { formatCurrency } from '@/lib/utils';
@@ -21,8 +23,11 @@ const OrderConfirmationPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const { sendOrderConfirmation } = useEmailService();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [emailSent, setEmailSent] = useState(false);
   
   useEffect(() => {
     const fetchOrder = async () => {
@@ -60,6 +65,17 @@ const OrderConfirmationPage = () => {
         }
 
         setOrder(fetchedOrder);
+
+        // Envoyer automatiquement l'email de confirmation si l'utilisateur est connecté
+        if (currentUser && !emailSent) {
+          try {
+            await sendOrderConfirmation(fetchedOrder, currentUser);
+            setEmailSent(true);
+          } catch (error) {
+            console.error('Erreur lors de l\'envoi de l\'email de confirmation:', error);
+            // Ne pas afficher d'erreur à l'utilisateur car ce n'est pas critique
+          }
+        }
       } catch (error) {
         console.error('Erreur lors de la récupération de la commande:', error);
         toast({
@@ -74,7 +90,7 @@ const OrderConfirmationPage = () => {
     };
 
     fetchOrder();
-  }, [id, navigate, toast]);
+  }, [id, navigate, toast, currentUser, sendOrderConfirmation, emailSent]);
   
   if (loading) {
     return (

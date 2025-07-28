@@ -1,12 +1,12 @@
 import Layout from '@/components/Layout';
-import { Phone, Mail, Globe } from 'lucide-react';
+import { Globe, Mail, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AboutPage = () => {
   const navigate = useNavigate();
 
   const handleBecomePartner = () => {
-    navigate('/devenir-partenaire');
+    navigate('/pricing');
   };
 
   return (

@@ -1,38 +1,29 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Building2, 
-  Truck, 
-  ArrowLeft, 
-  Star, 
-  Users, 
-  TrendingUp, 
-  Shield, 
-  Smartphone,
-  DollarSign,
-  CheckCircle,
-  MapPin,
-  Clock,
-  Zap,
-  Car,
-  Navigation,
-  Timer,
-  Phone,
-  Mail,
-  User,
-  FileText
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 import { useRequestsSimple } from '@/hooks/use-requests-simple';
 import { useRequestsPageStats } from '@/hooks/use-requests-stats';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import {
+    ArrowLeft,
+    Building2,
+    Clock,
+    DollarSign,
+    Navigation,
+    Shield,
+    Smartphone,
+    Timer,
+    TrendingUp,
+    Truck,
+    Users,
+    Zap
+} from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const partnerBenefits = [
   {
@@ -100,18 +91,6 @@ const RequestsPage = () => {
   const { toast } = useToast();
   const { createRequest, isSubmitting } = useRequestsSimple();
   const { data: statsData, isLoading: statsLoading } = useRequestsPageStats();
-  const [activeTab, setActiveTab] = useState("partner");
-
-
-  const [partnerForm, setPartnerForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    business_name: '',
-    business_type: '',
-    business_address: '',
-    notes: ''
-  });
 
   const [driverForm, setDriverForm] = useState({
     name: '',
@@ -121,47 +100,6 @@ const RequestsPage = () => {
     vehicle_plate: '',
     notes: ''
   });
-
-  const handlePartnerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-      await createRequest({
-        type: 'partner',
-        user_name: partnerForm.name,
-        user_email: partnerForm.email,
-        user_phone: partnerForm.phone,
-        business_name: partnerForm.business_name,
-        business_type: partnerForm.business_type,
-        business_address: partnerForm.business_address,
-        notes: partnerForm.notes
-      });
-
-      toast({
-        title: "Demande envoyée !",
-        description: "Votre demande de partenariat a été soumise avec succès. Notre équipe l'examinera et vous contactera par email.",
-      });
-
-      // Reset form
-      setPartnerForm({
-        name: '',
-        email: '',
-        phone: '',
-        business_name: '',
-        business_type: '',
-        business_address: '',
-        notes: ''
-      });
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Une erreur s'est produite lors de l'envoi de votre demande.";
-      toast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleDriverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -227,10 +165,11 @@ const RequestsPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Rejoignez BraPrime
+            Devenez Chauffeur BraPrime
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Devenez partenaire ou chauffeur et faites partie de la révolution de la livraison en Guinée
+            Rejoignez notre équipe de chauffeurs et gagnez un revenu flexible 
+            en livrant des commandes dans toute la Guinée
           </p>
           <div className="mt-6 p-4 bg-blue-50 rounded-lg max-w-2xl mx-auto">
             <div className="flex items-center gap-2 text-blue-700">
@@ -249,128 +188,20 @@ const RequestsPage = () => {
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="text-2xl font-bold">
-                  Soumettre votre demande
+                  Soumettre votre demande de chauffeur
                 </CardTitle>
                 <CardDescription>
-                  Choisissez votre type de demande et remplissez le formulaire
+                  Remplissez le formulaire ci-dessous pour rejoindre notre équipe de chauffeurs
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="partner" className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Partenaire
-                    </TabsTrigger>
+                <Tabs value="driver" onValueChange="driver" className="w-full">
+                  <TabsList className="grid w-full grid-cols-1">
                     <TabsTrigger value="driver" className="flex items-center gap-2">
                       <Truck className="h-4 w-4" />
                       Chauffeur
                     </TabsTrigger>
                   </TabsList>
-
-                  <TabsContent value="partner" className="mt-6">
-                    <form onSubmit={handlePartnerSubmit} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium">Nom complet *</label>
-                          <Input
-                            value={partnerForm.name}
-                            onChange={(e) => setPartnerForm(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Votre nom complet"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Téléphone *</label>
-                          <Input
-                            value={partnerForm.phone}
-                            onChange={(e) => setPartnerForm(prev => ({ ...prev, phone: e.target.value }))}
-                            placeholder="+224 123 456 789"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium">Email *</label>
-                        <Input
-                          type="email"
-                          value={partnerForm.email}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, email: e.target.value }))}
-                          placeholder="votre@email.com"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium">Nom du commerce *</label>
-                        <Input
-                          value={partnerForm.business_name}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, business_name: e.target.value }))}
-                          placeholder="Nom de votre commerce"
-                          required
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium">Type de commerce *</label>
-                          <Select 
-                            value={partnerForm.business_type} 
-                            onValueChange={(value) => setPartnerForm(prev => ({ ...prev, business_type: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Sélectionner" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {businessTypes.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium">Adresse du commerce *</label>
-                        <Textarea
-                          value={partnerForm.business_address}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, business_address: e.target.value }))}
-                          placeholder="Adresse complète de votre commerce"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium">Notes supplémentaires</label>
-                        <Textarea
-                          value={partnerForm.notes}
-                          onChange={(e) => setPartnerForm(prev => ({ ...prev, notes: e.target.value }))}
-                          placeholder="Informations supplémentaires sur votre commerce..."
-                        />
-                      </div>
-
-                      <Button 
-                        type="submit" 
-                        className="w-full" 
-                        disabled={isSubmitting || !partnerForm.name || !partnerForm.email || !partnerForm.phone || !partnerForm.business_name || !partnerForm.business_type || !partnerForm.business_address}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Envoi en cours...
-                          </>
-                        ) : (
-                          <>
-                            <Building2 className="h-4 w-4 mr-2" />
-                            Soumettre ma demande partenaire
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  </TabsContent>
 
                   <TabsContent value="driver" className="mt-6">
                     <form onSubmit={handleDriverSubmit} className="space-y-4">
@@ -482,64 +313,33 @@ const RequestsPage = () => {
           <div className="order-1 lg:order-2">
             <div className="space-y-6">
               {/* Partner Benefits */}
-              {activeTab === "partner" && (
-                <Card className="shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="h-6 w-6 text-primary" />
-                      Avantages Partenaire
-                    </CardTitle>
-                    <CardDescription>
-                      Découvrez pourquoi rejoindre BraPrime en tant que partenaire
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {partnerBenefits.map((benefit, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <benefit.icon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-sm">{benefit.title}</h4>
-                            <p className="text-sm text-gray-600">{benefit.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               {/* Driver Benefits */}
-              {activeTab === "driver" && (
-                <Card className="shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Truck className="h-6 w-6 text-primary" />
-                      Avantages Chauffeur
-                    </CardTitle>
-                    <CardDescription>
-                      Découvrez pourquoi rejoindre BraPrime en tant que chauffeur
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {driverBenefits.map((benefit, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <benefit.icon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-sm">{benefit.title}</h4>
-                            <p className="text-sm text-gray-600">{benefit.description}</p>
-                          </div>
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-6 w-6 text-primary" />
+                    Avantages Chauffeur
+                  </CardTitle>
+                  <CardDescription>
+                    Découvrez pourquoi rejoindre BraPrime en tant que chauffeur
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {driverBenefits.map((benefit, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <benefit.icon className="h-5 w-5 text-primary" />
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                        <div>
+                          <h4 className="font-semibold text-sm">{benefit.title}</h4>
+                          <p className="text-sm text-gray-600">{benefit.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Stats */}
               <Card className="bg-gradient-to-r from-primary to-primary/80 text-white">
@@ -565,12 +365,6 @@ const RequestsPage = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-4 text-center">
-                      <div>
-                        <div className="text-2xl font-bold mb-1">
-                          {statsData?.data?.totalPartners ? `${statsData.data.totalPartners}+` : '500+'}
-                        </div>
-                        <div className="text-xs opacity-90">Partenaires actifs</div>
-                      </div>
                       <div>
                         <div className="text-2xl font-bold mb-1">
                           {statsData?.data?.totalDrivers ? `${statsData.data.totalDrivers}+` : '200+'}

@@ -12,20 +12,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCartContext } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { OrderService, type CreateOrderData } from '@/lib/services/orders';
+import { PaymentService, type PaymentRequest } from '@/lib/services/payment';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
-    AlertCircle,
-    ArrowLeft,
-    Check,
-    Clock,
-    CreditCard,
-    Loader2,
-    MapPin,
-    MessageSquare,
-    ShoppingCart,
-    Trash2,
-    Truck
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  Clock,
+  CreditCard,
+  Loader2,
+  MapPin,
+  MessageSquare,
+  ShoppingCart,
+  Trash2,
+  Truck
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -39,7 +40,7 @@ const CheckoutPage = () => {
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile_money'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile_money' | 'online'>('cash');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -52,7 +53,8 @@ const CheckoutPage = () => {
     city: '',
     postalCode: '',
     landmark: '', // Point de repère
-    notes: ''
+    notes: '',
+    email: ''
   });
   const [deliveryTimeMode, setDeliveryTimeMode] = useState<'asap' | 'scheduled'>('asap');
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
@@ -235,6 +237,7 @@ const CheckoutPage = () => {
         payment_status: 'pending',
         // Champs spécifiques aux types de livraison
         delivery_type: deliveryType,
+        available_for_drivers: false, // Par défaut, pas disponible pour les chauffeurs
         // Champs pour les livraisons programmées
         ...(deliveryType === 'scheduled' && scheduledDate && scheduledTime && {
           preferred_delivery_time: createScheduledDeliveryTime(scheduledDate, scheduledTime),
@@ -286,10 +289,61 @@ const CheckoutPage = () => {
           description: error,
           variant: "destructive",
         });
+        setIsProcessing(false);
         return;
       }
       
       if (order) {
+        // Si le paiement est en ligne, créer l'URL de paiement
+        if (paymentMethod === 'online') {
+          try {
+            // Préparer les données de paiement
+            const paymentData: PaymentRequest = {
+              order_id: order.id,
+              user_id: currentUser.id,
+              amount: 1000,
+              currency: 'GNF',
+              payment_method: 'lp-om-gn', // Orange Money par défaut
+              phone_number: formData.phone || currentUser.phone || '',
+              order_number: `CMD-${order.id.substring(0, 8)}`,
+              business_name: cart.business_name,
+              customer_name: `${formData.firstName} ${formData.lastName}`,
+              customer_email: currentUser.email || formData.email || '',
+            };
+
+            // Créer l'URL de paiement
+            const paymentResponse = await PaymentService.createPayment(paymentData);
+
+            if (paymentResponse.success && paymentResponse.payment_url) {
+              // Vider le panier après création réussie
+              clearCart();
+              
+              toast({
+                title: "Redirection vers le paiement",
+                description: "Vous allez être redirigé vers la page de paiement sécurisée.",
+              });
+
+              // Rediriger vers Lengo Pay
+              window.location.href = paymentResponse.payment_url;
+              return;
+            } else {
+              // En cas d'échec du paiement en ligne, continuer avec le paiement à la livraison
+              toast({
+                title: "Paiement en ligne indisponible",
+                description: "Le paiement sera effectué à la livraison.",
+                variant: "destructive",
+              });
+            }
+          } catch (paymentError) {
+            console.error('Erreur lors de la création du paiement:', paymentError);
+            toast({
+              title: "Erreur de paiement",
+              description: "Le paiement sera effectué à la livraison.",
+              variant: "destructive",
+            });
+          }
+        }
+
         // Vider le panier après création réussie
         clearCart();
         
@@ -559,7 +613,7 @@ const CheckoutPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <RadioGroup value={paymentMethod} onValueChange={(value: 'cash' | 'card' | 'mobile_money') => setPaymentMethod(value)}>
+                  <RadioGroup value={paymentMethod} onValueChange={(value: 'cash' | 'card' | 'mobile_money' | 'online') => setPaymentMethod(value)}>
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="cash" id="cash" />
@@ -580,6 +634,12 @@ const CheckoutPage = () => {
                         <RadioGroupItem value="card" id="card" />
                         <Label htmlFor="card" className="flex-1 cursor-pointer">
                           <span>Carte bancaire</span>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="online" id="online" />
+                        <Label htmlFor="online" className="flex-1 cursor-pointer">
+                          <span>Paiement en ligne (Lengo Pay)</span>
                         </Label>
                       </div>
                     </div>
@@ -842,7 +902,7 @@ const CheckoutPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Frais de livraison</span>
-                      <span>{deliveryMethod === 'delivery' ? '2 000 GNF' : 'Gratuit'}</span>
+                      <span>{deliveryMethod === 'delivery' ? '1 000 GNF' : 'Gratuit'}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg">

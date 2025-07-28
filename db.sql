@@ -63,8 +63,8 @@ CREATE TABLE public.businesses (
   delivery_zones jsonb DEFAULT '[]'::jsonb,
   max_orders_per_slot integer DEFAULT 10,
   CONSTRAINT businesses_pkey PRIMARY KEY (id),
-  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id),
-  CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
+  CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
+  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id)
 );
 CREATE TABLE public.cart (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -137,8 +137,8 @@ CREATE TABLE public.delivery_offers (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT delivery_offers_pkey PRIMARY KEY (id),
-  CONSTRAINT delivery_offers_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
-  CONSTRAINT delivery_offers_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id)
+  CONSTRAINT delivery_offers_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id),
+  CONSTRAINT delivery_offers_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
 );
 CREATE TABLE public.driver_documents (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -191,8 +191,8 @@ CREATE TABLE public.drivers (
   last_active timestamp with time zone,
   user_id uuid,
   CONSTRAINT drivers_pkey PRIMARY KEY (id),
-  CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT drivers_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT drivers_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.favorite_businesses (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -392,6 +392,14 @@ CREATE TABLE public.requests (
   updated_at timestamp with time zone DEFAULT now(),
   reviewed_at timestamp with time zone,
   reviewed_by uuid,
+  business_phone character varying,
+  business_email character varying,
+  business_description text,
+  opening_hours character varying,
+  delivery_radius integer,
+  cuisine_type character varying,
+  specialties jsonb DEFAULT '[]'::jsonb,
+  metadata jsonb,
   CONSTRAINT requests_pkey PRIMARY KEY (id),
   CONSTRAINT requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
   CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.user_profiles(id)
@@ -445,9 +453,9 @@ CREATE TABLE public.subscription_changes (
   price_difference numeric,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT subscription_changes_pkey PRIMARY KEY (id),
-  CONSTRAINT subscription_changes_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.partner_subscriptions(id),
   CONSTRAINT subscription_changes_new_plan_id_fkey FOREIGN KEY (new_plan_id) REFERENCES public.subscription_plans(id),
-  CONSTRAINT subscription_changes_old_plan_id_fkey FOREIGN KEY (old_plan_id) REFERENCES public.subscription_plans(id)
+  CONSTRAINT subscription_changes_old_plan_id_fkey FOREIGN KEY (old_plan_id) REFERENCES public.subscription_plans(id),
+  CONSTRAINT subscription_changes_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.partner_subscriptions(id)
 );
 CREATE TABLE public.subscription_invoices (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -548,8 +556,8 @@ CREATE TABLE public.user_profiles (
   is_verified boolean DEFAULT false,
   is_manual_creation boolean DEFAULT false,
   CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id),
-  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id)
 );
 CREATE TABLE public.user_push_tokens (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -584,186 +592,3 @@ CREATE TABLE public.work_sessions (
   CONSTRAINT work_sessions_pkey PRIMARY KEY (id),
   CONSTRAINT work_sessions_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.drivers(id)
 );
-
--- ========================================
--- FONCTIONS POSTGRESQL POUR LES ABONNEMENTS
--- ========================================
-
--- Fonction pour calculer les dates d'abonnement
-CREATE OR REPLACE FUNCTION calculate_subscription_dates(
-  p_start_date timestamp with time zone,
-  p_duration_months integer
-) RETURNS TABLE (
-  start_date timestamp with time zone,
-  end_date timestamp with time zone
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    p_start_date as start_date,
-    p_start_date + (p_duration_months || ' months')::interval as end_date;
-END;
-$$ LANGUAGE plpgsql;
-
--- Fonction pour créer un nouvel abonnement
-CREATE OR REPLACE FUNCTION create_partner_subscription(
-  p_partner_id integer,
-  p_plan_id uuid,
-  p_billing_email character varying DEFAULT NULL,
-  p_billing_phone character varying DEFAULT NULL,
-  p_billing_address text DEFAULT NULL,
-  p_tax_id character varying DEFAULT NULL
-) RETURNS uuid AS $$
-DECLARE
-  v_subscription_id uuid;
-  v_plan subscription_plans%ROWTYPE;
-  v_dates RECORD;
-BEGIN
-  -- Récupérer les informations du plan
-  SELECT * INTO v_plan FROM subscription_plans WHERE id = p_plan_id;
-  
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Plan d''abonnement non trouvé';
-  END IF;
-  
-  -- Calculer les dates
-  SELECT * INTO v_dates FROM calculate_subscription_dates(now(), v_plan.duration_months);
-  
-  -- Créer l'abonnement
-  INSERT INTO partner_subscriptions (
-    partner_id,
-    plan_id,
-    status,
-    start_date,
-    end_date,
-    total_paid,
-    monthly_amount,
-    savings_amount,
-    billing_email,
-    billing_phone,
-    billing_address,
-    tax_id
-  ) VALUES (
-    p_partner_id,
-    p_plan_id,
-    'pending',
-    v_dates.start_date,
-    v_dates.end_date,
-    v_plan.price,
-    v_plan.monthly_price,
-    v_plan.savings_percentage * v_plan.price / 100,
-    p_billing_email,
-    p_billing_phone,
-    p_billing_address,
-    p_tax_id
-  ) RETURNING id INTO v_subscription_id;
-  
-  RETURN v_subscription_id;
-END;
-$$ LANGUAGE plpgsql;
-
--- Fonction pour activer un abonnement après paiement
-CREATE OR REPLACE FUNCTION activate_subscription(
-  p_subscription_id uuid
-) RETURNS void AS $$
-BEGIN
-  UPDATE partner_subscriptions 
-  SET status = 'active'
-  WHERE id = p_subscription_id;
-  
-  -- Créer une notification
-  INSERT INTO subscription_notifications (
-    subscription_id,
-    type,
-    title,
-    message
-  ) VALUES (
-    p_subscription_id,
-    'subscription_activated',
-    'Abonnement activé',
-    'Votre abonnement BraPrime a été activé avec succès.'
-  );
-END;
-$$ LANGUAGE plpgsql;
-
--- Fonction pour vérifier les abonnements expirés
-CREATE OR REPLACE FUNCTION check_expired_subscriptions() RETURNS void AS $$
-BEGIN
-  UPDATE partner_subscriptions 
-  SET status = 'expired'
-  WHERE end_date < now() AND status = 'active';
-  
-  -- Créer des notifications pour les abonnements expirés
-  INSERT INTO subscription_notifications (
-    subscription_id,
-    type,
-    title,
-    message
-  )
-  SELECT 
-    id,
-    'subscription_expired',
-    'Abonnement expiré',
-    'Votre abonnement BraPrime a expiré. Renouvelez pour continuer à bénéficier de nos services.'
-  FROM partner_subscriptions 
-  WHERE end_date < now() AND status = 'active';
-END;
-$$ LANGUAGE plpgsql;
-
--- Fonction pour mettre à jour automatiquement updated_at
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Triggers pour mettre à jour updated_at automatiquement
-CREATE TRIGGER update_subscription_plans_updated_at 
-  BEFORE UPDATE ON subscription_plans 
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_partner_subscriptions_updated_at 
-  BEFORE UPDATE ON partner_subscriptions 
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_subscription_payments_updated_at 
-  BEFORE UPDATE ON subscription_payments 
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_subscription_invoices_updated_at 
-  BEFORE UPDATE ON subscription_invoices 
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Vues pour simplifier les requêtes
-CREATE OR REPLACE VIEW active_subscriptions AS
-SELECT 
-  ps.*,
-  sp.name as plan_name,
-  sp.description as plan_description,
-  sp.duration_months,
-  sp.price as plan_price,
-  sp.monthly_price as plan_monthly_price,
-  sp.savings_percentage as plan_savings_percentage,
-  b.name as business_name
-FROM partner_subscriptions ps
-JOIN subscription_plans sp ON ps.plan_id = sp.id
-JOIN businesses b ON ps.partner_id = b.id
-WHERE ps.status = 'active';
-
-CREATE OR REPLACE VIEW subscription_payments_summary AS
-SELECT 
-  ps.id as subscription_id,
-  ps.partner_id,
-  ps.plan_id,
-  ps.status,
-  ps.start_date,
-  ps.end_date,
-  ps.total_paid,
-  COUNT(sp.id) as total_payments,
-  SUM(CASE WHEN sp.status = 'completed' THEN sp.amount ELSE 0 END) as total_paid_amount,
-  MAX(sp.payment_date) as last_payment_date
-FROM partner_subscriptions ps
-LEFT JOIN subscription_payments sp ON ps.id = sp.subscription_id
-GROUP BY ps.id, ps.partner_id, ps.plan_id, ps.status, ps.start_date, ps.end_date, ps.total_paid;

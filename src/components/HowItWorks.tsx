@@ -1,4 +1,4 @@
-import { Search, Utensils, Truck } from "lucide-react";
+import { Search, Truck, Utensils } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 
 const steps = [
@@ -29,7 +29,7 @@ const HowItWorks = () => {
   const navigate = useNavigate();
 
   const handleBecomeDriver = () => {
-    navigate('/requests');
+    navigate('/devenir-chauffeur');
   };
 
   return (

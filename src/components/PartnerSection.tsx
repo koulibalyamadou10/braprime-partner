@@ -1,38 +1,36 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Building2, 
-  TrendingUp, 
-  Users, 
-  Clock, 
-  Shield, 
-  Zap, 
-  Star, 
-  ArrowRight,
-  CheckCircle,
-  DollarSign,
-  BarChart3,
-  Smartphone,
-  Utensils,
-  Coffee,
-  ShoppingBasket,
-  ShoppingCart,
-  Pill,
-  Tv,
-  Sparkles,
-  Scissors,
-  Hammer,
-  BookOpen,
-  FileText,
-  Package,
-  Gift,
-  Briefcase
-} from 'lucide-react'
 import { usePartnerData } from '@/hooks/use-partner-stats'
+import {
+    ArrowRight,
+    BarChart3,
+    BookOpen,
+    Briefcase,
+    Building2,
+    Clock,
+    Coffee,
+    DollarSign,
+    FileText,
+    Gift,
+    Hammer,
+    Package,
+    Pill,
+    Scissors,
+    Shield,
+    ShoppingBasket,
+    ShoppingCart,
+    Smartphone,
+    Sparkles,
+    Star,
+    TrendingUp,
+    Tv,
+    Users,
+    Utensils,
+    Zap
+} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 // Fonction pour convertir les noms d'icônes en composants Lucide React
 const getIconComponent = (iconName: string) => {
@@ -154,7 +152,7 @@ export function PartnerSection() {
 
 
   const handleBecomePartner = () => {
-    navigate('/requests')
+    navigate('/pricing')
   }
 
   // Formater les nombres

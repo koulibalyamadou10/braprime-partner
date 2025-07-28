@@ -12,9 +12,11 @@ import AdminAnalytics from '@/pages/dashboard/AdminAnalytics';
 import AdminBusinesses from '@/pages/dashboard/AdminBusinesses';
 import AdminContent from '@/pages/dashboard/AdminContent';
 import AdminDrivers from '@/pages/dashboard/AdminDrivers';
+import AdminEmailTest from '@/pages/dashboard/AdminEmailTest';
 import AdminRequests from '@/pages/dashboard/AdminRequests';
 import AdminSystem from '@/pages/dashboard/AdminSystem';
 import AdminUsers from '@/pages/dashboard/AdminUsers';
+import DriverRegistrationPage from '@/pages/DriverRegistrationPage';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -48,6 +50,7 @@ const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
 const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
 const PartnerRegistrationPage = lazy(() => import("./pages/PartnerRegistrationPage"));
+const RequestConfirmationPage = lazy(() => import("./pages/RequestConfirmationPage"));
 const RequestsPage = lazy(() => import("./pages/RequestsPage"));
 const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
 const AdminOrders = lazy(() => import("./pages/dashboard/AdminOrders"));
@@ -62,6 +65,7 @@ const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const OrderConfirmationPage = lazy(() => import("./pages/OrderConfirmationPage"));
 const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage"));
 const OrdersHistoryPage = lazy(() => import("./pages/OrdersHistoryPage"));
+const PaymentStatusPage = lazy(() => import("./pages/PaymentStatusPage"));
 
 const queryClient = new QueryClient();
 
@@ -100,11 +104,14 @@ const App = () => (
                 <Route path="/articles" element={<AllItemsPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} />
+                <Route path="/devenir-conducteur" element={<DriverRegistrationPage />} />
+                <Route path="/request-confirmation" element={<RequestConfirmationPage />} />
 
                 <Route path="/requests" element={<RequestsPage />} />
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
                 <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
+                <Route path="/payment-status" element={<PaymentStatusPage />} />
                 <Route path="/orders" element={<OrdersHistoryPage />} />
                 <Route path="/driver/login" element={<DriverLoginPage />} />
 
@@ -285,6 +292,11 @@ const App = () => (
                 <Route path="/admin-dashboard/system" element={
                   <ProtectedRoute allowedRoles={["admin"]}>
                     <AdminSystem />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin-dashboard/email-test" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminEmailTest />
                   </ProtectedRoute>
                 } />
                 <Route path="/admin-dashboard/settings" element={

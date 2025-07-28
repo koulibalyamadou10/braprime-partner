@@ -13,6 +13,7 @@ import {
     FileText, Heart,
     Home,
     LogOut,
+    Mail,
     MapPin,
     Menu,
     Package,
@@ -312,6 +313,11 @@ export const adminNavItems = [
     href: '/admin-dashboard/system',
     label: 'Système',
     icon: <Settings className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/email-test',
+    label: 'Test Mail',
+    icon: <Mail className="h-5 w-5" />,
   },
   {
     href: '/admin-dashboard/settings',

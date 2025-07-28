@@ -1,8 +1,18 @@
 import { supabase } from '@/lib/supabase'
-import { useToast } from '@/hooks/use-toast'
-import { CartItem, Cart } from '@/lib/types'
+import { Cart } from '@/lib/types'
 
 export interface AddToCartItem {
+  menu_item_id: number
+  name: string
+  price: number
+  quantity: number
+  image?: string
+  special_instructions?: string
+}
+
+// Type pour les items stockés en JSONB dans le panier
+export interface CartItemJSON {
+  id: string
   menu_item_id: number
   name: string
   price: number
@@ -35,13 +45,13 @@ export interface UpdateCartItemData {
 
 export class CartService {
   /**
-   * Récupérer le panier complet d'un utilisateur
+   * Récupérer le panier d'un utilisateur
    */
   static async getCart(userId: string): Promise<{ cart: Cart | null; error: string | null }> {
     try {
-      // Récupérer le panier principal avec les détails calculés
+      // Récupérer le panier principal
       const { data: cartData, error: cartError } = await supabase
-        .from('cart_details')
+        .from('cart')
         .select('*')
         .eq('user_id', userId)
         .single()
@@ -58,9 +68,19 @@ export class CartService {
         return { cart: null, error: null }
       }
 
+      // Calculer le total et le nombre d'items
+      const items = cartData.items || []
+      const total = items.reduce((sum: number, item: any) => {
+        return sum + (item.price * item.quantity)
+      }, 0)
+      
+      const itemCount = items.reduce((sum: number, item: any) => {
+        return sum + item.quantity
+      }, 0)
+
       // Construire l'objet cart complet
       const cart: Cart = {
-        id: cartData.cart_id,
+        id: cartData.id,
         user_id: cartData.user_id,
         business_id: cartData.business_id,
         business_name: cartData.business_name,
@@ -69,9 +89,9 @@ export class CartService {
         delivery_instructions: cartData.delivery_instructions,
         created_at: cartData.created_at,
         updated_at: cartData.updated_at,
-        items: cartData.items || [],
-        total: cartData.total,
-        item_count: cartData.item_count
+        items: items,
+        total: total,
+        item_count: itemCount
       }
 
       return { cart, error: null }
@@ -124,14 +144,14 @@ export class CartService {
       if (!cart) {
         const { cartId, error: createError } = await this.createCart(userId, businessId, businessName)
         if (createError) {
-          return { success: false, error: createError }
+          return { success: false, error: createError, cart: null }
         }
         
         // Récupérer le nouveau panier
         const result = await this.getCart(userId)
         cart = result.cart
         if (!cart) {
-          return { success: false, error: 'Erreur lors de la création du panier' }
+          return { success: false, error: 'Erreur lors de la création du panier', cart: null }
         }
       } else {
         // Vérifier si le panier existant appartient au même commerce
@@ -144,42 +164,54 @@ export class CartService {
           // Créer un nouveau panier pour le nouveau commerce
           const { cartId, error: createError } = await this.createCart(userId, businessId, businessName)
           if (createError) {
-            return { success: false, error: createError }
+            return { success: false, error: createError, cart: null }
           }
           
           // Récupérer le nouveau panier
           const result = await this.getCart(userId)
           cart = result.cart
           if (!cart) {
-            return { success: false, error: 'Erreur lors de la création du panier' }
+            return { success: false, error: 'Erreur lors de la création du panier', cart: null }
           }
         }
       }
 
       // Vérifier si l'article existe déjà dans le panier
-      const existingItem = cart.items.find(cartItem => 
+      const existingItemIndex = cart.items.findIndex(cartItem => 
         cartItem.menu_item_id === item.menu_item_id && 
         cartItem.name === item.name
       )
 
-      if (existingItem) {
-        // Mettre à jour la quantité
-        const result = await this.updateQuantity(existingItem.id, existingItem.quantity + item.quantity)
-        return result
-      }
+      let updatedItems: CartItemJSON[] = [...cart.items]
 
-      // Ajouter le nouvel article
-      const { error } = await supabase
-        .from('cart_items')
-        .insert({
-          cart_id: cart.id,
+      if (existingItemIndex !== -1) {
+        // Mettre à jour la quantité de l'article existant
+        updatedItems[existingItemIndex] = {
+          ...updatedItems[existingItemIndex],
+          quantity: updatedItems[existingItemIndex].quantity + item.quantity
+        }
+      } else {
+        // Ajouter le nouvel article avec un ID unique
+        const newItem: CartItemJSON = {
+          id: crypto.randomUUID(), // Générer un ID unique
           menu_item_id: item.menu_item_id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
           image: item.image,
           special_instructions: item.special_instructions
+        }
+        updatedItems.push(newItem)
+      }
+
+      // Mettre à jour le panier avec les nouveaux items
+      const { error } = await supabase
+        .from('cart')
+        .update({ 
+          items: updatedItems,
+          updated_at: new Date().toISOString()
         })
+        .eq('user_id', userId)
 
       if (error) {
         return { success: false, error: error.message, cart: null }
@@ -199,37 +231,63 @@ export class CartService {
    */
   static async updateQuantity(itemId: string, quantity: number): Promise<{ success: boolean; error: string | null; cart: Cart | null }> {
     try {
-      if (quantity <= 0) {
-        // Si quantité <= 0, supprimer l'article
-        const result = await this.removeFromCart(itemId)
-        if (result.success) {
-          // Récupérer le panier mis à jour après suppression
-          const userId = await this.getUserIdFromCartItem(itemId)
-          if (userId) {
-            const { cart } = await this.getCart(userId)
-            return { success: true, error: null, cart }
-          }
-        }
-        return { success: result.success, error: result.error, cart: null }
+      // Récupérer l'utilisateur à partir de l'item
+      const userId = await this.getUserIdFromCartItem(itemId)
+      if (!userId) {
+        return { success: false, error: 'Utilisateur non trouvé', cart: null }
       }
 
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity })
-        .eq('id', itemId)
+      // Récupérer le panier actuel
+      const { cart } = await this.getCart(userId)
+      if (!cart) {
+        return { success: false, error: 'Panier non trouvé', cart: null }
+      }
 
-      if (error) {
-        return { success: false, error: error.message, cart: null }
+      // Trouver l'item dans le panier
+      const itemIndex = cart.items.findIndex(item => item.id === itemId)
+      if (itemIndex === -1) {
+        return { success: false, error: 'Article non trouvé dans le panier', cart: null }
+      }
+
+      if (quantity <= 0) {
+        // Supprimer l'article
+        const updatedItems = cart.items.filter(item => item.id !== itemId)
+        
+        const { error } = await supabase
+          .from('cart')
+          .update({ 
+            items: updatedItems,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+
+        if (error) {
+          return { success: false, error: error.message, cart: null }
+        }
+      } else {
+        // Mettre à jour la quantité
+        const updatedItems = [...cart.items]
+        updatedItems[itemIndex] = {
+          ...updatedItems[itemIndex],
+          quantity: quantity
+        }
+
+        const { error } = await supabase
+          .from('cart')
+          .update({ 
+            items: updatedItems,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+
+        if (error) {
+          return { success: false, error: error.message, cart: null }
+        }
       }
 
       // Récupérer le panier mis à jour
-      const userId = await this.getUserIdFromCartItem(itemId)
-      if (userId) {
-        const { cart } = await this.getCart(userId)
-        return { success: true, error: null, cart }
-      }
-
-      return { success: true, error: null, cart: null }
+      const { cart: updatedCart } = await this.getCart(userId)
+      return { success: true, error: null, cart: updatedCart }
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la quantité:', error)
       return { success: false, error: 'Erreur lors de la mise à jour de la quantité', cart: null }
@@ -241,27 +299,26 @@ export class CartService {
    */
   static async getUserIdFromCartItem(itemId: string): Promise<string | null> {
     try {
-      const { data, error } = await supabase
-        .from('cart_items')
-        .select('cart_id')
-        .eq('id', itemId)
-        .single()
-
-      if (error || !data) {
-        return null
-      }
-
-      const { data: cartData, error: cartError } = await supabase
+      // Chercher dans tous les paniers pour trouver l'item
+      const { data: carts, error } = await supabase
         .from('cart')
-        .select('user_id')
-        .eq('id', data.cart_id)
-        .single()
+        .select('user_id, items')
+        .not('items', 'is', null)
 
-      if (cartError || !cartData) {
+      if (error || !carts) {
         return null
       }
 
-      return cartData.user_id
+      // Chercher l'item dans les paniers
+      for (const cart of carts) {
+        const items = cart.items || []
+        const foundItem = items.find((item: any) => item.id === itemId)
+        if (foundItem) {
+          return cart.user_id
+        }
+      }
+
+      return null
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'utilisateur:', error)
       return null
@@ -275,26 +332,38 @@ export class CartService {
     try {
       // Récupérer l'ID de l'utilisateur avant de supprimer
       const userId = await this.getUserIdFromCartItem(itemId)
-      
+      if (!userId) {
+        return { success: false, error: 'Utilisateur non trouvé', cart: null }
+      }
+
+      // Récupérer le panier actuel
+      const { cart } = await this.getCart(userId)
+      if (!cart) {
+        return { success: false, error: 'Panier non trouvé', cart: null }
+      }
+
+      // Filtrer l'article à supprimer
+      const updatedItems = cart.items.filter(item => item.id !== itemId)
+
+      // Mettre à jour le panier
       const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('id', itemId)
+        .from('cart')
+        .update({ 
+          items: updatedItems,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
 
       if (error) {
         return { success: false, error: error.message, cart: null }
       }
 
       // Récupérer le panier mis à jour
-      if (userId) {
-        const { cart } = await this.getCart(userId)
-        return { success: true, error: null, cart }
-      }
-
-      return { success: true, error: null, cart: null }
+      const { cart: updatedCart } = await this.getCart(userId)
+      return { success: true, error: null, cart: updatedCart }
     } catch (error) {
-      console.error('Erreur lors de la suppression du panier:', error)
-      return { success: false, error: 'Erreur lors de la suppression du panier', cart: null }
+      console.error('Erreur lors de la suppression de l\'article:', error)
+      return { success: false, error: 'Erreur lors de la suppression de l\'article', cart: null }
     }
   }
 
@@ -303,33 +372,32 @@ export class CartService {
    */
   static async clearCart(userId: string): Promise<{ success: boolean; error: string | null; cart: Cart | null }> {
     try {
-      // Récupérer le panier
-      const { cart } = await this.getCart(userId)
-      if (!cart) {
-        return { success: true, error: null, cart: null } // Pas de panier à vider
-      }
-
-      // Supprimer tous les articles
-      const { error: itemsError } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('cart_id', cart.id)
-
-      if (itemsError) {
-        return { success: false, error: itemsError.message, cart: null }
-      }
-
-      // Supprimer le panier
-      const { error: cartError } = await supabase
+      const { error } = await supabase
         .from('cart')
-        .delete()
-        .eq('id', cart.id)
+        .update({ 
+          items: [],
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
 
-      if (cartError) {
-        return { success: false, error: cartError.message, cart: null }
+      if (error) {
+        return { success: false, error: error.message, cart: null }
       }
 
-      return { success: true, error: null, cart: null }
+      // Retourner un panier vide
+      const emptyCart: Cart = {
+        id: '',
+        user_id: userId,
+        business_id: 0,
+        business_name: '',
+        items: [],
+        total: 0,
+        item_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      return { success: true, error: null, cart: emptyCart }
     } catch (error) {
       console.error('Erreur lors du vidage du panier:', error)
       return { success: false, error: 'Erreur lors du vidage du panier', cart: null }

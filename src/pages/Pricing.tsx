@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Award, BarChart3, Check, Globe, Star, Truck, Users, Zap } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 // Plans de tarification selon le document officiel
 const pricingPlans = [
@@ -113,11 +113,9 @@ const pricingPlans = [
   }
 ];
 
-
-
 const Pricing = () => {
   const [selectedPlan, setSelectedPlan] = useState('3-months');
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const navigate = useNavigate();
 
   // Calculer les prix selon la durée d'engagement
   const getDiscountedPrice = (price: number) => {
@@ -127,6 +125,8 @@ const Pricing = () => {
   const getBillingText = (price: number) => {
     return `${price.toLocaleString()} FG`;
   };
+
+
 
   return (
     <Layout>
@@ -243,9 +243,13 @@ const Pricing = () => {
                           ? 'bg-guinea-red hover:bg-guinea-red/90' 
                           : 'bg-gray-900 hover:bg-gray-800'
                       }`}
-                      onClick={() => setSelectedPlan(plan.id)}
+                      onClick={() => {
+                        setSelectedPlan(plan.id);
+                        // Navigation directe vers la page de demande avec le plan sélectionné
+                        navigate(`/devenir-partenaire?plan=${plan.id}&price=${plan.price}&name=${encodeURIComponent(plan.name)}`);
+                      }}
                     >
-                      {isSelected ? 'Plan sélectionné' : 'Choisir ce plan'}
+                      Choisir ce plan
                     </Button>
                   </CardFooter>
                 </Card>
@@ -308,8 +312,6 @@ const Pricing = () => {
           </div>
         </div>
 
-
-
         {/* FAQ */}
         <div className="bg-white py-16">
           <div className="container mx-auto px-4">
@@ -349,22 +351,23 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTA simplifié */}
         <div className="bg-gradient-to-r from-guinea-red to-guinea-red/90 text-white py-16">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4">Prêt à devenir partenaire ?</h2>
+            <h2 className="text-3xl font-bold mb-4">Besoin d'aide ?</h2>
             <p className="text-xl mb-8 text-white/90">
-              Rejoignez des centaines de commerces qui font confiance à BraPrime
+              Notre équipe est là pour vous accompagner dans votre démarche
             </p>
+            
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/devenir-partenaire">
-                <Button size="lg" className="bg-white text-guinea-red hover:bg-gray-100">
-                  Devenir partenaire
-                </Button>
-              </Link>
               <Link to="/contact">
                 <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-guinea-red">
                   Contacter l'équipe
+                </Button>
+              </Link>
+              <Link to="/about">
+                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-guinea-red">
+                  En savoir plus
                 </Button>
               </Link>
             </div>

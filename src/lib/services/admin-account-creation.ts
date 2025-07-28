@@ -1,21 +1,121 @@
 import { supabase } from '@/lib/supabase';
+import { EmailService } from './email';
 
-interface CreateAccountData {
+export interface CreateAccountData {
   email: string;
   password: string;
   name: string;
-  phone_number?: string;
   role: 'partner' | 'driver';
-  requestId: string;
+  phone_number?: string;
+  requestId?: string;
+}
+
+export interface CreateAccountResult {
+  success: boolean;
+  user?: any;
+  business?: any;
+  credentials?: {
+    email: string;
+    password: string;
+  };
+  error?: string;
 }
 
 export class AdminAccountCreationService {
-  /**
-   * Créer un compte utilisateur après approbation d'une demande
-   */
-  static async createUserAccount(data: CreateAccountData) {
+  // Vérifier si un email existe déjà
+  static async checkEmailExists(email: string): Promise<boolean> {
     try {
-      // 1. Créer l'utilisateur dans Supabase Auth (comme les autres services)
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      return !!data;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Créer un compte utilisateur avec business associé
+  static async createUserAccount(data: CreateAccountData): Promise<CreateAccountResult> {
+    try {
+      console.log('Début création compte:', data.email);
+
+      // 1. Récupérer les données de la demande
+      let requestData: any = null;
+      if (data.requestId) {
+        const { data: reqData, error: reqError } = await supabase
+          .from('requests')
+          .select('*')
+          .eq('id', data.requestId)
+          .single();
+
+        if (!reqError && reqData) {
+          requestData = reqData;
+        }
+      }
+
+      // 2. Récupérer le type de business par défaut
+      const { data: businessTypeData, error: businessTypeError } = await supabase
+        .from('business_types')
+        .select('id')
+        .eq('name', 'Restaurant')
+        .single();
+
+      if (businessTypeError) {
+        console.error('Erreur récupération type business:', businessTypeError);
+        throw new Error('Type de business par défaut non trouvé');
+      }
+
+      const businessTypeId = businessTypeData.id;
+
+      // 3. Récupérer la catégorie par défaut
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('menu_categories')
+        .select('id')
+        .eq('name', 'Plats principaux')
+        .single();
+
+      if (categoryError) {
+        console.error('Erreur récupération catégorie:', categoryError);
+        throw new Error('Catégorie par défaut non trouvée');
+      }
+
+      const categoryId = categoryData.id;
+
+      // 4. Créer le business si c'est un partenaire
+      let businessData: any = null;
+      if (data.role === 'partner') {
+        const { data: createdBusiness, error: businessError } = await supabase
+          .from('businesses')
+          .insert({
+            name: requestData?.business_name || `${data.name} - Commerce`,
+            description: requestData?.business_description || 'Commerce créé automatiquement',
+            address: requestData?.business_address || 'Adresse à compléter',
+            phone: requestData?.business_phone || data.phone_number || '',
+            email: requestData?.business_email || data.email,
+            opening_hours: requestData?.opening_hours || '8h-22h',
+            cuisine_type: requestData?.cuisine_type || 'Générale',
+            business_type_id: businessTypeId,
+            category_id: categoryId,
+            is_active: true,
+            is_open: true,
+            delivery_time: '30-45 min',
+            delivery_fee: 5000,
+            rating: 0,
+            review_count: 0,
+            owner_id: null // temporaire
+          })
+          .select()
+          .single();
+        if (businessError || !createdBusiness) {
+          throw new Error('Erreur lors de la création du business');
+        }
+        businessData = createdBusiness;
+      }
+
+      // 5. Créer l'utilisateur dans Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -26,16 +126,15 @@ export class AdminAccountCreationService {
           }
         }
       });
-
-      if (authError) {
-        throw new Error(`Erreur lors de la création du compte auth: ${authError.message}`);
+      if (authError || !authData.user) {
+        // Rollback business si user échoue
+        if (businessData) {
+          await supabase.from('businesses').delete().eq('id', businessData.id);
+        }
+        throw new Error(`Erreur lors de la création du compte auth: ${authError?.message || 'Utilisateur non créé'}`);
       }
 
-      if (!authData.user) {
-        throw new Error('Aucun utilisateur créé');
-      }
-
-      // 2. Récupérer l'ID du rôle dynamiquement
+      // 6. Récupérer l'ID du rôle dynamiquement
       const roleName = data.role === 'partner' ? 'partner' : 'driver';
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
@@ -44,126 +143,116 @@ export class AdminAccountCreationService {
         .single();
 
       if (roleError || !roleData) {
-        throw new Error(`Rôle ${roleName} non trouvé dans la base de données`);
+        throw new Error(`Rôle ${roleName} non trouvé`);
       }
 
-      // 3. Créer le profil utilisateur
-      const { error: profileError } = await supabase
+      // 7. Créer le profil utilisateur
+      const { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .insert({
           id: authData.user.id,
           name: data.name,
           email: data.email,
-          phone_number: data.phone_number || null,
-          role_id: roleData.id, // Utiliser l'ID récupéré dynamiquement
+          phone_number: data.phone_number || '',
+          role_id: roleData.id,
           is_active: true,
-          is_verified: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+          is_verified: true
+        })
+        .select()
+        .single();
 
       if (profileError) {
-        // Si erreur profil, on ne peut pas supprimer l'utilisateur auth directement
-        // L'utilisateur devra être supprimé manuellement par l'admin si nécessaire
-        console.error('Erreur lors de la création du profil:', profileError);
         throw new Error(`Erreur lors de la création du profil: ${profileError.message}`);
       }
 
-      // 4. Si c'est un partenaire, créer le profil business
-      if (data.role === 'partner') {
-        try {
-          // Récupérer un business_type_id par défaut (restaurant)
-          const { data: defaultBusinessType } = await supabase
-            .from('business_types')
-            .select('id')
-            .eq('name', 'restaurant')
-            .single();
+      // 8. Associer le business au propriétaire si c'est un partenaire
+      if (data.role === 'partner' && businessData) {
+        const { error: updateError } = await supabase
+          .from('businesses')
+          .update({ owner_id: authData.user.id })
+          .eq('id', businessData.id);
 
-          const { data: businessData, error: businessError } = await supabase
-            .from('businesses')
-            .insert({
-              name: data.name, // Nom temporaire, sera mis à jour
-              description: 'Commerce créé via demande approuvée',
-              address: 'Adresse à compléter',
-              phone: data.phone_number || null,
-              email: data.email,
-              owner_id: authData.user.id,
-              business_type_id: defaultBusinessType?.id || 1, // Valeur par défaut
-              category_id: 1, // Valeur par défaut
-              is_active: true,
-              is_open: true,
-              delivery_time: '30-45 min',
-              delivery_fee: 5000,
-              rating: 0,
-              review_count: 0
-            })
-            .select()
-            .single();
-
-          if (businessError) {
-            console.error('Erreur lors de la création du business:', businessError);
-            throw new Error(`Erreur lors de la création du business: ${businessError.message}`);
-          }
-
-          console.log('Business créé avec succès:', businessData);
-
-          // Créer les catégories de menu basées sur le type de business
-          await this.createMenuCategoriesFromTemplate(businessData.id, defaultBusinessType?.id || 1);
-        } catch (businessError) {
-          console.error('Erreur lors de la création du business:', businessError);
-          // Ne pas faire échouer la création du compte pour cette erreur
-          // mais logguer l'erreur pour le debugging
+        if (updateError) {
+          console.error('Erreur association business-propriétaire:', updateError);
         }
       }
 
-      // 5. Si c'est un chauffeur, créer le profil driver (comme les autres services)
-      if (data.role === 'driver') {
-        const { error: driverError } = await supabase
-          .from('drivers')
-          .insert({
-            id: authData.user.id, // Utiliser l'ID du compte auth comme ID du driver
-            name: data.name,
-            phone: data.phone_number || '',
-            email: data.email,
-            is_active: true,
-            is_verified: true,
-            total_deliveries: 0,
-            total_earnings: 0,
-            rating: 0,
-            active_sessions: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+      // 9. Créer les catégories de menu par défaut si c'est un partenaire
+      if (data.role === 'partner' && businessData) {
+        await this.createMenuCategoriesFromTemplate(businessData.id, businessTypeId);
+      }
+
+      // 10. Envoyer les emails automatiquement
+      try {
+        if (data.role === 'partner') {
+          await EmailService.sendAccountCredentials({
+            account_type: 'partner',
+            user_name: data.name,
+            user_email: data.email,
+            login_email: data.email,
+            login_password: data.password,
+            business_name: businessData?.name || 'Commerce',
+            business_id: businessData?.id?.toString() || '',
+            selected_plan_name: 'Plan Standard',
+            selected_plan_price: 0,
+            dashboard_url: `${window.location.origin}/partner-dashboard`,
+            account_created_at: new Date().toISOString(),
+            created_by: 'admin@bradelivery.com',
+            support_email: 'support@bradelivery.com',
+            support_phone: '+224 621 00 00 00'
           });
-
-        if (driverError) {
-          console.error('Erreur lors de la création du profil chauffeur:', driverError);
-          // Ne pas faire échouer la création du compte pour cette erreur
+        } else if (data.role === 'driver') {
+          await EmailService.sendAccountCredentials({
+            account_type: 'driver',
+            user_name: data.name,
+            user_email: data.email,
+            login_email: data.email,
+            login_password: data.password,
+            dashboard_url: `${window.location.origin}/driver-dashboard`,
+            account_created_at: new Date().toISOString(),
+            created_by: 'admin@bradelivery.com',
+            support_email: 'support@bradelivery.com',
+            support_phone: '+224 621 00 00 00'
+          });
         }
-      }
-
-      // 6. Marquer la demande comme traitée (optionnel)
-      const { error: updateError } = await supabase
-        .from('requests')
-        .update({
-          admin_notes: `Compte créé le ${new Date().toLocaleDateString('fr-FR')}. Email: ${data.email}. Mot de passe généré automatiquement.`,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', data.requestId);
-
-      if (updateError) {
-        console.error('Erreur lors de la mise à jour de la demande:', updateError);
+      } catch (emailError) {
+        console.warn('Erreur lors de l\'envoi des emails:', emailError);
+        // Ne pas faire échouer la création à cause des emails
       }
 
       return {
         success: true,
-        userId: authData.user.id,
-        email: data.email
+        user: profileData,
+        business: businessData,
+        credentials: {
+          email: data.email,
+          password: data.password
+        }
       };
 
     } catch (error) {
-      console.error('Erreur lors de la création du compte:', error);
-      throw error;
+      console.error('Erreur création compte:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur lors de la création du compte'
+      };
     }
+  }
+
+  // Mapper le type de business vers la catégorie appropriée
+  private static mapBusinessTypeToCategory(businessType: string): string {
+    const mapping: Record<string, string> = {
+      'restaurant': 'Restaurants',
+      'cafe': 'Cafés',
+      'market': 'Marchés',
+      'supermarket': 'Supermarchés',
+      'pharmacy': 'Pharmacie',
+      'electronics': 'Électronique',
+      'beauty': 'Beauté',
+      'other': 'Restaurants' // Par défaut
+    };
+    
+    return mapping[businessType] || 'Restaurants';
   }
 
   // Créer les catégories de menu basées sur le template du type de business
@@ -235,28 +324,6 @@ export class AdminAccountCreationService {
     } catch (error) {
       console.error('Erreur lors de l\'envoi de l\'email:', error);
       throw error;
-    }
-  }
-
-  /**
-   * Vérifier si un email existe déjà
-   */
-  static async checkEmailExists(email: string) {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('email', email)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        throw error;
-      }
-
-      return !!data;
-    } catch (error) {
-      console.error('Erreur lors de la vérification de l\'email:', error);
-      return false;
     }
   }
 
