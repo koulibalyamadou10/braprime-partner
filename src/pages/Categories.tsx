@@ -7,35 +7,60 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCategoriesWithCounts } from '@/hooks/use-homepage';
 import { useSearch } from '@/hooks/use-search';
 import {
+    Apple,
+    Award,
+    Baby,
+    Bike,
     BookOpen,
     Briefcase,
+    Cake,
+    Calendar,
+    Camera,
+    Car,
     Coffee,
+    Dog,
+    Dumbbell,
+    Eye,
     FileText,
+    Flower,
+    Gamepad2,
     Gift,
+    Globe,
     Hammer,
+    Headphones,
+    Heart,
+    Home,
+    Key,
     Loader2,
+    MapPin,
+    Monitor,
+    Music,
     Package,
+    Palette,
     Pill,
     Scissors,
     Search,
+    Settings,
+    Shield,
     ShoppingBasket, ShoppingCart,
+    Smartphone,
     Sparkles,
+    Star,
+    Store,
+    Target,
+    TrendingUp,
+    Truck,
     Tv,
+    Users,
     Utensils,
-    X
+    Wine,
+    Wrench,
+    X,
+    Zap
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-// Popular searches
-const popularSearches = [
-  "Restaurants", "Cafés", "Livraison", "Pharmacie", "Supermarché", 
-  "Colis urgent", "Électronique", "Coiffure"
-];
 
-// Dummy recent searches - in a real app, these would come from user history
-const recentSearches = [
-  "Pharmacie de garde", "Restaurant africain", "Café wifi", "Supermarché livraison"
-];
 
 // Mapping des onglets vers les types de recherche
 const tabToSearchType = {
@@ -63,9 +88,47 @@ const getIconComponent = (iconName: string) => {
     'Package': Package,
     'Gift': Gift,
     'Briefcase': Briefcase,
+    // Ajout d'icônes spécifiques pour éviter les répétitions
+    'Store': Store,
+    'Heart': Heart,
+    'Zap': Zap,
+    'Camera': Camera,
+    'Music': Music,
+    'Palette': Palette,
+    'Globe': Globe,
+    'Shield': Shield,
+    'Truck': Truck,
+    'MapPin': MapPin,
+    'Calendar': Calendar,
+    'Users': Users,
+    'Settings': Settings,
+    'Star': Star,
+    'Award': Award,
+    'Target': Target,
+    'TrendingUp': TrendingUp,
+    'Cake': Cake,
+    'Eye': Eye,
+    'Smartphone': Smartphone,
+    'Monitor': Monitor,
+    'Headphones': Headphones,
+    'Key': Key,
+    'Apple': Apple,
+    'Flower': Flower,
+    'Dog': Dog,
+    'Dumbbell': Dumbbell,
+    'Gamepad2': Gamepad2,
+    'Home': Home,
+    'Bike': Bike,
+    'Baby': Baby,
+    'Wine': Wine,
+    'Car': Car,
+    'Wrench': Wrench,
   };
   
-  const IconComponent = iconMap[iconName] || Utensils; // Icône par défaut
+  // Normaliser le nom de l'icône
+  const normalizedIcon = iconName?.trim() || '';
+  const IconComponent = iconMap[normalizedIcon] || Utensils; // Icône par défaut
+  
   return (
     <IconComponent 
       className="h-6 w-6" 
@@ -81,6 +144,100 @@ const getIconComponent = (iconName: string) => {
       }} 
     />
   );
+};
+
+// Fonction pour assigner une icône spécifique à chaque catégorie
+const getCategoryIcon = (categoryName: string) => {
+  const lowerName = categoryName.toLowerCase();
+  
+  // Mapping spécifique des catégories vers leurs icônes
+  const categoryIconMap: { [key: string]: any } = {
+    // Catégories principales avec noms normalisés
+    'restaurant': Utensils,
+    'restaurants': Utensils,
+    'café': Coffee,
+    'cafe': Coffee,
+    'marché': Store,
+    'market': Store,
+    'pharmacie': Pill,
+    'pharmacy': Pill,
+    'supermarché': Store,
+    'supermarket': Store,
+    'beauté': Flower,
+    'beauty': Flower,
+    'électronique': Monitor,
+    'electronics': Monitor,
+    'electronic': Monitor,
+    'vêtements': ShoppingBasket,
+    'clothing': ShoppingBasket,
+    'livres': BookOpen,
+    'books': BookOpen,
+    'documents': FileText,
+    'cadeaux': Gift,
+    'gifts': Gift,
+    'cadeau': Gift,
+    'gift': Gift,
+    'quincaillerie': Hammer,
+    'hardware': Hammer,
+    'colis': Package,
+    'packages': Package,
+    'package': Package,
+    'sport': Dumbbell,
+    'sports': Dumbbell,
+    'autre': Briefcase,
+    'other': Briefcase,
+    
+    // Autres catégories
+    'coffee': Coffee,
+    'utensils': Utensils,
+    'shoppingbasket': ShoppingBasket,
+    'shoppingcart': ShoppingCart,
+    'pill': Pill,
+    'tv': Tv,
+    'briefcase': Briefcase,
+    'apple': Apple,
+    'filetext': FileText,
+    'shirt': ShoppingBasket,
+    'bookopen': BookOpen,
+    'flower': Flower,
+    'dog': Dog,
+    'sparkles': Sparkles,
+    'hammer': Hammer,
+    'dumbbell': Dumbbell,
+    'gamepad2': Gamepad2,
+    'home': Home,
+    'bike': Bike,
+    'baby': Baby,
+    'wine': Wine,
+    'scissors': Scissors,
+    'car': Car,
+    'wrench': Wrench,
+    'store': Store,
+    'heart': Heart,
+    'zap': Zap,
+    'camera': Camera,
+    'music': Music,
+    'palette': Palette,
+    'globe': Globe,
+    'shield': Shield,
+    'truck': Truck,
+    'mappin': MapPin,
+    'calendar': Calendar,
+    'users': Users,
+    'settings': Settings,
+    'star': Star,
+    'award': Award,
+    'target': Target,
+    'trendingup': TrendingUp,
+    'cake': Cake,
+    'eye': Eye,
+    'smartphone': Smartphone,
+    'monitor': Monitor,
+    'headphones': Headphones,
+    'key': Key,
+  };
+  
+  return categoryIconMap[lowerName] || Utensils;
 };
 
 // Fonction pour traduire et capitaliser les noms de catégories
@@ -154,7 +311,6 @@ const translateAndCapitalize = (name: string) => {
 
 const Categories = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAllPopular, setShowAllPopular] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [isSearching, setIsSearching] = useState(false);
 
@@ -182,6 +338,50 @@ const Categories = () => {
       '#059669', // guinea-green
     ];
     return colors[id % colors.length];
+  };
+
+  // Fonction pour normaliser les noms de catégories
+  const normalizeCategoryName = (name: string) => {
+    const lowerName = name.toLowerCase().trim();
+    
+    // Mapping des variations de noms vers un nom standard
+    const nameMapping: { [key: string]: string } = {
+      'market': 'Marché',
+      'marché': 'Marché',
+      'pharmacy': 'Pharmacie',
+      'pharmacie': 'Pharmacie',
+      'supermarket': 'Supermarché',
+      'supermarché': 'Supermarché',
+      'cafe': 'Café',
+      'café': 'Café',
+      'restaurant': 'Restaurant',
+      'restaurants': 'Restaurants',
+      'beauty': 'Beauté',
+      'beauté': 'Beauté',
+      'electronics': 'Électronique',
+      'électronique': 'Électronique',
+      'electronic': 'Électronique',
+      'clothing': 'Vêtements',
+      'vêtements': 'Vêtements',
+      'books': 'Livres',
+      'livres': 'Livres',
+      'documents': 'Documents',
+      'gifts': 'Cadeaux',
+      'cadeaux': 'Cadeaux',
+      'gift': 'Cadeau',
+      'cadeau': 'Cadeau',
+      'hardware': 'Quincaillerie',
+      'quincaillerie': 'Quincaillerie',
+      'packages': 'Colis',
+      'colis': 'Colis',
+      'package': 'Colis',
+      'sports': 'Sport',
+      'sport': 'Sport',
+      'other': 'Autre',
+      'autre': 'Autre',
+    };
+    
+    return nameMapping[lowerName] || name.charAt(0).toUpperCase() + name.slice(1);
   };
 
   // Récupérer les catégories depuis Supabase
@@ -236,7 +436,32 @@ const Categories = () => {
       });
     }
 
-    return filtered;
+    // Dédupliquer les catégories et normaliser les noms
+    const normalizedCategories = filtered.reduce((acc, category) => {
+      const normalizedName = normalizeCategoryName(category.name);
+      
+      // Vérifier si une catégorie avec ce nom normalisé existe déjà
+      const existingIndex = acc.findIndex(cat => normalizeCategoryName(cat.name) === normalizedName);
+      
+      if (existingIndex === -1) {
+        // Ajouter la nouvelle catégorie avec le nom normalisé
+        acc.push({
+          ...category,
+          name: normalizedName
+        });
+      } else {
+        // Fusionner les compteurs si nécessaire
+        const existing = acc[existingIndex];
+        acc[existingIndex] = {
+          ...existing,
+          restaurant_count: (existing.restaurant_count || 0) + (category.restaurant_count || 0)
+        };
+      }
+      
+      return acc;
+    }, [] as any[]);
+
+    return normalizedCategories;
   }, [categories, searchTerm, activeTab]);
 
   // Gérer le changement de recherche
@@ -269,39 +494,39 @@ const Categories = () => {
     <Layout>
       <div className="bg-gray-50 min-h-screen">
         {/* Hero Banner */}
-        <div className="bg-gradient-to-r from-guinea-red to-guinea-red/80 text-white">
-          <div className="container mx-auto px-4 py-12">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">Explorez Toutes Nos Catégories</h1>
-            <p className="text-lg max-w-2xl mb-8 text-white/90">
-              Découvrez tous nos services de livraison et trouvez exactement ce que vous cherchez.
+        <div className="bg-gray-900 text-white">
+          <div className="container mx-auto px-4 py-8">
+            <h1 className="text-2xl md:text-3xl font-semibold mb-2">Catégories</h1>
+            <p className="text-gray-300 max-w-2xl mb-6">
+              Découvrez tous nos services de livraison
             </p>
             
             {/* Search Box */}
-            <div className="relative max-w-2xl">
+            <div className="relative max-w-md">
               <Input
                 type="text"
-                placeholder="Rechercher une catégorie ou un service..."
-                className="pl-10 py-6 rounded-lg text-gray-800"
+                placeholder="Rechercher..."
+                className="pl-9 py-3 rounded-md text-gray-800 bg-white"
                 value={searchTerm}
                 onChange={handleSearchChange}
               />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               
               {searchTerm && (
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 h-6 w-6 p-0"
                   onClick={clearSearch}
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3" />
                 </Button>
               )}
 
               {/* Indicateur de recherche en cours */}
               {isSearching && searchTerm && (
-                <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
-                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
                 </div>
               )}
             </div>
@@ -309,51 +534,6 @@ const Categories = () => {
         </div>
 
         <div className="container mx-auto px-4 py-8">
-          {/* Quick Searches */}
-          {!searchTerm && (
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Recherches populaires</h2>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setShowAllPopular(!showAllPopular)}
-                  className="text-guinea-red hover:text-guinea-red/80"
-                >
-                  {showAllPopular ? 'Voir moins' : 'Voir plus'}
-                </Button>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {(showAllPopular ? popularSearches : popularSearches.slice(0, 5)).map((search, index) => (
-                  <Badge 
-                    key={index} 
-                    onClick={() => handleSearchClick(search)}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-800 cursor-pointer py-2 px-3 transition-colors"
-                  >
-                    {search}
-                  </Badge>
-                ))}
-              </div>
-              
-              {recentSearches.length > 0 && (
-                <>
-                  <h2 className="text-xl font-bold mt-6 mb-4">Recherches récentes</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {recentSearches.map((search, index) => (
-                      <Badge 
-                        key={index} 
-                        variant="outline"
-                        onClick={() => handleSearchClick(search)}
-                        className="cursor-pointer py-2 px-3 border-gray-300 hover:bg-gray-50 transition-colors"
-                      >
-                        {search}
-                      </Badge>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
 
           {/* Suggestions de recherche */}
           {suggestions.length > 0 && searchTerm && (
@@ -472,16 +652,28 @@ const Categories = () => {
                         className="p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center"
                         style={{ backgroundColor: iconBgColor }}
                       >
-                        {getIconComponent(category.icon)}
+                        {(() => {
+                          const IconComponent = getCategoryIcon(category.name);
+                          return (
+                            <IconComponent 
+                              className="h-6 w-6" 
+                              strokeWidth={2}
+                              fill="none"
+                              style={{ 
+                                minWidth: '24px', 
+                                minHeight: '24px',
+                                display: 'block',
+                                flexShrink: 0,
+                                color: 'white',
+                                stroke: 'white'
+                              }} 
+                            />
+                          );
+                        })()}
                       </div>
-                      <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
+                      <span className="font-medium text-gray-900 text-sm text-center group-hover:text-guinea-red transition-colors">
                         {translateAndCapitalize(category.name)}
                       </span>
-                      {category.restaurant_count > 0 && (
-                        <span className="text-xs text-gray-500">
-                          {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
-                        </span>
-                      )}
                     </div>
                   );
                 })}

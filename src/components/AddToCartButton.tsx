@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, Check, ShoppingCart } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useCartContext } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCartContext } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { Check, Minus, Plus, ShoppingCart } from 'lucide-react';
+import React, { useState } from 'react';
 
 export interface AddToCartButtonProps {
   item: {
@@ -177,7 +177,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
             disabled={isAdding || loading}
             size="sm"
             className={cn(
-              "h-8 px-3 text-xs",
+              "h-8 px-3 text-xs bg-rose-500 hover:bg-rose-600 text-white",
               showSuccess && "bg-green-600 hover:bg-green-700",
               className
             )}
@@ -224,7 +224,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           onClick={handleAddToCart}
           disabled={isAdding || loading}
           className={cn(
-            "bg-guinea-green hover:bg-guinea-green/90 text-white transition-all duration-200",
+            "bg-emerald-500 hover:bg-emerald-600 text-white transition-all duration-200",
             showSuccess && "bg-green-600",
             className
           )}

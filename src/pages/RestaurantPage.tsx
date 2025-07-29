@@ -1,23 +1,27 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { AddToCartButton } from '@/components/AddToCartButton';
+import BusinessPageSkeleton from '@/components/BusinessPageSkeleton';
+import { FloatingCart } from '@/components/FloatingCart';
 import Layout from '@/components/Layout';
+import ShareModal from '@/components/ShareModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/contexts/AuthContext';
-import { AddToCartButton } from '@/components/AddToCartButton';
-import { FloatingCart } from '@/components/FloatingCart';
-import { useRestaurantData } from '@/hooks/use-restaurant-data';
-import BusinessPageSkeleton from '@/components/BusinessPageSkeleton';
-import ShareModal from '@/components/ShareModal';
+import { useCart } from '@/hooks/use-cart';
 import { useFavorites } from '@/hooks/use-favorites';
+import { useRestaurantData } from '@/hooks/use-restaurant-data';
+import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
-import { 
-  Clock, Star, Phone, MapPin, ChevronLeft, 
-  ChevronRight, Info, Heart, Share, ShoppingBag, Utensils
+import {
+    Clock,
+    Heart,
+    Info,
+    MapPin,
+    Phone,
+    Share,
+    Star
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 
 const RestaurantPage = () => {
   const { id } = useParams();
@@ -256,7 +260,7 @@ const RestaurantPage = () => {
                   onClick={() => setSelectedCategory(category.id)}
                   className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                     selectedCategory === category.id
-                      ? 'bg-guinea-red text-white shadow-md'
+                      ? 'bg-red-400 text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >

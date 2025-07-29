@@ -185,6 +185,144 @@ const Categories = ({
 }: CategoriesProps) => {
   const { data: categories, isLoading, error } = useCategoriesWithCounts();
 
+  // Fonction pour normaliser les noms de catégories
+  const normalizeCategoryName = (name: string) => {
+    const lowerName = name.toLowerCase().trim();
+    
+    // Mapping des variations de noms vers un nom standard
+    const nameMapping: { [key: string]: string } = {
+      'market': 'Marché',
+      'marché': 'Marché',
+      'pharmacy': 'Pharmacie',
+      'pharmacie': 'Pharmacie',
+      'supermarket': 'Supermarché',
+      'supermarché': 'Supermarché',
+      'cafe': 'Café',
+      'café': 'Café',
+      'restaurant': 'Restaurant',
+      'restaurants': 'Restaurants',
+      'beauty': 'Beauté',
+      'beauté': 'Beauté',
+      'electronics': 'Électronique',
+      'électronique': 'Électronique',
+      'electronic': 'Électronique',
+      'clothing': 'Vêtements',
+      'vêtements': 'Vêtements',
+      'books': 'Livres',
+      'livres': 'Livres',
+      'documents': 'Documents',
+      'gifts': 'Cadeaux',
+      'cadeaux': 'Cadeaux',
+      'gift': 'Cadeau',
+      'cadeau': 'Cadeau',
+      'hardware': 'Quincaillerie',
+      'quincaillerie': 'Quincaillerie',
+      'packages': 'Colis',
+      'colis': 'Colis',
+      'package': 'Colis',
+      'sports': 'Sport',
+      'sport': 'Sport',
+      'other': 'Autre',
+      'autre': 'Autre',
+    };
+    
+    return nameMapping[lowerName] || name.charAt(0).toUpperCase() + name.slice(1);
+  };
+
+  // Fonction pour assigner une icône spécifique à chaque catégorie
+  const getCategoryIcon = (categoryName: string) => {
+    const lowerName = categoryName.toLowerCase();
+    
+    // Mapping spécifique des catégories vers leurs icônes
+    const categoryIconMap: { [key: string]: any } = {
+      // Catégories principales avec noms normalisés
+      'restaurant': Utensils,
+      'restaurants': Utensils,
+      'café': Coffee,
+      'cafe': Coffee,
+      'marché': Store,
+      'market': Store,
+      'pharmacie': Pill,
+      'pharmacy': Pill,
+      'supermarché': Store,
+      'supermarket': Store,
+      'beauté': Flower,
+      'beauty': Flower,
+      'électronique': Monitor,
+      'electronics': Monitor,
+      'electronic': Monitor,
+      'vêtements': ShoppingBasket,
+      'clothing': ShoppingBasket,
+      'livres': BookOpen,
+      'books': BookOpen,
+      'documents': FileText,
+      'cadeaux': Gift,
+      'gifts': Gift,
+      'cadeau': Gift,
+      'gift': Gift,
+      'quincaillerie': Hammer,
+      'hardware': Hammer,
+      'colis': Package,
+      'packages': Package,
+      'package': Package,
+      'sport': Dumbbell,
+      'sports': Dumbbell,
+      'autre': Briefcase,
+      'other': Briefcase,
+      
+      // Autres catégories
+      'coffee': Coffee,
+      'utensils': Utensils,
+      'shoppingbasket': ShoppingBasket,
+      'shoppingcart': ShoppingCart,
+      'pill': Pill,
+      'tv': Tv,
+      'briefcase': Briefcase,
+      'apple': Apple,
+      'filetext': FileText,
+      'shirt': ShoppingBasket,
+      'bookopen': BookOpen,
+      'flower': Flower,
+      'dog': Dog,
+      'sparkles': Sparkles,
+      'hammer': Hammer,
+      'dumbbell': Dumbbell,
+      'gamepad2': Gamepad2,
+      'home': Home,
+      'bike': Bike,
+      'baby': Baby,
+      'wine': Wine,
+      'scissors': Scissors,
+      'car': Car,
+      'wrench': Wrench,
+      'store': Store,
+      'heart': Heart,
+      'zap': Zap,
+      'camera': Camera,
+      'music': Music,
+      'palette': Palette,
+      'globe': Globe,
+      'shield': Shield,
+      'truck': Truck,
+      'mappin': MapPin,
+      'calendar': Calendar,
+      'users': Users,
+      'settings': Settings,
+      'star': Star,
+      'award': Award,
+      'target': Target,
+      'trendingup': TrendingUp,
+      'cake': Cake,
+      'eye': Eye,
+      'smartphone': Smartphone,
+      'monitor': Monitor,
+      'headphones': Headphones,
+      'key': Key,
+    };
+    
+    return categoryIconMap[lowerName] || Utensils;
+  };
+
   if (isLoading) {
     return <CategoriesSkeleton showAll={showAll} />;
   }
@@ -195,9 +333,32 @@ const Categories = ({
 
   // Utiliser les catégories personnalisées si fournies, sinon utiliser les données de la base
   const displayCategories = customCategories || categories || [];
-  const uniqueCategories = displayCategories.filter((category, index, self) => 
-    index === self.findIndex(c => c.id === category.id && c.name === category.name)
-  );
+  
+  // Dédupliquer les catégories et normaliser les noms
+  const uniqueCategories = displayCategories.reduce((acc, category) => {
+    const normalizedName = normalizeCategoryName(category.name);
+    
+    // Vérifier si une catégorie avec ce nom normalisé existe déjà
+    const existingIndex = acc.findIndex(cat => normalizeCategoryName(cat.name) === normalizedName);
+    
+    if (existingIndex === -1) {
+      // Ajouter la nouvelle catégorie avec le nom normalisé
+      acc.push({
+        ...category,
+        name: normalizedName
+      });
+    } else {
+      // Fusionner les compteurs si nécessaire
+      const existing = acc[existingIndex];
+      acc[existingIndex] = {
+        ...existing,
+        restaurant_count: (existing.restaurant_count || 0) + (category.restaurant_count || 0)
+      };
+    }
+    
+    return acc;
+  }, [] as any[]);
+
   const limitedCategories = showAll ? uniqueCategories : uniqueCategories.slice(0, 10);
 
   return (
@@ -289,8 +450,8 @@ const Categories = ({
                 cardBgColor: cardBgColor
               });
               
-              // Récupérer l'icône Lucide
-              const IconComponent = getIconComponent(category.icon);
+              // Récupérer l'icône spécifique à la catégorie
+              const IconComponent = getCategoryIcon(category.name);
               
               return (
                 <Link 
@@ -313,14 +474,9 @@ const Categories = ({
                       }} 
                     />
                   </div>
-                  <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
+                  <span className="font-medium text-gray-900 text-sm text-center group-hover:text-guinea-red transition-colors">
                     {translateAndCapitalize(category.name)}
                   </span>
-                  {category.restaurant_count > 0 && (
-                    <span className="text-xs text-gray-500">
-                      {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
-                    </span>
-                  )}
                 </Link>
               );
             })
