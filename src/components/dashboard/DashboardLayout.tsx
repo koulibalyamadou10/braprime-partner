@@ -222,10 +222,14 @@ export const partnerNavItems = [
     label: 'Livreurs',
     icon: <Truck className="h-5 w-5" />,
   },
-
   {
     href: '/partner-dashboard/revenue',
     label: 'Revenus',
+    icon: <DollarSign className="h-5 w-5" />,
+  },
+  {
+    href: '/partner-dashboard/billing',
+    label: 'Facturation',
     icon: <CreditCard className="h-5 w-5" />,
   },
   {
@@ -298,6 +302,11 @@ export const adminNavItems = [
     href: '/admin-dashboard/requests',
     label: 'Demandes',
     icon: <FileText className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/subscriptions',
+    label: 'Abonnements',
+    icon: <CreditCard className="h-5 w-5" />,
   },
   {
     href: '/admin-dashboard/content',

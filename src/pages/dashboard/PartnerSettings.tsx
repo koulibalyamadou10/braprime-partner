@@ -1,4 +1,4 @@
-import { CreateSubscriptionModal } from '@/components/dashboard/CreateSubscriptionModal';
+
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerProfile } from '@/hooks/use-partner-profile';
-import { subscriptionUtils, useActivatePendingSubscription, useCreateSubscription, useCurrentUserSubscription, useCurrentUserSubscriptionHistory, useSubscriptionPlans, useUpdateBillingInfo } from '@/hooks/use-subscription';
-import { useUserBusiness } from '@/hooks/use-user-business';
+import { subscriptionUtils } from '@/hooks/use-subscription';
+import { supabase } from '@/lib/supabase';
 import {
     AlertCircle,
     Bell,
@@ -22,35 +22,43 @@ import {
     Calendar,
     CheckCircle,
     Clock,
-    CreditCard,
     DollarSign,
     Globe,
     Phone,
     Save,
     Settings,
-    Shield
+    Shield,
+    Truck
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface BusinessSettings {
+  // Informations de base
   name: string;
   description: string;
   phone: string;
   email: string;
   address: string;
-  city: string;
-  postal_code: string;
-  country: string;
+  
+  // Informations de livraison
+  delivery_time: string;
+  delivery_fee: number;
+  delivery_radius: number;
+  max_orders_per_slot: number;
+  
+  // Informations de cuisine
+  cuisine_type: string;
+  opening_hours: string;
+  
+  // Statut
+  is_active: boolean;
+  is_open: boolean;
+  
+  // Paramètres régionaux
   timezone: string;
   currency: string;
   language: string;
-  is_active: boolean;
-  auto_accept_orders: boolean;
-  require_prepayment: boolean;
-  delivery_radius: number;
-  min_order_amount: number;
-  max_delivery_time: number;
 }
 
 interface NotificationSettings {
@@ -78,49 +86,46 @@ const PartnerSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showCreateSubscriptionModal, setShowCreateSubscriptionModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  
-  // Hooks d'abonnement
-  const { data: subscriptionPlans } = useSubscriptionPlans();
-  const { data: currentSubscription, isLoading: subscriptionLoading } = useCurrentUserSubscription();
-  const { data: subscriptionHistory, isLoading: historyLoading } = useCurrentUserSubscriptionHistory();
-  const updateBillingInfo = useUpdateBillingInfo();
-  const createSubscription = useCreateSubscription();
-  const activatePendingSubscription = useActivatePendingSubscription();
-  const { data: business, isLoading: businessLoading } = useUserBusiness();
-  
   // Hook partenaire pour diagnostic
   const { profile: partnerProfile, isLoading: partnerLoading } = usePartnerProfile();
   
+  // Utiliser partnerProfile comme business data
+  const business = partnerProfile;
+  const businessLoading = partnerLoading;
+  
   console.log('🔍 [PartnerSettings] Diagnostic des hooks:');
-  console.log('  - useUserBusiness:', { business, businessLoading });
-  console.log('  - usePartnerProfile:', { partnerProfile, partnerLoading });
+  console.log('  - usePartnerProfile (business):', { business, businessLoading });
   console.log('  - user:', user);
-  console.log('  - currentSubscription:', currentSubscription);
-  console.log('  - subscriptionLoading:', subscriptionLoading);
-  console.log('  - partnerProfile?.id:', partnerProfile?.id);
-  console.log('  - subscriptionHistory:', subscriptionHistory);
-  console.log('  - historyLoading:', historyLoading);
+  console.log('  - business?.id:', business?.id);
+  console.log('  - loading state:', loading);
+  console.log('  - businessLoading state:', businessLoading);
 
   const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
+    // Informations de base
     name: '',
     description: '',
     phone: '',
     email: '',
     address: '',
-    city: '',
-    postal_code: '',
-    country: 'Guinée',
+    
+    // Informations de livraison
+    delivery_time: '30-45 min',
+    delivery_fee: 5000,
+    delivery_radius: 10,
+    max_orders_per_slot: 10,
+    
+    // Informations de cuisine
+    cuisine_type: '',
+    opening_hours: '',
+    
+    // Statut
+    is_active: true,
+    is_open: true,
+    
+    // Paramètres régionaux
     timezone: 'Africa/Conakry',
     currency: 'GNF',
-    language: 'fr',
-    is_active: true,
-    auto_accept_orders: false,
-    require_prepayment: false,
-    delivery_radius: 10,
-    min_order_amount: 5000,
-    max_delivery_time: 60
+    language: 'fr'
   });
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -143,38 +148,78 @@ const PartnerSettings: React.FC = () => {
   });
 
   useEffect(() => {
+    console.log('🔄 [PartnerSettings] useEffect triggered:', { business, businessLoading });
     loadSettings();
-  }, []);
+  }, [business, businessLoading]);
 
   const loadSettings = async () => {
     try {
+      console.log('🔄 [PartnerSettings] Début du chargement des paramètres');
+      console.log('🔄 [PartnerSettings] businessLoading:', businessLoading);
+      console.log('🔄 [PartnerSettings] business:', business);
       setLoading(true);
-      // Simuler le chargement des paramètres
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Données de test
-      setBusinessSettings({
-        name: 'Restaurant Le Gourmet',
-        description: 'Restaurant gastronomique spécialisé dans la cuisine française',
-        phone: '+224 123 456 789',
-        email: 'contact@legourmet.gn',
-        address: '123 Avenue de la République',
-        city: 'Conakry',
-        postal_code: '001',
-        country: 'Guinée',
-        timezone: 'Africa/Conakry',
-        currency: 'GNF',
-        language: 'fr',
-        is_active: true,
-        auto_accept_orders: false,
-        require_prepayment: false,
-        delivery_radius: 10,
-        min_order_amount: 5000,
-        max_delivery_time: 60
-      });
+      // Charger même si businessLoading est true, pour voir si ça débloque
+      if (business) {
+        console.log('📊 [PartnerSettings] Chargement des vraies données du business:', business);
+        
+        setBusinessSettings({
+          // Informations de base
+          name: business.name || '',
+          description: business.description || '',
+          phone: business.phone || '',
+          email: business.email || '',
+          address: business.address || '',
+          
+          // Informations de livraison
+          delivery_time: business.delivery_time || '30-45 min',
+          delivery_fee: business.delivery_fee || 5000,
+          delivery_radius: business.delivery_radius || 10,
+          max_orders_per_slot: business.max_orders_per_slot || 10,
+          
+          // Informations de cuisine
+          cuisine_type: business.cuisine_type || '',
+          opening_hours: business.opening_hours || '',
+          
+          // Statut
+          is_active: business.is_active ?? true,
+          is_open: business.is_open ?? true,
+          
+          // Paramètres régionaux
+          timezone: 'Africa/Conakry',
+          currency: 'GNF',
+          language: 'fr'
+        });
+        
+        console.log('✅ [PartnerSettings] Paramètres chargés avec succès');
+      } else {
+        console.log('⚠️ [PartnerSettings] Aucun business trouvé');
+        // Charger des données par défaut pour éviter le skeleton infini
+        setBusinessSettings({
+          name: 'Chargement...',
+          description: '',
+          phone: '',
+          email: '',
+          address: '',
+          city: 'Conakry',
+          postal_code: '',
+          country: 'Guinée',
+          timezone: 'Africa/Conakry',
+          currency: 'GNF',
+          language: 'fr',
+          is_active: true,
+          auto_accept_orders: false,
+          require_prepayment: false,
+          delivery_radius: 10,
+          min_order_amount: 5000,
+          max_delivery_time: 60
+        });
+      }
     } catch (error) {
+      console.error('❌ [PartnerSettings] Erreur lors du chargement des paramètres:', error);
       toast.error('Erreur lors du chargement des paramètres');
     } finally {
+      console.log('🏁 [PartnerSettings] Fin du chargement, setting loading = false');
       setLoading(false);
     }
   };
@@ -182,10 +227,49 @@ const PartnerSettings: React.FC = () => {
   const saveBusinessSettings = async () => {
     try {
       setSaving(true);
-      // Simuler la sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (!business?.id) {
+        toast.error('Aucun business associé à ce compte');
+        return;
+      }
+      
+      console.log('💾 [PartnerSettings] Sauvegarde des paramètres du business:', businessSettings);
+      
+      // Mettre à jour la base de données
+      const { error } = await supabase
+        .from('businesses')
+        .update({
+          name: businessSettings.name,
+          description: businessSettings.description,
+          phone: businessSettings.phone,
+          email: businessSettings.email,
+          address: businessSettings.address,
+          delivery_time: businessSettings.delivery_time,
+          delivery_fee: businessSettings.delivery_fee,
+          delivery_radius: businessSettings.delivery_radius,
+          max_orders_per_slot: businessSettings.max_orders_per_slot,
+          cuisine_type: businessSettings.cuisine_type,
+          opening_hours: businessSettings.opening_hours,
+          is_active: businessSettings.is_active,
+          is_open: businessSettings.is_open,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', business.id);
+      
+      if (error) {
+        console.error('❌ [PartnerSettings] Erreur lors de la sauvegarde:', error);
+        toast.error('Erreur lors de la sauvegarde: ' + error.message);
+        return;
+      }
+      
+      console.log('✅ [PartnerSettings] Paramètres sauvegardés avec succès');
       toast.success('Paramètres sauvegardés avec succès');
+      
+      // Recharger les données pour s'assurer qu'elles sont à jour
+      window.location.reload();
+      
     } catch (error) {
+      console.error('❌ [PartnerSettings] Erreur lors de la sauvegarde:', error);
       toast.error('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
@@ -216,70 +300,15 @@ const PartnerSettings: React.FC = () => {
     }
   };
 
-  const handleSelectPlan = async (planId: string) => {
-    try {
-      // Utiliser partnerProfile si disponible, sinon userBusiness
-      const currentBusiness = partnerProfile || business;
-      const isLoading = partnerLoading || businessLoading;
-      
-      console.log('🔍 [PartnerSettings] Business sélectionné:', currentBusiness);
-      
-      // Vérifier que le business existe
-      if (!currentBusiness || isLoading) {
-        toast.error('Chargement du profil business en cours...');
-        return;
-      }
 
-      // Trouver le plan sélectionné
-      const plan = subscriptionPlans?.find(p => p.id === planId);
-      if (!plan) {
-        toast.error('Plan non trouvé');
-        return;
-      }
 
-      console.log('🔍 [PartnerSettings] Business ID pour l\'abonnement:', currentBusiness.id);
-
-      // Si l'utilisateur a déjà un abonnement, on le renouvelle
-      if (currentSubscription) {
-        const success = await updateBillingInfo.mutateAsync({
-          subscriptionId: currentSubscription.id,
-          billingInfo: {
-            email: currentSubscription.billing_email,
-            phone: currentSubscription.billing_phone,
-            address: currentSubscription.billing_address,
-            tax_id: currentSubscription.tax_id
-          }
-        });
-        
-        if (success) {
-          toast.success('Plan changé avec succès');
-        }
-      } else {
-        // Ouvrir le modal de création d'abonnement
-        setSelectedPlan(plan);
-        setShowCreateSubscriptionModal(true);
-      }
-    } catch (error) {
-      console.error('Erreur lors de la sélection du plan:', error);
-      toast.error('Erreur lors de la sélection du plan');
-    }
-  };
-
-  const handleSubscriptionCreated = (subscriptionId: string) => {
-    toast.success('Abonnement créé avec succès !');
-    setShowCreateSubscriptionModal(false);
-    setSelectedPlan(null);
-  };
-
-  const handleActivateSubscription = async () => {
-    if (!currentSubscription) return;
-    
-    try {
-      await activatePendingSubscription.mutateAsync(currentSubscription.id);
-    } catch (error) {
-      console.error('Erreur lors de l\'activation:', error);
-    }
-  };
+  // Debug: Afficher l'état de chargement
+  console.log('🔍 [PartnerSettings] État de chargement:', {
+    loading,
+    businessLoading,
+    business: !!business,
+    businessData: business
+  });
 
   if (loading) {
     return (
@@ -303,6 +332,26 @@ const PartnerSettings: React.FC = () => {
     );
   }
 
+  // Si pas de business, afficher un message d'erreur
+  if (!business) {
+    return (
+      <DashboardLayout navItems={partnerNavItems}>
+        <div className="space-y-6">
+          <div className="text-center py-12">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Aucun business trouvé</h2>
+            <p className="text-muted-foreground mb-4">
+              Aucun business n'est associé à votre compte. Veuillez contacter l'administrateur.
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Actualiser la page
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout navItems={partnerNavItems}>
       <div className="space-y-6">
@@ -316,7 +365,7 @@ const PartnerSettings: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Général
@@ -329,18 +378,15 @@ const PartnerSettings: React.FC = () => {
               <Shield className="h-4 w-4" />
               Sécurité
             </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Facturation
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-6">
+            {/* Informations de base */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Informations de l'entreprise
+                  Informations de base
                 </CardTitle>
                 <CardDescription>
                   Modifiez les informations de base de votre entreprise
@@ -377,12 +423,12 @@ const PartnerSettings: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="business-city">Ville</Label>
+                    <Label htmlFor="business-cuisine">Type de cuisine</Label>
                     <Input
-                      id="business-city"
-                      value={businessSettings.city}
-                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, city: e.target.value }))}
-                      placeholder="Conakry"
+                      id="business-cuisine"
+                      value={businessSettings.cuisine_type}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, cuisine_type: e.target.value }))}
+                      placeholder="Ex: Africaine, Européenne, Asiatique..."
                     />
                   </div>
                 </div>
@@ -404,6 +450,110 @@ const PartnerSettings: React.FC = () => {
                     onChange={(e) => setBusinessSettings(prev => ({ ...prev, address: e.target.value }))}
                     placeholder="Adresse complète de votre entreprise..."
                     rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="business-hours">Heures d'ouverture</Label>
+                  <Input
+                    id="business-hours"
+                    value={businessSettings.opening_hours}
+                    onChange={(e) => setBusinessSettings(prev => ({ ...prev, opening_hours: e.target.value }))}
+                    placeholder="Ex: 8h-22h, Lundi-Dimanche"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Paramètres de livraison */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Paramètres de livraison
+                </CardTitle>
+                <CardDescription>
+                  Configurez les paramètres de livraison et de service
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery-time">Temps de livraison</Label>
+                    <Input
+                      id="delivery-time"
+                      value={businessSettings.delivery_time}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, delivery_time: e.target.value }))}
+                      placeholder="Ex: 30-45 min"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery-fee">Frais de livraison (FG)</Label>
+                    <Input
+                      id="delivery-fee"
+                      type="number"
+                      value={businessSettings.delivery_fee}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, delivery_fee: parseInt(e.target.value) || 0 }))}
+                      placeholder="5000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery-radius">Rayon de livraison (km)</Label>
+                    <Input
+                      id="delivery-radius"
+                      type="number"
+                      value={businessSettings.delivery_radius}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, delivery_radius: parseInt(e.target.value) || 0 }))}
+                      placeholder="10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max-orders">Commandes max par créneau</Label>
+                    <Input
+                      id="max-orders"
+                      type="number"
+                      value={businessSettings.max_orders_per_slot}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, max_orders_per_slot: parseInt(e.target.value) || 0 }))}
+                      placeholder="10"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Statut du business */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Statut du business
+                </CardTitle>
+                <CardDescription>
+                  Gérez le statut de votre business
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Business actif</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activez ou désactivez votre business
+                    </p>
+                  </div>
+                  <Switch
+                    checked={businessSettings.is_active}
+                    onCheckedChange={(checked) => setBusinessSettings(prev => ({ ...prev, is_active: checked }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Business ouvert</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Indiquez si votre business est ouvert aux commandes
+                    </p>
+                  </div>
+                  <Switch
+                    checked={businessSettings.is_open}
+                    onCheckedChange={(checked) => setBusinessSettings(prev => ({ ...prev, is_open: checked }))}
                   />
                 </div>
               </CardContent>
@@ -809,325 +959,11 @@ const PartnerSettings: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="billing" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Facturation et abonnements
-                </CardTitle>
-                <CardDescription>
-                  Gérez votre abonnement BraPrime et vos informations de facturation
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Statut actuel */}
-                {subscriptionLoading ? (
-                  <div className="bg-muted p-4 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
-                      <span>Chargement de l'abonnement...</span>
-                    </div>
-                  </div>
-                ) : currentSubscription ? (
-                  <div className={`p-4 rounded-lg border ${
-                    currentSubscription.status === 'active' 
-                      ? 'bg-green-50 border-green-200' 
-                      : currentSubscription.status === 'pending'
-                      ? 'bg-yellow-50 border-yellow-200'
-                      : 'bg-red-50 border-red-200'
-                  }`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      {currentSubscription.status === 'active' ? (
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      ) : currentSubscription.status === 'pending' ? (
-                        <Clock className="h-5 w-5 text-yellow-600" />
-                      ) : (
-                        <AlertCircle className="h-5 w-5 text-red-600" />
-                      )}
-                      <span className="font-medium">
-                        {currentSubscription.status === 'active' ? 'Abonnement actif' :
-                         currentSubscription.status === 'pending' ? 'Abonnement en attente' :
-                         'Abonnement inactif'}: {currentSubscription.plan?.name}
-                      </span>
-                      {currentSubscription.status === 'active' && currentSubscription.savings_amount > 0 && (
-                        <Badge className="bg-green-500 text-white">
-                          {currentSubscription.plan?.savings_percentage}% d'économie
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {currentSubscription.status === 'active' ? (
-                        <>
-                          Votre abonnement expire le {subscriptionUtils.formatDate(currentSubscription.end_date)}. 
-                          {subscriptionUtils.getDaysRemaining(currentSubscription.end_date)} jours restants.
-                        </>
-                      ) : currentSubscription.status === 'pending' ? (
-                        <>
-                          Votre abonnement est en attente d'activation. 
-                          Date de début : {subscriptionUtils.formatDate(currentSubscription.start_date)}
-                        </>
-                      ) : (
-                        'Votre abonnement n\'est pas actif.'
-                      )}
-                    </p>
-                    {currentSubscription.status === 'pending' && (
-                      <Button 
-                        onClick={handleActivateSubscription}
-                        disabled={activatePendingSubscription.isPending}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {activatePendingSubscription.isPending ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                            Activation...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Activer l'abonnement
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-5 w-5 text-yellow-600" />
-                      <span className="font-medium">Aucun abonnement actif</span>
-                    </div>
-                    <p className="text-sm text-yellow-700">
-                      Vous n'avez pas d'abonnement actif. Choisissez un plan ci-dessous pour commencer.
-                    </p>
-                  </div>
-                )}
 
-                {/* Plans disponibles */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Plans d'abonnement disponibles</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {subscriptionPlans?.map((plan) => (
-                      <Card 
-                        key={plan.id} 
-                        className={`border-2 ${
-                          plan.plan_type === '3_months' 
-                            ? 'border-guinea-red relative' 
-                            : 'border-gray-200'
-                        }`}
-                      >
-                        {plan.plan_type === '3_months' && (
-                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                            <Badge className="bg-guinea-red text-white text-xs">Recommandé</Badge>
-                          </div>
-                        )}
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base">{plan.name}</CardTitle>
-                          <CardDescription>{plan.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold mb-2">
-                            {subscriptionUtils.formatPrice(plan.price)}
-                          </div>
-                          <div className="text-sm text-muted-foreground mb-3">
-                            {subscriptionUtils.formatPrice(plan.monthly_price)}/mois
-                          </div>
-                          {plan.savings_percentage > 0 && (
-                            <Badge className="bg-green-500 text-white text-xs mb-3">
-                              {plan.savings_percentage}% d'économie
-                            </Badge>
-                          )}
-                          <ul className="space-y-1 text-xs">
-                            {plan.features?.slice(0, 3).map((feature, index) => (
-                              <li key={index} className="flex items-center gap-1">
-                                <CheckCircle className="h-3 w-3 text-green-600" />
-                                {feature}
-                              </li>
-                            ))}
-                          </ul>
-                          <Button 
-                            className="w-full mt-4" 
-                            variant={plan.plan_type === '3_months' ? 'default' : 'outline'}
-                            onClick={() => handleSelectPlan(plan.id)}
-                          >
-                            {currentSubscription ? 'Changer vers ce plan' : 'Choisir ce plan'}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Historique des abonnements */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Historique des abonnements</h3>
-                  {historyLoading ? (
-                    <div className="space-y-3">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="bg-muted p-4 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                              <div className="h-4 bg-muted-foreground/20 rounded w-32 animate-pulse" />
-                              <div className="h-3 bg-muted-foreground/20 rounded w-24 animate-pulse" />
-                            </div>
-                            <div className="h-6 bg-muted-foreground/20 rounded w-16 animate-pulse" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : subscriptionHistory && subscriptionHistory.length > 0 ? (
-                    <div className="space-y-3">
-                      {subscriptionHistory.map((subscription) => (
-                        <Card key={subscription.id} className="border-l-4 border-l-guinea-red">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{subscription.plan?.name}</span>
-                                  <Badge 
-                                    className={subscriptionUtils.getStatusColor(subscription.status)}
-                                  >
-                                    {subscriptionUtils.getStatusLabel(subscription.status)}
-                                  </Badge>
-                                </div>
-                                <div className="text-sm text-muted-foreground space-y-1">
-                                  <div>
-                                    <span className="font-medium">Période :</span> {subscriptionUtils.formatDate(subscription.start_date)} - {subscriptionUtils.formatDate(subscription.end_date)}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Montant :</span> {subscriptionUtils.formatPrice(subscription.total_paid)}
-                                  </div>
-                                  {subscription.savings_amount > 0 && (
-                                    <div className="text-green-600">
-                                      <span className="font-medium">Économies :</span> {subscriptionUtils.formatPrice(subscription.savings_amount)}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-right text-sm text-muted-foreground">
-                                <div>Créé le {subscriptionUtils.formatDate(subscription.created_at)}</div>
-                                {subscription.status === 'active' && (
-                                  <div className="text-green-600 font-medium">
-                                    {subscriptionUtils.getDaysRemaining(subscription.end_date)} jours restants
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-muted p-4 rounded-lg text-center">
-                      <p className="text-muted-foreground">Aucun historique d'abonnement disponible</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button size="lg" className="bg-guinea-red hover:bg-guinea-red/90">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Changer de plan
-                  </Button>
-                  <Button size="lg" variant="outline">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Voir l'historique
-                  </Button>
-                </div>
-
-                {/* Informations de facturation */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Informations de facturation</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="billing-email">Email de facturation</Label>
-                      <Input
-                        id="billing-email"
-                        type="email"
-                        placeholder="facturation@entreprise.gn"
-                        defaultValue={currentSubscription?.billing_email || "facturation@legourmet.gn"}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="billing-phone">Téléphone de facturation</Label>
-                      <Input
-                        id="billing-phone"
-                        placeholder="+224 123 456 789"
-                        defaultValue={currentSubscription?.billing_phone || "+224 123 456 789"}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="billing-address">Adresse de facturation</Label>
-                      <Textarea
-                        id="billing-address"
-                        placeholder="Adresse complète pour la facturation..."
-                        defaultValue={currentSubscription?.billing_address || "123 Avenue de la République, Conakry, Guinée"}
-                        rows={2}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tax-id">Numéro fiscal</Label>
-                      <Input
-                        id="tax-id"
-                        placeholder="Numéro fiscal de l'entreprise"
-                        defaultValue={currentSubscription?.tax_id || "123456789"}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Moyens de paiement */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Moyens de paiement</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center space-x-2">
-                      <CreditCard className="h-4 w-4" />
-                      <span className="text-sm">Cartes bancaires</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <DollarSign className="h-4 w-4" />
-                      <span className="text-sm">Virements bancaires</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Phone className="h-4 w-4" />
-                      <span className="text-sm">Paiements mobiles</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={saveBusinessSettings} disabled={saving}>
-                    {saving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                        Sauvegarde...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Sauvegarder les informations
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
 
-      {/* Modal de création d'abonnement */}
-      <CreateSubscriptionModal
-        isOpen={showCreateSubscriptionModal}
-        onClose={() => {
-          setShowCreateSubscriptionModal(false);
-          setSelectedPlan(null);
-        }}
-        selectedPlan={selectedPlan}
-        partnerId={partnerProfile?.id || business?.id || 0} // Utiliser partnerProfile en priorité
-        onSubscriptionCreated={handleSubscriptionCreated}
-      />
+
     </DashboardLayout>
   );
 };

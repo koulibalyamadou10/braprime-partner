@@ -67,6 +67,9 @@ const AdminRequests = () => {
     refetch
   } = useAdminRequests(filters);
 
+  // Debug: afficher l'état de isUpdating
+  console.log('AdminRequests - isUpdating:', isUpdating);
+
   // Formater la date
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'dd/MM/yyyy HH:mm', { locale: fr });
@@ -128,19 +131,28 @@ const AdminRequests = () => {
 
   // Gérer l'action sur une demande
   const handleAction = async () => {
-    if (!selectedRequest || !currentUser) return;
+    if (!selectedRequest || !currentUser) {
+      console.error('Données manquantes:', { selectedRequest: !!selectedRequest, currentUser: !!currentUser });
+      return;
+    }
+
+    console.log('Début handleAction:', { actionType, selectedRequest: selectedRequest.id });
 
     const newStatus = actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'under_review';
 
     try {
       // Si c'est une approbation, générer un mot de passe et créer le compte
       if (actionType === 'approve') {
+        console.log('Création du compte utilisateur...');
+        
         // Générer un mot de passe automatiquement
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
         let password = '';
         for (let i = 0; i < 12; i++) {
           password += chars.charAt(Math.floor(Math.random() * chars.length));
         }
+
+        console.log('Mot de passe généré, création du compte...');
 
         // Créer le compte utilisateur
         const accountResult = await AdminAccountCreationService.createUserAccount({
@@ -152,14 +164,23 @@ const AdminRequests = () => {
           requestId: selectedRequest.id
         });
 
+        console.log('Résultat création compte:', accountResult);
+
         if (!accountResult.success) {
+          console.error('Échec création compte:', accountResult.error);
           toast.error(accountResult.error || 'Erreur lors de la création du compte');
           return;
         }
+
+        console.log('Compte créé avec succès');
       }
+
+      console.log('Mise à jour du statut de la demande...');
 
       // Mettre à jour le statut de la demande
       await updateStatus(selectedRequest.id, newStatus, adminNotes);
+
+      console.log('Statut mis à jour, envoi des emails...');
 
       // Envoyer les emails appropriés
       if (actionType === 'approve') {
@@ -187,6 +208,8 @@ const AdminRequests = () => {
       }
 
       await sendAdminNotification(selectedRequest);
+
+      console.log('Action terminée avec succès');
 
       setIsActionDialogOpen(false);
       setAdminNotes('');
@@ -602,6 +625,7 @@ const AdminRequests = () => {
                     ? 'bg-red-600 hover:bg-red-700 text-white'
                     : 'bg-yellow-600 hover:bg-yellow-700 text-white'
                 }
+                style={{ cursor: isUpdating ? 'not-allowed' : 'pointer' }}
               >
                 {isUpdating ? (
                   <>

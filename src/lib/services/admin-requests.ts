@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Request, RequestStats, RequestFilters } from '@/lib/types';
+import { Request, RequestFilters, RequestStats } from '@/lib/types';
 
 export class AdminRequestsService {
   // Récupérer toutes les demandes avec filtres
@@ -111,7 +111,8 @@ export class AdminRequestsService {
         created_at: data.created_at,
         updated_at: data.updated_at,
         reviewed_at: data.reviewed_at,
-        reviewed_by: data.reviewed_by
+        reviewed_by: data.reviewed_by,
+        metadata: data.metadata
       };
 
       return { data: request, error: null };
@@ -171,17 +172,61 @@ export class AdminRequestsService {
           })
           .eq('id', request.user_id);
 
-        // Créer le commerce si les informations sont fournies
+        // Créer le commerce si les informations sont fournies (INACTIF par défaut)
+        let businessId: number | null = null;
         if (request.business_name && request.business_address) {
-          await supabase
+          const { data: businessData, error: businessError } = await supabase
             .from('businesses')
             .insert({
               name: request.business_name,
               business_type_id: this.getBusinessTypeId(request.business_type),
               address: request.business_address,
               owner_id: request.user_id,
-              is_active: true
-            });
+              is_active: false, // INACTIF jusqu'au paiement de l'abonnement
+              requires_subscription: true, // Nécessite un abonnement
+              subscription_status: 'pending' // En attente d'abonnement
+            })
+            .select('id')
+            .single();
+
+          if (businessError) {
+            console.error('Erreur création business:', businessError);
+          } else {
+            businessId = businessData.id;
+            console.log('Business créé avec ID:', businessId);
+          }
+        }
+
+        // Lier l'abonnement existant au business créé
+        if (businessId && request.metadata?.subscription_id) {
+          try {
+            console.log('Liaison de l\'abonnement existant:', request.metadata.subscription_id);
+            
+            // Mettre à jour l'abonnement avec l'ID du business
+            const { error: subscriptionUpdateError } = await supabase
+              .from('partner_subscriptions')
+              .update({
+                partner_id: businessId
+              })
+              .eq('id', request.metadata.subscription_id);
+
+            if (subscriptionUpdateError) {
+              console.error('Erreur mise à jour abonnement:', subscriptionUpdateError);
+            } else {
+              console.log('Abonnement lié au business avec succès');
+              
+              // Mettre à jour le business avec l'ID de l'abonnement
+              await supabase
+                .from('businesses')
+                .update({
+                  subscription_status: 'pending',
+                  current_subscription_id: request.metadata.subscription_id
+                })
+                .eq('id', businessId);
+            }
+          } catch (error) {
+            console.error('Erreur lors de la liaison de l\'abonnement:', error);
+          }
         }
       } else if (request.type === 'driver') {
         // Créer un profil chauffeur

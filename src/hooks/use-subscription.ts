@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../contexts/AuthContext';
 import { subscriptionService } from '../lib/services/subscription';
 import { supabase } from '../lib/supabase';
 
@@ -232,8 +231,7 @@ export const useCurrentUserSubscription = () => {
         .from('partner_subscriptions')
         .select(`
           *,
-          plan:subscription_plans(*),
-          business:businesses(id, name)
+          plan:subscription_plans(*)
         `)
         .eq('partner_id', partnerId)
         .order('created_at', { ascending: false })
@@ -251,6 +249,53 @@ export const useCurrentUserSubscription = () => {
       return data;
     },
     enabled: !!partnerId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+};
+
+// Hook pour vérifier l'accès partenaire et les besoins d'abonnement
+export const usePartnerAccessCheck = () => {
+  const { data: partnerProfile } = useQuery({
+    queryKey: ['partner-profile-for-access-check'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user?.id) {
+        return null;
+      }
+      
+      const { data, error } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', user.id)
+        .single();
+        
+      if (error) {
+        console.error('Erreur lors de la récupération du business:', error);
+        return null;
+      }
+      
+      return data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+  
+  const businessId = partnerProfile?.id;
+  
+  return useQuery({
+    queryKey: ['partner-access-check', businessId],
+    queryFn: async () => {
+      if (!businessId) {
+        return {
+          canAccess: false,
+          reason: 'Business non trouvé',
+          requiresSubscription: false
+        };
+      }
+      
+      return await subscriptionService.checkPartnerAccess(businessId);
+    },
+    enabled: !!businessId,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 };

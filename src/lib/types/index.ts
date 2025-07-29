@@ -629,6 +629,12 @@ export interface Request {
   updated_at: string;
   reviewed_at?: string;
   reviewed_by?: string;
+  metadata?: {
+    selected_plan_id?: string;
+    selected_plan_name?: string;
+    selected_plan_price?: number;
+    subscription_id?: string;
+  };
 }
 
 export interface RequestDocument {

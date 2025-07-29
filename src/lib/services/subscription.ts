@@ -100,6 +100,89 @@ export const subscriptionService = {
     }
   },
 
+  // Vérifier l'accès partenaire et les besoins d'abonnement
+  async checkPartnerAccess(businessId: number): Promise<{
+    canAccess: boolean;
+    reason?: string;
+    requiresSubscription?: boolean;
+    subscription?: PartnerSubscription | null;
+    business?: Record<string, unknown>;
+  }> {
+    try {
+      // Récupérer le business
+      const { data: business, error: businessError } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('id', businessId)
+        .single();
+
+      if (businessError || !business) {
+        return {
+          canAccess: false,
+          reason: 'Business non trouvé'
+        };
+      }
+
+      // Vérifier si le business nécessite un abonnement
+      if (business.requires_subscription) {
+        // Récupérer l'abonnement actif
+        const { data: subscription, error: subscriptionError } = await supabase
+          .from('partner_subscriptions')
+          .select(`
+            *,
+            plan:subscription_plans(*)
+          `)
+          .eq('partner_id', businessId)
+          .eq('status', 'active')
+          .single();
+
+        if (subscriptionError && subscriptionError.code !== 'PGRST116') {
+          console.error('Erreur lors de la récupération de l\'abonnement:', subscriptionError);
+        }
+
+        // Si pas d'abonnement actif
+        if (!subscription) {
+          return {
+            canAccess: false,
+            reason: 'Abonnement requis',
+            requiresSubscription: true,
+            business
+          };
+        }
+
+        // Vérifier si l'abonnement n'est pas expiré
+        if (new Date(subscription.end_date) < new Date()) {
+          return {
+            canAccess: false,
+            reason: 'Abonnement expiré',
+            requiresSubscription: true,
+            subscription,
+            business
+          };
+        }
+
+        // Accès autorisé
+        return {
+          canAccess: true,
+          subscription,
+          business
+        };
+      }
+
+      // Si pas de subscription requise, accès autorisé
+      return {
+        canAccess: true,
+        business
+      };
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'accès:', error);
+      return {
+        canAccess: false,
+        reason: 'Erreur de vérification'
+      };
+    }
+  },
+
   // Récupérer l'abonnement actif d'un partenaire
   async getPartnerActiveSubscription(partnerId: number): Promise<PartnerSubscription | null> {
     try {
@@ -182,12 +265,7 @@ export const subscriptionService = {
 
       const { data, error } = await supabase
         .rpc('create_partner_subscription', {
-          p_partner_id: partnerId,
-          p_plan_id: planId,
-          p_billing_email: billingInfo.email,
-          p_billing_phone: billingInfo.phone,
-          p_billing_address: billingInfo.address,
-          p_tax_id: billingInfo.tax_id
+          p_plan_id: planId
         });
 
       if (error) {
@@ -199,6 +277,25 @@ export const subscriptionService = {
       }
       
       console.log('Abonnement créé avec ID:', data);
+      
+      // Activer automatiquement le business après création de l'abonnement
+      if (data) {
+        try {
+          const { data: activationResult, error: activationError } = await supabase
+            .rpc('activate_business_after_subscription', {
+              p_subscription_id: data
+            });
+          
+          if (activationError) {
+            console.error('Erreur lors de l\'activation du business:', activationError);
+          } else {
+            console.log('Business activé automatiquement:', activationResult);
+          }
+        } catch (activationError) {
+          console.error('Erreur lors de l\'activation automatique:', activationError);
+        }
+      }
+      
       toast.success('Abonnement créé avec succès');
       return data;
     } catch (error) {

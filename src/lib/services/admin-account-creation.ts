@@ -70,48 +70,82 @@ export class AdminAccountCreationService {
 
       const businessTypeId = businessTypeData.id;
 
-      // 3. Récupérer la catégorie par défaut
+      // 3. Récupérer la catégorie par défaut (depuis la table categories, pas menu_categories)
+      let categoryId: number;
+      
       const { data: categoryData, error: categoryError } = await supabase
-        .from('menu_categories')
+        .from('categories')
         .select('id')
-        .eq('name', 'Plats principaux')
+        .eq('name', 'Restaurants')
         .single();
 
       if (categoryError) {
         console.error('Erreur récupération catégorie:', categoryError);
-        throw new Error('Catégorie par défaut non trouvée');
-      }
+        // Essayer avec une autre catégorie par défaut
+        const { data: fallbackCategory, error: fallbackError } = await supabase
+          .from('categories')
+          .select('id')
+          .limit(1)
+          .single();
 
-      const categoryId = categoryData.id;
+        if (fallbackError || !fallbackCategory) {
+          throw new Error('Aucune catégorie disponible dans la base de données');
+        }
+
+        console.log('Utilisation de la catégorie de fallback:', fallbackCategory);
+        categoryId = fallbackCategory.id;
+      } else {
+        console.log('Catégorie trouvée:', categoryData);
+        categoryId = categoryData.id;
+      }
 
       // 4. Créer le business si c'est un partenaire
       let businessData: any = null;
       if (data.role === 'partner') {
+        console.log('Création du business avec les données:', {
+          name: requestData?.business_name || `${data.name} - Commerce`,
+          business_type_id: businessTypeId,
+          category_id: categoryId,
+          email: requestData?.business_email || data.email
+        });
+
+        const businessInsertData = {
+          name: requestData?.business_name || `${data.name} - Commerce`,
+          description: requestData?.business_description || 'Commerce créé automatiquement',
+          address: requestData?.business_address || 'Adresse à compléter',
+          phone: requestData?.business_phone || data.phone_number || '',
+          email: requestData?.business_email || `business.${data.email}`, // Éviter le conflit avec user_profiles
+          opening_hours: requestData?.opening_hours || '8h-22h',
+          cuisine_type: requestData?.cuisine_type || 'Générale',
+          business_type_id: businessTypeId,
+          category_id: categoryId,
+          is_active: true,
+          is_open: true,
+          delivery_time: '30-45 min',
+          delivery_fee: 5000,
+          rating: 0,
+          review_count: 0,
+          owner_id: null // temporaire
+        };
+
+        console.log('Données complètes du business:', businessInsertData);
+
         const { data: createdBusiness, error: businessError } = await supabase
           .from('businesses')
-          .insert({
-            name: requestData?.business_name || `${data.name} - Commerce`,
-            description: requestData?.business_description || 'Commerce créé automatiquement',
-            address: requestData?.business_address || 'Adresse à compléter',
-            phone: requestData?.business_phone || data.phone_number || '',
-            email: requestData?.business_email || data.email,
-            opening_hours: requestData?.opening_hours || '8h-22h',
-            cuisine_type: requestData?.cuisine_type || 'Générale',
-            business_type_id: businessTypeId,
-            category_id: categoryId,
-            is_active: true,
-            is_open: true,
-            delivery_time: '30-45 min',
-            delivery_fee: 5000,
-            rating: 0,
-            review_count: 0,
-            owner_id: null // temporaire
-          })
+          .insert(businessInsertData)
           .select()
           .single();
-        if (businessError || !createdBusiness) {
-          throw new Error('Erreur lors de la création du business');
+
+        if (businessError) {
+          console.error('Erreur détaillée création business:', businessError);
+          throw new Error(`Erreur lors de la création du business: ${businessError.message} (Code: ${businessError.code})`);
         }
+
+        if (!createdBusiness) {
+          throw new Error('Business créé mais aucune donnée retournée');
+        }
+
+        console.log('Business créé avec succès:', createdBusiness);
         businessData = createdBusiness;
       }
 

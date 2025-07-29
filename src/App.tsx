@@ -14,6 +14,7 @@ import AdminContent from '@/pages/dashboard/AdminContent';
 import AdminDrivers from '@/pages/dashboard/AdminDrivers';
 import AdminEmailTest from '@/pages/dashboard/AdminEmailTest';
 import AdminRequests from '@/pages/dashboard/AdminRequests';
+import AdminSubscriptions from '@/pages/dashboard/AdminSubscriptions';
 import AdminSystem from '@/pages/dashboard/AdminSystem';
 import AdminUsers from '@/pages/dashboard/AdminUsers';
 import DriverRegistrationPage from '@/pages/DriverRegistrationPage';
@@ -47,6 +48,7 @@ const PartnerMenu = lazy(() => import("./pages/dashboard/PartnerMenu"));
 const PartnerReservations = lazy(() => import("./pages/dashboard/PartnerReservations"));
 const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers"));
 const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
+const PartnerBilling = lazy(() => import("./pages/dashboard/PartnerBilling"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
 const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
 const PartnerRegistrationPage = lazy(() => import("./pages/PartnerRegistrationPage"));
@@ -66,6 +68,8 @@ const OrderConfirmationPage = lazy(() => import("./pages/OrderConfirmationPage")
 const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage"));
 const OrdersHistoryPage = lazy(() => import("./pages/OrdersHistoryPage"));
 const PaymentStatusPage = lazy(() => import("./pages/PaymentStatusPage"));
+const SubscriptionPaymentStatusPage = lazy(() => import("./pages/SubscriptionPaymentStatusPage"));
+
 
 const queryClient = new QueryClient();
 
@@ -112,6 +116,8 @@ const App = () => (
                 <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
                 <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
                 <Route path="/payment-status" element={<PaymentStatusPage />} />
+                <Route path="/subscription-payment-status" element={<SubscriptionPaymentStatusPage />} />
+
                 <Route path="/orders" element={<OrdersHistoryPage />} />
                 <Route path="/driver/login" element={<DriverLoginPage />} />
 
@@ -194,6 +200,11 @@ const App = () => (
                 <Route path="/partner-dashboard/revenue" element={
                   <ProtectedRoute allowedRoles={["partner"]}>
                     <PartnerRevenue />
+                  </ProtectedRoute>
+                } />
+                <Route path="/partner-dashboard/billing" element={
+                  <ProtectedRoute allowedRoles={["partner"]}>
+                    <PartnerBilling />
                   </ProtectedRoute>
                 } />
                 <Route path="/partner-dashboard/profile" element={
@@ -279,6 +290,11 @@ const App = () => (
                     <AdminRequests />
                   </ProtectedRoute>
                 } />
+                <Route path="/admin-dashboard/subscriptions" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminSubscriptions />
+                  </ProtectedRoute>
+                } />
                 <Route path="/admin-dashboard/content" element={
                   <ProtectedRoute allowedRoles={["admin"]}>
                     <AdminContent />
@@ -334,6 +350,11 @@ const App = () => (
                 <Route path="/dashboard/admin/requests" element={
                   <ProtectedRoute allowedRoles={["admin"]}>
                     <AdminRequests />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin/subscriptions" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminSubscriptions />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard/admin/content" element={

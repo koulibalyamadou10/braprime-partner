@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { subscriptionUtils } from '@/hooks/use-subscription';
 import { SubscriptionPlan, subscriptionService } from '@/lib/services/subscription';
+import { SubscriptionPaymentService } from '@/lib/services/subscription-payment';
 import { CheckCircle, CreditCard, Lock, Shield } from 'lucide-react';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
@@ -157,13 +158,58 @@ export const CreateSubscriptionModal: React.FC<CreateSubscriptionModalProps> = (
         }
       );
       
-      if (subscriptionId) {
-        onSubscriptionCreated(subscriptionId);
+      if (!subscriptionId) {
+        throw new Error('Erreur lors de la création de l\'abonnement');
       }
+
+      // Si le paiement est en ligne, créer l'URL de paiement via Lengo Pay
+      if (selectedPaymentMethod === 'mobile_money' || selectedPaymentMethod === 'card') {
+        try {
+          // Préparer les données de paiement pour Lengo Pay
+          const paymentData = {
+            subscription_id: subscriptionId,
+            partner_id: partnerId,
+            plan_id: selectedPlan!.id,
+            amount: selectedPlan!.price,
+            currency: 'GNF',
+            payment_method: selectedPaymentMethod === 'mobile_money' ? 'lp-om-gn' : 'lp-card-gn',
+            phone_number: billingInfo.phone || '',
+            subscription_number: `SUB-${subscriptionId.substring(0, 8)}`,
+            business_name: 'BraPrime Partenariat',
+            partner_name: billingInfo.name || 'Partenaire BraPrime',
+            partner_email: billingInfo.email || '',
+            plan_name: selectedPlan!.name,
+            duration_months: selectedPlan!.duration_months
+          };
+
+          // Créer l'URL de paiement via Lengo Pay
+          const paymentResponse = await SubscriptionPaymentService.createSubscriptionPayment(paymentData);
+
+          if (paymentResponse.success && paymentResponse.payment_url) {
+            toast.success('Redirection vers le paiement sécurisé');
+            
+            // Rediriger vers Lengo Pay
+            window.location.href = paymentResponse.payment_url;
+            return;
+          } else {
+            // En cas d'échec du paiement en ligne, continuer avec le paiement à la livraison
+            toast.error('Paiement en ligne indisponible. Le paiement sera effectué à la livraison.');
+          }
+        } catch (paymentError) {
+          console.error('Erreur lors de la création du paiement:', paymentError);
+          toast.error('Erreur de paiement. Le paiement sera effectué à la livraison.');
+        }
+      }
+
+      // Si paiement à la livraison ou échec du paiement en ligne
+      toast.success('Abonnement créé avec succès !');
+      onSubscriptionCreated(subscriptionId);
+      onClose();
       
     } catch (error) {
       console.error('Erreur lors de la création de l\'abonnement:', error);
       toast.error('Erreur lors de la création de l\'abonnement');
+    } finally {
       setIsProcessing(false);
     }
   };

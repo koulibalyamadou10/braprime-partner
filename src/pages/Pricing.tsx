@@ -9,7 +9,7 @@ import { Link, useNavigate } from 'react-router-dom';
 // Plans de tarification selon le document officiel
 const pricingPlans = [
   {
-    id: '1-month',
+    id: '1_month',
     name: '1 Mois',
     description: 'Formule flexible pour tester nos services',
     price: 200000,
@@ -34,7 +34,7 @@ const pricingPlans = [
     savings: null
   },
   {
-    id: '3-months',
+    id: '3_months',
     name: '3 Mois',
     description: 'Formule recommandée pour les commerces établis',
     price: 450000,
@@ -60,7 +60,7 @@ const pricingPlans = [
     savings: '25% d\'économie'
   },
   {
-    id: '6-months',
+    id: '6_months',
     name: '6 Mois',
     description: 'Formule économique pour les commerces sérieux',
     price: 800000,
@@ -86,7 +86,7 @@ const pricingPlans = [
     savings: '33% d\'économie'
   },
   {
-    id: '12-months',
+    id: '12_months',
     name: '12 Mois',
     description: 'Formule la plus économique pour les commerces fidèles',
     price: 1400000,
@@ -114,7 +114,7 @@ const pricingPlans = [
 ];
 
 const Pricing = () => {
-  const [selectedPlan, setSelectedPlan] = useState('3-months');
+  const [selectedPlan, setSelectedPlan] = useState('3_months');
   const navigate = useNavigate();
 
   // Calculer les prix selon la durée d'engagement

@@ -10,6 +10,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/contexts/UserRoleContext';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
+import { usePartnerAccessCheck } from '@/hooks/use-subscription';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -34,7 +35,9 @@ import {
     TrendingUp,
     Truck,
     Users,
-    XCircle
+    XCircle,
+    CreditCard,
+    Settings
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -177,6 +180,9 @@ const PartnerDashboard = () => {
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year'>('month');
   const { isPartner } = useUserRole();
 
+  // Vérifier l'accès partenaire et les besoins d'abonnement
+  const { data: accessCheck, isLoading: accessLoading } = usePartnerAccessCheck();
+
   // Utiliser le hook pour les données dynamiques
   const { 
     business,
@@ -291,6 +297,42 @@ const PartnerDashboard = () => {
               Cette page est réservée aux partenaires. Vous n'avez pas le bon rôle.
             </p>
             {/* Redirection selon le rôle si besoin */}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Vérifier si l'utilisateur a un abonnement actif
+  if (accessCheck && !accessCheck.canAccess && accessCheck.requiresSubscription) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="text-center max-w-md">
+            <div className="mb-6">
+              <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Abonnement Requis</h3>
+              <p className="text-muted-foreground mb-6">
+                Votre compte a été approuvé mais nécessite un abonnement pour être activé. 
+                Choisissez un plan pour commencer à utiliser votre dashboard partenaire.
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <Button asChild className="w-full bg-guinea-red hover:bg-guinea-red/90">
+                <Link to="/partner-dashboard/settings?tab=billing">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Choisir un abonnement
+                </Link>
+              </Button>
+              
+              <Button variant="outline" asChild className="w-full">
+                <Link to="/partner-dashboard/settings">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Voir mes paramètres
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </DashboardLayout>
