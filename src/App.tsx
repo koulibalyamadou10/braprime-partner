@@ -58,7 +58,6 @@ const AdminDashboard = lazy(() => import("./pages/dashboard/AdminDashboard"));
 const AdminOrders = lazy(() => import("./pages/dashboard/AdminOrders"));
 const ReservationPage = lazy(() => import("./pages/ReservationPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
-const Pricing = lazy(() => import("./pages/Pricing"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SearchPage = lazy(() => import("./pages/SearchPage"));
 const AllItemsPage = lazy(() => import("./pages/AllItemsPage"));
@@ -103,7 +102,6 @@ const App = () => (
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/reservations" element={<ReservationPage />} />
                 <Route path="/about" element={<AboutPage />} />
-                <Route path="/pricing" element={<Pricing />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/articles" element={<AllItemsPage />} />
                 <Route path="/cart" element={<CartPage />} />

@@ -202,27 +202,17 @@ export class AdminRequestsService {
           try {
             console.log('Liaison de l\'abonnement existant:', request.metadata.subscription_id);
             
-            // Mettre à jour l'abonnement avec l'ID du business
-            const { error: subscriptionUpdateError } = await supabase
-              .from('partner_subscriptions')
-              .update({
-                partner_id: businessId
-              })
-              .eq('id', request.metadata.subscription_id);
+            // Utiliser la fonction PostgreSQL pour lier l'abonnement au business
+            const { error: linkError } = await supabase
+              .rpc('link_subscription_to_business', {
+                p_subscription_id: request.metadata.subscription_id,
+                p_business_id: businessId
+              });
 
-            if (subscriptionUpdateError) {
-              console.error('Erreur mise à jour abonnement:', subscriptionUpdateError);
+            if (linkError) {
+              console.error('Erreur liaison abonnement:', linkError);
             } else {
               console.log('Abonnement lié au business avec succès');
-              
-              // Mettre à jour le business avec l'ID de l'abonnement
-              await supabase
-                .from('businesses')
-                .update({
-                  subscription_status: 'pending',
-                  current_subscription_id: request.metadata.subscription_id
-                })
-                .eq('id', businessId);
             }
           } catch (error) {
             console.error('Erreur lors de la liaison de l\'abonnement:', error);

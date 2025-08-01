@@ -11,7 +11,6 @@ import {
     Building2,
     Clock,
     Coffee,
-    DollarSign,
     FileText,
     Gift,
     Hammer,
@@ -21,7 +20,6 @@ import {
     Shield,
     ShoppingBasket,
     ShoppingCart,
-    Smartphone,
     Sparkles,
     Star,
     TrendingUp,
@@ -264,13 +262,11 @@ export function PartnerSection() {
             {/* CTA Button */}
             <div className="mt-8">
               <Button 
-                size="lg" 
-                className="w-full md:w-auto"
-                onClick={handleBecomePartner}
+                onClick={() => navigate('/devenir-partenaire')}
+                className="bg-guinea-red hover:bg-guinea-red/90 text-white px-8 py-3 text-lg font-semibold"
               >
-                <Building2 className="h-5 w-5 mr-2" />
-                Devenir Partenaire
-                <ArrowRight className="h-4 w-4 ml-2" />
+                Devenir partenaire
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
           </div>

@@ -428,9 +428,9 @@ const Header = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" asChild>
-                  <Link to="/pricing">Tarifs</Link>
-                </Button>
+                <Link to="/devenir-partenaire" className="text-gray-400 hover:text-white transition-colors">
+                  Devenir partenaire
+                </Link>
                 <Button variant="ghost" asChild>
                   <Link to="/login">Se connecter</Link>
                 </Button>

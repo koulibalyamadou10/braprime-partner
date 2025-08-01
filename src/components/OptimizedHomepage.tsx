@@ -1,9 +1,9 @@
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useHomepageEssential } from '@/hooks/use-homepage';
+import { ArrowRight, Building2, Check, Truck } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Truck, Check, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 // Lazy loading des composants
 const Categories = lazy(() => import('@/components/Categories'));
@@ -124,8 +124,8 @@ const BecomePartnerDriver = () => {
             </div>
 
             <Button 
-              onClick={handleBecomePartner}
-              className="w-full bg-gradient-to-r from-guinea-red to-guinea-red/90 hover:from-guinea-red/90 hover:to-guinea-red text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              onClick={() => navigate('/devenir-partenaire')}
+              className="bg-guinea-red hover:bg-guinea-red/90 text-white px-8 py-3 text-lg font-semibold"
             >
               <Building2 className="h-5 w-5 mr-2" />
               Devenir Partenaire

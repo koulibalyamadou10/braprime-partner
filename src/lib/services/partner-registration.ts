@@ -115,76 +115,50 @@ export class PartnerRegistrationService {
 
       console.log('Demande partenaire créée avec succès:', requestData.id)
 
-      // Étape 2: Créer l'abonnement directement si un plan est sélectionné
+      // Étape 2: Créer l'abonnement via fonction PostgreSQL si un plan est sélectionné
       if (data.selectedPlan) {
         try {
           console.log('Création de l\'abonnement pour le plan:', data.selectedPlan.id)
           
-          // Convertir l'ID du plan si nécessaire (gérer les anciens IDs avec tirets)
+          // Convertir l'ID du plan en plan_type (format avec underscore)
           let planType = data.selectedPlan.id
+          // Convertir les formats comme '1-month' en '1_month' pour correspondre à la base
           if (planType.includes('-')) {
             planType = planType.replace(/-/g, '_')
             console.log('Conversion du type de plan:', data.selectedPlan.id, '→', planType)
           }
           
-          // Récupérer les détails du plan par plan_type (pas par id)
-          const { data: planData, error: planError } = await supabase
-            .from('subscription_plans')
-            .select('*')
-            .eq('plan_type', planType)
-            .single()
+          // Utiliser la fonction PostgreSQL pour créer l'abonnement
+          const { data: subscriptionResult, error: subscriptionError } = await supabase
+            .rpc('create_subscription_for_request', {
+              p_plan_type: planType,
+              p_billing_email: data.owner_email,
+              p_billing_phone: data.owner_phone,
+              p_billing_address: data.business_address,
+              p_duration_months: planType === '1_month' ? 1 : planType === '3_months' ? 3 : planType === '6_months' ? 6 : 12
+            })
 
-          if (planError || !planData) {
-            console.error('Plan non trouvé pour le type:', planType)
-            return { success: false, error: 'Plan d\'abonnement non trouvé' }
+          if (subscriptionError) {
+            console.error('Erreur création abonnement:', subscriptionError)
+            return { success: false, error: 'Erreur lors de la création de l\'abonnement: ' + subscriptionError.message }
           }
 
-          // Calculer les dates
-          const startDate = new Date()
-          const endDate = new Date()
-          endDate.setMonth(endDate.getMonth() + planData.duration_months)
+          console.log('Abonnement créé avec ID:', subscriptionResult)
 
-                      // Créer l'abonnement avec un ID temporaire pour le business
-            const { data: subscriptionData, error: subscriptionError } = await supabase
-              .from('partner_subscriptions')
-              .insert({
-                partner_id: null, // Sera mis à jour après création du business
-                plan_id: planData.id, // Utiliser l'ID UUID du plan trouvé
-                status: 'pending', // En attente d'approbation
-                start_date: startDate.toISOString(),
-                end_date: endDate.toISOString(),
-                auto_renew: false,
-                total_paid: 0, // Sera mis à jour après paiement
-                monthly_amount: planData.monthly_price,
-                savings_amount: planData.savings_percentage || 0,
-                billing_email: data.owner_email,
-                billing_phone: data.owner_phone,
-                billing_address: data.business_address
-              })
-              .select('id')
-              .single()
-
-            if (subscriptionError) {
-              console.error('Erreur création abonnement:', subscriptionError)
-              return { success: false, error: 'Erreur lors de la création de l\'abonnement' }
-            }
-
-            console.log('Abonnement créé avec ID:', subscriptionData.id)
-
-            // Mettre à jour la demande avec l'ID de l'abonnement
-            await supabase
-              .from('requests')
-              .update({
-                metadata: {
-                  ...data.selectedPlan ? {
-                    selected_plan_id: planData.id, // Utiliser l'ID UUID du plan trouvé
-                    selected_plan_name: data.selectedPlan.name,
-                    selected_plan_price: data.selectedPlan.price
-                  } : null,
-                  subscription_id: subscriptionData.id
-                }
-              })
-              .eq('id', requestData.id)
+          // Mettre à jour la demande avec l'ID de l'abonnement
+          await supabase
+            .from('requests')
+            .update({
+              metadata: {
+                ...data.selectedPlan ? {
+                  selected_plan_id: data.selectedPlan.id,
+                  selected_plan_name: data.selectedPlan.name,
+                  selected_plan_price: data.selectedPlan.price
+                } : null,
+                subscription_id: subscriptionResult
+              }
+            })
+            .eq('id', requestData.id)
 
         } catch (error) {
           console.error('Erreur lors de la création de l\'abonnement:', error)
@@ -192,7 +166,7 @@ export class PartnerRegistrationService {
         }
       }
 
-      // Étape 2: Envoyer les emails de notification (optionnel - peut être géré côté frontend)
+      // Étape 3: Envoyer les emails de notification (optionnel - peut être géré côté frontend)
       try {
         // Préparer les données pour l'email de confirmation
         const emailData: RequestConfirmationData = {
@@ -217,7 +191,7 @@ export class PartnerRegistrationService {
         // Ne pas faire échouer la création de la demande à cause des emails
       }
 
-      // Étape 3: Ne PAS créer de compte utilisateur immédiatement
+      // Étape 4: Ne PAS créer de compte utilisateur immédiatement
       // Le compte sera créé uniquement après approbation par l'admin
       console.log('Demande créée avec succès, en attente d\'approbation admin')
 

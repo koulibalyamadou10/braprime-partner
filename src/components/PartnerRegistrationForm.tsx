@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -7,19 +6,85 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { useEmailService } from '@/hooks/use-email-service'
 import { PartnerRegistrationData, PartnerRegistrationService } from '@/lib/services/partner-registration'
-import { ArrowLeft, ArrowRight, Building2, CheckCircle, DollarSign, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Building2, CheckCircle, DollarSign, Eye, EyeOff, Star, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 export interface PartnerRegistrationFormProps {
   onSuccess?: (result: any) => void
   onCancel?: () => void
-  selectedPlan?: {
-    id: string;
-    name: string;
-    price: number;
-  } | null;
 }
+
+// Plans de tarification
+const pricingPlans = [
+  {
+    id: '1_month',
+    name: '1 Mois',
+    description: 'Formule flexible pour tester nos services',
+    price: 200000,
+    pricePerMonth: '200,000 FG',
+    features: [
+      'Visibilité continue sur l\'application BraPrime',
+      'Accès à des centaines d\'utilisateurs actifs',
+      'Service de livraison écoresponsable',
+      'Plateforme moderne 100% guinéenne',
+      'Support client',
+      'Gestion de base du menu',
+      'Commandes en ligne',
+      'Notifications par SMS'
+    ],
+    popular: false,
+    icon: Star,
+    color: 'bg-blue-500',
+    savings: null
+  },
+  {
+    id: '3_months',
+    name: '3 Mois',
+    description: 'Formule recommandée pour les commerces établis',
+    price: 450000,
+    pricePerMonth: '150,000 FG',
+    features: [
+      'Tout du plan 1 mois',
+      'Économie de 25%',
+      'Visibilité continue sur l\'application BraPrime',
+      'Accès à des centaines d\'utilisateurs actifs',
+      'Service de livraison écoresponsable',
+      'Plateforme moderne 100% guinéenne',
+      'Support client',
+      'Gestion de base du menu',
+      'Commandes en ligne',
+      'Notifications par SMS'
+    ],
+    popular: true,
+    icon: Zap,
+    color: 'bg-guinea-red',
+    savings: '25% d\'économie'
+  },
+  {
+    id: '6_months',
+    name: '6 Mois',
+    description: 'Formule économique pour les commerces confirmés',
+    price: 700000,
+    pricePerMonth: '116,667 FG',
+    features: [
+      'Tout du plan 3 mois',
+      'Économie de 41,7%',
+      'Visibilité continue sur l\'application BraPrime',
+      'Accès à des centaines d\'utilisateurs actifs',
+      'Service de livraison écoresponsable',
+      'Plateforme moderne 100% guinéenne',
+      'Support client',
+      'Gestion de base du menu',
+      'Commandes en ligne',
+      'Notifications par SMS'
+    ],
+    popular: false,
+    icon: Building2,
+    color: 'bg-green-600',
+    savings: '41,7% d\'économie'
+  }
+];
 
 const businessTypes = [
   { value: 'restaurant', label: 'Restaurant' },
@@ -38,10 +103,11 @@ const cuisineTypes = [
   'Thaïlandaise', 'Vietnamienne', 'Libanaise', 'Marocaine', 'Autre'
 ]
 
-export function PartnerRegistrationForm({ onSuccess, onCancel, selectedPlan }: PartnerRegistrationFormProps) {
+export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistrationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [step, setStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<any>(null)
   const { sendPartnerRequestEmails } = useEmailService()
   
   const [formData, setFormData] = useState<PartnerRegistrationData>({
@@ -88,6 +154,10 @@ export function PartnerRegistrationForm({ onSuccess, onCancel, selectedPlan }: P
       if (!formData.business_phone.trim()) newErrors.business_phone = 'Le téléphone du commerce est requis'
       if (!formData.business_email.trim()) newErrors.business_email = 'L\'email du commerce est requis'
       else if (!/\S+@\S+\.\S+/.test(formData.business_email)) newErrors.business_email = 'Email invalide'
+    }
+
+    if (currentStep === 4) {
+      if (!selectedPlan) newErrors.plan = 'Veuillez sélectionner un plan d\'abonnement'
     }
 
     setErrors(newErrors)
@@ -155,20 +225,20 @@ export function PartnerRegistrationForm({ onSuccess, onCancel, selectedPlan }: P
     }
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: any) =>
     setFormData(prev => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }))
-    }
-  }
 
   const handleSpecialtyToggle = (specialty: string) => {
     setFormData(prev => ({
       ...prev,
-      specialties: prev.specialties?.includes(specialty)
+      specialties: prev.specialties.includes(specialty)
         ? prev.specialties.filter(s => s !== specialty)
-        : [...(prev.specialties || []), specialty]
+        : [...prev.specialties, specialty]
     }))
+  }
+
+  const handlePlanSelection = (plan: any) => {
+    setSelectedPlan(plan)
   }
 
   const renderStep1 = () => (
@@ -409,35 +479,9 @@ export function PartnerRegistrationForm({ onSuccess, onCancel, selectedPlan }: P
           Récapitulatif et confirmation
         </h3>
         <p className="text-gray-600 mb-6">
-          Vérifiez vos informations avant de créer votre compte partenaire.
+          Vérifiez vos informations avant de passer à la sélection du plan d'abonnement.
         </p>
       </div>
-
-      {/* Afficher le plan sélectionné si disponible */}
-      {selectedPlan && (
-        <Card className="border-green-200 bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-green-800 flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Plan d'abonnement sélectionné
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-green-800">{selectedPlan.name}</p>
-                <p className="text-green-600 text-sm">Plan d'abonnement</p>
-              </div>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                {selectedPlan.price.toLocaleString()} FG
-              </Badge>
-            </div>
-            <p className="text-sm text-green-600 mt-2">
-              Ce plan sera automatiquement associé à votre compte après approbation et paiement.
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
@@ -498,19 +542,70 @@ export function PartnerRegistrationForm({ onSuccess, onCancel, selectedPlan }: P
     </div>
   )
 
+  const renderStep4 = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <DollarSign className="h-5 w-5" />
+          Sélectionnez votre plan d'abonnement
+        </h3>
+        <p className="text-gray-600 mb-6">
+          Choisissez le plan d'abonnement qui correspond le mieux à vos besoins.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {pricingPlans.map((plan) => (
+          <Card
+            key={plan.id}
+            className={`flex flex-col items-start p-6 border-2 rounded-lg transition-all duration-300 ${
+              selectedPlan?.id === plan.id
+                ? 'border-primary shadow-lg'
+                : 'border-gray-200 hover:border-primary'
+            }`}
+            onClick={() => handlePlanSelection(plan)}
+          >
+            <div className={`p-3 rounded-full ${plan.color} text-white mb-4`}>
+              <plan.icon className="h-8 w-8" />
+            </div>
+            <h4 className="text-xl font-bold text-gray-800 mb-2">{plan.name}</h4>
+            <p className="text-gray-600 text-sm mb-4">{plan.description}</p>
+            <div className="flex items-center text-gray-700 text-sm mb-4">
+              <DollarSign className="h-4 w-4 mr-1" />
+              {plan.pricePerMonth}
+            </div>
+            <ul className="space-y-2 text-gray-700 text-sm">
+              {plan.features.map((feature, index) => (
+                <li key={index} className="flex items-center">
+                  <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            {plan.savings && (
+              <div className="mt-4 text-sm text-green-600">
+                <span className="font-semibold">Économie :</span> {plan.savings}
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-6">
       {/* Progress indicator */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-2">
-          {[1, 2, 3].map((stepNumber) => (
+          {[1, 2, 3, 4].map((stepNumber) => (
             <div key={stepNumber} className="flex items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                 step >= stepNumber ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {stepNumber}
               </div>
-              {stepNumber < 3 && (
+              {stepNumber < 4 && (
                 <div className={`w-12 h-0.5 mx-2 ${
                   step > stepNumber ? 'bg-primary' : 'bg-gray-200'
                 }`} />
@@ -518,13 +613,14 @@ export function PartnerRegistrationForm({ onSuccess, onCancel, selectedPlan }: P
             </div>
           ))}
         </div>
-        <span className="text-sm text-gray-500">Étape {step} sur 3</span>
+        <span className="text-sm text-gray-500">Étape {step} sur 4</span>
       </div>
 
       {/* Step content */}
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}
+      {step === 4 && renderStep4()}
 
       {/* Navigation buttons */}
       <div className="flex justify-between pt-6">
@@ -538,7 +634,7 @@ export function PartnerRegistrationForm({ onSuccess, onCancel, selectedPlan }: P
         </Button>
 
         <div className="flex gap-2">
-          {step < 3 ? (
+          {step < 4 ? (
             <Button onClick={handleNext} disabled={isSubmitting}>
               Suivant
               <ArrowRight className="h-4 w-4 ml-2" />
