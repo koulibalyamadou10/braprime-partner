@@ -116,18 +116,17 @@ export class PartnerStatsService {
 
       // Nombre total de demandes
       const { count: totalRequests, error: requestsError } = await supabase
-        .from('requests')
+        .from('businesses')
         .select('*', { count: 'exact', head: true })
-        .eq('type', 'partner');
+        .eq('request_status', 'pending');
 
       if (requestsError) throw requestsError;
 
       // Nombre de demandes en attente
       const { count: pendingRequests, error: pendingError } = await supabase
-        .from('requests')
+        .from('businesses')
         .select('*', { count: 'exact', head: true })
-        .eq('type', 'partner')
-        .eq('status', 'pending');
+        .eq('request_status', 'pending');
 
 
 
@@ -248,29 +247,22 @@ export class PartnerStatsService {
   static async getPartnerRequests(limit: number = 10): Promise<PartnerRequest[]> {
     try {
       const { data, error } = await supabase
-        .from('requests')
+        .from('businesses')
         .select(`
           id,
-          type,
-          status,
-          user_id,
-          user_name,
-          user_email,
-          user_phone,
-          business_name,
-          business_type,
-          business_address,
-          vehicle_type,
-          vehicle_plate,
-          documents,
-          notes,
-          admin_notes,
+          request_status as status,
+          owner_id as user_id,
+          owner_name as user_name,
+          owner_email as user_email,
+          owner_phone as user_phone,
+          name as business_name,
+          business_type_id,
+          address as business_address,
+          request_notes as notes,
           created_at,
-          updated_at,
-          reviewed_at,
-          reviewed_by
+          updated_at
         `)
-        .eq('type', 'partner')
+        .eq('request_status', 'pending')
         .order('created_at', { ascending: false })
         .limit(limit);
 

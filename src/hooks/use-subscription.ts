@@ -199,10 +199,15 @@ export const useCurrentUserSubscription = () => {
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
-        .single();
+        .maybeSingle();
         
       if (error) {
         console.error('❌ [useCurrentUserSubscription] Erreur lors de la récupération du profil partenaire:', error);
+        return null;
+      }
+      
+      if (!data) {
+        console.log('ℹ️ [useCurrentUserSubscription] Aucun business trouvé pour l\'utilisateur:', user.id);
         return null;
       }
       
@@ -227,7 +232,8 @@ export const useCurrentUserSubscription = () => {
       
       console.log('🔍 [useCurrentUserSubscription] Recherche abonnement pour partnerId:', partnerId);
       
-      const { data, error } = await supabase
+      // D'abord, essayer de trouver un abonnement lié au business
+      const { data: subscriptionData, error: subscriptionError } = await supabase
         .from('partner_subscriptions')
         .select(`
           *,
@@ -236,17 +242,73 @@ export const useCurrentUserSubscription = () => {
         .eq('partner_id', partnerId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
         
-      if (error) {
-        console.error('❌ [useCurrentUserSubscription] Erreur lors de la récupération:', error);
-        if (error.code !== 'PGRST116') {
-          return null;
+      if (subscriptionError) {
+        console.error('❌ [useCurrentUserSubscription] Erreur lors de la récupération:', subscriptionError);
+        return null;
+      }
+      
+      if (subscriptionData) {
+        console.log('✅ [useCurrentUserSubscription] Abonnement trouvé:', subscriptionData);
+        return subscriptionData;
+      }
+      
+      console.log('ℹ️ [useCurrentUserSubscription] Aucun abonnement trouvé pour partnerId:', partnerId);
+      
+      // Si pas d'abonnement lié au business, chercher les abonnements avec partner_id IS NULL
+      // qui correspondent à l'email du partenaire
+      const { data: nullPartnerSubscriptions, error: nullPartnerError } = await supabase
+        .from('partner_subscriptions')
+        .select(`
+          *,
+          plan:subscription_plans(*)
+        `)
+        .is('partner_id', null)
+        .eq('billing_email', partnerProfile?.email || '')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+        
+      if (nullPartnerError) {
+        console.error('❌ [useCurrentUserSubscription] Erreur lors de la récupération des abonnements NULL:', nullPartnerError);
+      } else if (nullPartnerSubscriptions) {
+        console.log('✅ [useCurrentUserSubscription] Abonnement avec partner_id NULL trouvé:', nullPartnerSubscriptions);
+        return {
+          ...nullPartnerSubscriptions,
+          _pending_link: true // Flag pour indiquer qu'il faut lier au business
+        };
+      }
+      
+      // Si pas d'abonnement, essayer de récupérer les informations depuis le business
+      const { data: businessData, error: businessError } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_email', partnerProfile?.email || '')
+        .eq('request_status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+        
+      if (businessData && businessData.current_subscription_id) {
+        console.log('✅ [useCurrentUserSubscription] Abonnement trouvé dans le business:', businessData.current_subscription_id);
+        
+        // Récupérer les détails de l'abonnement
+        const { data: subscriptionData, error: subscriptionError } = await supabase
+          .from('partner_subscriptions')
+          .select('*, plan:subscription_plans(*)')
+          .eq('id', businessData.current_subscription_id)
+          .maybeSingle();
+          
+        if (subscriptionData) {
+          return {
+            ...subscriptionData,
+            _from_request: true // Flag pour indiquer que c'est depuis une demande
+          };
         }
       }
       
-      console.log('✅ [useCurrentUserSubscription] Abonnement trouvé:', data);
-      return data;
+      return null;
     },
     enabled: !!partnerId,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -268,10 +330,15 @@ export const usePartnerAccessCheck = () => {
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
-        .single();
+        .maybeSingle();
         
       if (error) {
         console.error('Erreur lors de la récupération du business:', error);
+        return null;
+      }
+      
+      if (!data) {
+        console.log('ℹ️ [usePartnerAccessCheck] Aucun business trouvé pour l\'utilisateur:', user.id);
         return null;
       }
       
@@ -320,10 +387,15 @@ export const useCurrentUserSubscriptionHistory = () => {
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
-        .single();
+        .maybeSingle();
         
       if (error) {
         console.error('❌ [useCurrentUserSubscriptionHistory] Erreur lors de la récupération du profil partenaire:', error);
+        return null;
+      }
+      
+      if (!data) {
+        console.log('ℹ️ [useCurrentUserSubscriptionHistory] Aucun business trouvé pour l\'utilisateur:', user.id);
         return null;
       }
       

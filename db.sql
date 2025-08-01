@@ -62,9 +62,23 @@ CREATE TABLE public.businesses (
   delivery_zone_id integer,
   delivery_zones jsonb DEFAULT '[]'::jsonb,
   max_orders_per_slot integer DEFAULT 10,
+  requires_subscription boolean DEFAULT false,
+  subscription_status character varying DEFAULT 'none'::character varying CHECK (subscription_status::text = ANY (ARRAY['none'::character varying, 'pending'::character varying, 'active'::character varying, 'expired'::character varying]::text[])),
+  current_subscription_id uuid,
+  request_status character varying DEFAULT 'approved'::character varying,
+  request_notes text,
+  owner_name character varying,
+  owner_phone character varying,
+  owner_email character varying,
+  business_phone character varying,
+  business_email character varying,
+  business_description text,
+  delivery_radius integer DEFAULT 5,
+  specialties ARRAY,
   CONSTRAINT businesses_pkey PRIMARY KEY (id),
-  CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
-  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id)
+  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id),
+  CONSTRAINT businesses_current_subscription_id_fkey FOREIGN KEY (current_subscription_id) REFERENCES public.partner_subscriptions(id),
+  CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
 CREATE TABLE public.cart (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -93,8 +107,8 @@ CREATE TABLE public.cart_items (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT cart_items_pkey PRIMARY KEY (id),
-  CONSTRAINT cart_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
-  CONSTRAINT cart_items_cart_id_fkey FOREIGN KEY (cart_id) REFERENCES public.cart(id)
+  CONSTRAINT cart_items_cart_id_fkey FOREIGN KEY (cart_id) REFERENCES public.cart(id),
+  CONSTRAINT cart_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
 );
 CREATE TABLE public.categories (
   id integer NOT NULL DEFAULT nextval('categories_id_seq'::regclass),
@@ -191,8 +205,8 @@ CREATE TABLE public.drivers (
   last_active timestamp with time zone,
   user_id uuid,
   CONSTRAINT drivers_pkey PRIMARY KEY (id),
-  CONSTRAINT drivers_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT drivers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT drivers_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.favorite_businesses (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -200,8 +214,8 @@ CREATE TABLE public.favorite_businesses (
   business_id integer NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT favorite_businesses_pkey PRIMARY KEY (id),
-  CONSTRAINT favorite_businesses_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT favorite_businesses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  CONSTRAINT favorite_businesses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT favorite_businesses_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.favorite_menu_items (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -209,8 +223,8 @@ CREATE TABLE public.favorite_menu_items (
   menu_item_id integer NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT favorite_menu_items_pkey PRIMARY KEY (id),
-  CONSTRAINT favorite_menu_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT favorite_menu_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+  CONSTRAINT favorite_menu_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
+  CONSTRAINT favorite_menu_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.menu_categories (
   id integer NOT NULL DEFAULT nextval('menu_categories_id_seq'::regclass),
@@ -332,7 +346,7 @@ CREATE TABLE public.orders (
 );
 CREATE TABLE public.partner_subscriptions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  partner_id integer NOT NULL,
+  partner_id integer,
   plan_id uuid NOT NULL,
   status USER-DEFINED NOT NULL DEFAULT 'pending'::subscription_status,
   start_date timestamp with time zone NOT NULL,
@@ -401,8 +415,8 @@ CREATE TABLE public.requests (
   specialties jsonb DEFAULT '[]'::jsonb,
   metadata jsonb,
   CONSTRAINT requests_pkey PRIMARY KEY (id),
-  CONSTRAINT requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
-  CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.user_profiles(id)
+  CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.user_profiles(id),
+  CONSTRAINT requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
 );
 CREATE TABLE public.reservation_statuses (
   id integer NOT NULL DEFAULT nextval('reservation_statuses_id_seq'::regclass),
@@ -556,8 +570,8 @@ CREATE TABLE public.user_profiles (
   is_verified boolean DEFAULT false,
   is_manual_creation boolean DEFAULT false,
   CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
-  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id)
+  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id),
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.user_push_tokens (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

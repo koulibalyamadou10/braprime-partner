@@ -3,38 +3,38 @@ import DashboardLayout, { partnerNavItems } from '@/components/dashboard/Dashboa
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import { subscriptionUtils, useActivatePendingSubscription, useCreateSubscription, useCurrentUserSubscription, useCurrentUserSubscriptionHistory, useSubscriptionPlans, useUpdateBillingInfo } from '@/hooks/use-subscription';
+import { SubscriptionManagementService } from '@/lib/services/subscription-management';
 import {
-  AlertCircle,
-  Calendar,
-  CheckCircle,
-  Clock,
-  CreditCard,
-  DollarSign,
-  Download,
-  FileText,
-  History,
-  Plus,
-  Receipt,
-  Settings,
-  X
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    Clock,
+    CreditCard,
+    DollarSign,
+    Download,
+    FileText,
+    History,
+    Plus,
+    Receipt,
+    Settings,
+    X
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { SubscriptionManagementService } from '@/lib/services/subscription-management';
 
 const PartnerBilling: React.FC = () => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateSubscriptionModal, setShowCreateSubscriptionModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: number; monthly_price: number; description: string; features: string[]; savings_percentage: number } | null>(null);
   
   // États pour la désactivation
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
@@ -189,7 +189,7 @@ const PartnerBilling: React.FC = () => {
 
   if (businessLoading) {
     return (
-      <DashboardLayout navItems={partnerNavItems}>
+      <DashboardLayout navItems={partnerNavItems} title="Facturation">
         <div className="space-y-6">
           <Skeleton className="h-8 w-48" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -211,7 +211,7 @@ const PartnerBilling: React.FC = () => {
 
   if (!business) {
     return (
-      <DashboardLayout navItems={partnerNavItems}>
+      <DashboardLayout navItems={partnerNavItems} title="Facturation">
         <div className="space-y-6">
           <div className="text-center py-12">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -229,7 +229,7 @@ const PartnerBilling: React.FC = () => {
   }
 
   return (
-    <DashboardLayout navItems={partnerNavItems}>
+    <DashboardLayout navItems={partnerNavItems} title="Facturation">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -433,7 +433,56 @@ const PartnerBilling: React.FC = () => {
                         'Votre abonnement n\'est pas actif.'
                       )}
                     </p>
-                    {currentSubscription.status === 'pending' && (
+                    
+                    {/* Section spéciale pour l'abonnement depuis une demande */}
+                    {currentSubscription._from_request && (
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertCircle className="h-5 w-5 text-blue-600" />
+                          <h4 className="font-semibold text-blue-800">Plan sélectionné lors de votre demande</h4>
+                        </div>
+                        <div className="space-y-2 mb-4">
+                          <p className="text-sm text-blue-700">
+                            <strong>Plan :</strong> {currentSubscription.plan?.name}
+                          </p>
+                          <p className="text-sm text-blue-700">
+                            <strong>Prix :</strong> {subscriptionUtils.formatPrice(currentSubscription.monthly_amount)}
+                          </p>
+                          <p className="text-sm text-blue-700">
+                            <strong>Statut :</strong> En attente de paiement
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => handlePayment(currentSubscription.id)}
+                            className="bg-guinea-green hover:bg-guinea-green/90 text-white"
+                          >
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Payer maintenant
+                          </Button>
+                          <Button 
+                            onClick={handleActivateSubscription}
+                            disabled={activatePendingSubscription.isPending}
+                            variant="outline"
+                          >
+                            {activatePendingSubscription.isPending ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                                Activation...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Activer sans paiement
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Boutons normaux pour les abonnements existants */}
+                    {!currentSubscription._from_request && currentSubscription.status === 'pending' && (
                       <Button 
                         onClick={handleActivateSubscription}
                         disabled={activatePendingSubscription.isPending}
@@ -452,7 +501,7 @@ const PartnerBilling: React.FC = () => {
                         )}
                       </Button>
                     )}
-                    {currentSubscription.status === 'pending' && (
+                    {!currentSubscription._from_request && currentSubscription.status === 'pending' && (
                       <Button 
                         onClick={() => handlePayment(currentSubscription.id)}
                         className="bg-guinea-green hover:bg-guinea-green/90 text-white"
@@ -461,7 +510,7 @@ const PartnerBilling: React.FC = () => {
                         Payer maintenant
                       </Button>
                     )}
-                    {currentSubscription.status === 'active' && (
+                    {!currentSubscription._from_request && currentSubscription.status === 'active' && (
                       <div className="mt-3 space-y-3">
                         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                           <p className="text-sm text-blue-700">
@@ -638,6 +687,7 @@ const PartnerBilling: React.FC = () => {
               setSelectedPlan(null);
             }}
             selectedPlan={selectedPlan}
+            partnerId={business?.id || 0}
             onSubscriptionCreated={handleSubscriptionCreated}
           />
         )}

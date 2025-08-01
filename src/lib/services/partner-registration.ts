@@ -77,100 +77,47 @@ export class PartnerRegistrationService {
         selectedPlan: data.selectedPlan 
       })
 
-      // Étape 1: Créer une demande dans la table requests
-      const { data: requestData, error: requestError } = await supabase
-        .from('requests')
-        .insert({
-          type: 'partner',
-          status: 'pending',
-          user_name: data.owner_name,
-          user_email: data.owner_email,
-          user_phone: data.owner_phone,
-          business_name: data.business_name,
-          business_type: data.business_type,
-          business_address: data.business_address,
-          business_phone: data.business_phone,
-          business_email: data.business_email,
-          business_description: data.business_description,
-          opening_hours: data.opening_hours,
-          delivery_radius: data.delivery_radius,
-          cuisine_type: data.cuisine_type,
-          specialties: data.specialties,
-          notes: data.selectedPlan 
-            ? `Plan sélectionné: ${data.selectedPlan.name} - ${data.selectedPlan.price.toLocaleString()} FG\n\nPlan ID: ${data.selectedPlan.id}`
-            : 'Aucun plan sélectionné',
-          metadata: data.selectedPlan ? {
-            selected_plan_id: data.selectedPlan.id,
-            selected_plan_name: data.selectedPlan.name,
-            selected_plan_price: data.selectedPlan.price
-          } : null
+      // Convertir l'ID du plan en plan_type (format avec underscore)
+      let planType = data.selectedPlan?.id || '1_month'
+      if (planType.includes('-')) {
+        planType = planType.replace(/-/g, '_')
+        console.log('Conversion du type de plan:', data.selectedPlan?.id, '→', planType)
+      }
+
+      // Étape 1: Créer directement dans la table businesses avec statut de demande
+      const { data: businessData, error: businessError } = await supabase
+        .rpc('create_partner_request', {
+          p_owner_name: data.owner_name,
+          p_owner_email: data.owner_email,
+          p_owner_phone: data.owner_phone,
+          p_business_name: data.business_name,
+          p_business_type: data.business_type,
+          p_business_address: data.business_address,
+          p_business_phone: data.business_phone,
+          p_business_email: data.business_email,
+          p_business_description: data.business_description,
+          p_opening_hours: data.opening_hours,
+          p_delivery_radius: data.delivery_radius,
+          p_cuisine_type: data.cuisine_type || '',
+          p_specialties: data.specialties || [],
+          p_plan_type: planType,
+          p_notes: data.selectedPlan 
+            ? `Plan sélectionné: ${data.selectedPlan.name} - ${data.selectedPlan.price.toLocaleString()} FG`
+            : 'Aucun plan sélectionné'
         })
-        .select()
-        .single()
 
-      if (requestError) {
-        console.error('Erreur création demande:', requestError)
-        return { success: false, error: requestError.message }
+      if (businessError) {
+        console.error('Erreur création demande partenaire:', businessError)
+        return { success: false, error: businessError.message }
       }
 
-      console.log('Demande partenaire créée avec succès:', requestData.id)
+      console.log('Demande partenaire créée avec succès, Business ID:', businessData)
 
-      // Étape 2: Créer l'abonnement via fonction PostgreSQL si un plan est sélectionné
-      if (data.selectedPlan) {
-        try {
-          console.log('Création de l\'abonnement pour le plan:', data.selectedPlan.id)
-          
-          // Convertir l'ID du plan en plan_type (format avec underscore)
-          let planType = data.selectedPlan.id
-          // Convertir les formats comme '1-month' en '1_month' pour correspondre à la base
-          if (planType.includes('-')) {
-            planType = planType.replace(/-/g, '_')
-            console.log('Conversion du type de plan:', data.selectedPlan.id, '→', planType)
-          }
-          
-          // Utiliser la fonction PostgreSQL pour créer l'abonnement
-          const { data: subscriptionResult, error: subscriptionError } = await supabase
-            .rpc('create_subscription_for_request', {
-              p_plan_type: planType,
-              p_billing_email: data.owner_email,
-              p_billing_phone: data.owner_phone,
-              p_billing_address: data.business_address,
-              p_duration_months: planType === '1_month' ? 1 : planType === '3_months' ? 3 : planType === '6_months' ? 6 : 12
-            })
-
-          if (subscriptionError) {
-            console.error('Erreur création abonnement:', subscriptionError)
-            return { success: false, error: 'Erreur lors de la création de l\'abonnement: ' + subscriptionError.message }
-          }
-
-          console.log('Abonnement créé avec ID:', subscriptionResult)
-
-          // Mettre à jour la demande avec l'ID de l'abonnement
-          await supabase
-            .from('requests')
-            .update({
-              metadata: {
-                ...data.selectedPlan ? {
-                  selected_plan_id: data.selectedPlan.id,
-                  selected_plan_name: data.selectedPlan.name,
-                  selected_plan_price: data.selectedPlan.price
-                } : null,
-                subscription_id: subscriptionResult
-              }
-            })
-            .eq('id', requestData.id)
-
-        } catch (error) {
-          console.error('Erreur lors de la création de l\'abonnement:', error)
-          return { success: false, error: 'Erreur lors de la création de l\'abonnement' }
-        }
-      }
-
-      // Étape 3: Envoyer les emails de notification (optionnel - peut être géré côté frontend)
+      // Étape 2: Envoyer les emails de notification (optionnel - peut être géré côté frontend)
       try {
         // Préparer les données pour l'email de confirmation
         const emailData: RequestConfirmationData = {
-          request_id: requestData.id,
+          request_id: businessData.toString(), // Utiliser l'ID du business comme request_id
           request_type: 'partner',
           user_name: data.owner_name,
           user_email: data.owner_email,
@@ -191,16 +138,16 @@ export class PartnerRegistrationService {
         // Ne pas faire échouer la création de la demande à cause des emails
       }
 
-      // Étape 4: Ne PAS créer de compte utilisateur immédiatement
+      // Étape 3: Ne PAS créer de compte utilisateur immédiatement
       // Le compte sera créé uniquement après approbation par l'admin
       console.log('Demande créée avec succès, en attente d\'approbation admin')
 
       return {
         success: true,
-        request: {
-          id: requestData.id,
-          status: 'pending',
-          email: data.owner_email
+        business: {
+          id: businessData,
+          name: data.business_name,
+          type: data.business_type
         },
         message: 'Demande envoyée avec succès. Vous recevrez une notification après approbation.'
       }

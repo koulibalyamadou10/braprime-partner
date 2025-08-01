@@ -11,7 +11,13 @@ import {
     DialogTitle
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -24,8 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminRequests } from '@/hooks/use-admin-requests';
 import { useEmailService } from '@/hooks/use-email-service';
-import { AdminAccountCreationService } from '@/lib/services/admin-account-creation';
-import { Request, RequestFilters } from '@/lib/types';
+import { AdminBusinessRequestsService, BusinessRequest, BusinessRequestFilters } from '@/lib/services/admin-business-requests';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -38,20 +43,36 @@ import {
     FileText,
     RefreshCw,
     Trash2,
-    Truck,
-    XCircle
+    UserPlus,
+    XCircle,
+    Loader2,
+    Search,
+    EyeOff,
+    Copy
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+interface AccountCredentials {
+  email: string;
+  password: string;
+  businessName: string;
+  dashboardUrl: string;
+}
+
 const AdminRequests = () => {
-  const [filters, setFilters] = useState<RequestFilters>({});
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [filters, setFilters] = useState<BusinessRequestFilters>({});
+  const [selectedRequest, setSelectedRequest] = useState<BusinessRequest | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | 'review'>('approve');
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'create_account'>('approve');
   const [adminNotes, setAdminNotes] = useState('');
+  const [isActionLoading, setIsActionLoading] = useState<number | null>(null);
+  const [isCreateAccountLoading, setIsCreateAccountLoading] = useState<number | null>(null);
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [accountCredentials, setAccountCredentials] = useState<AccountCredentials | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { sendRequestApproval, sendRequestRejection, sendAdminNotification } = useEmailService();
@@ -61,14 +82,13 @@ const AdminRequests = () => {
     stats,
     isLoading,
     statsLoading,
-    isUpdating,
-    updateStatus,
-    deleteRequest,
-    refetch
+    isApproving,
+    isRejecting,
+    approveRequest,
+    rejectRequest,
+    refetch,
+    createUserAccount
   } = useAdminRequests(filters);
-
-  // Debug: afficher l'état de isUpdating
-  console.log('AdminRequests - isUpdating:', isUpdating);
 
   // Formater la date
   const formatDate = (dateString: string) => {
@@ -95,12 +115,6 @@ const AdminRequests = () => {
         variant: 'destructive' as const, 
         icon: XCircle,
         className: 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200'
-      },
-      under_review: { 
-        label: 'En révision', 
-        variant: 'outline' as const, 
-        icon: AlertCircle,
-        className: 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
       }
     };
 
@@ -119,13 +133,8 @@ const AdminRequests = () => {
     );
   };
 
-  // Obtenir l'icône du type
-  const getTypeIcon = (type: string) => {
-    return type === 'partner' ? <Building2 className="h-4 w-4" /> : <Truck className="h-4 w-4" />;
-  };
-
   // Gérer le changement de filtre
-  const handleFilterChange = (key: keyof RequestFilters, value: string) => {
+  const handleFilterChange = (key: keyof BusinessRequestFilters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
@@ -136,113 +145,89 @@ const AdminRequests = () => {
       return;
     }
 
-    console.log('Début handleAction:', { actionType, selectedRequest: selectedRequest.id });
-
-    const newStatus = actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'under_review';
-
     try {
-      // Si c'est une approbation, générer un mot de passe et créer le compte
       if (actionType === 'approve') {
-        console.log('Création du compte utilisateur...');
+        // Approuver seulement (sans créer de compte)
+        await approveRequest(selectedRequest.id, adminNotes);
         
-        // Générer un mot de passe automatiquement
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-        let password = '';
-        for (let i = 0; i < 12; i++) {
-          password += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-
-        console.log('Mot de passe généré, création du compte...');
-
-        // Créer le compte utilisateur
-        const accountResult = await AdminAccountCreationService.createUserAccount({
-          email: selectedRequest.user_email,
-          password: password,
-          name: selectedRequest.user_name,
-          role: selectedRequest.type as 'partner' | 'driver',
-          phone_number: selectedRequest.user_phone,
-          requestId: selectedRequest.id
-        });
-
-        console.log('Résultat création compte:', accountResult);
-
-        if (!accountResult.success) {
-          console.error('Échec création compte:', accountResult.error);
-          toast.error(accountResult.error || 'Erreur lors de la création du compte');
-          return;
-        }
-
-        console.log('Compte créé avec succès');
-      }
-
-      console.log('Mise à jour du statut de la demande...');
-
-      // Mettre à jour le statut de la demande
-      await updateStatus(selectedRequest.id, newStatus, adminNotes);
-
-      console.log('Statut mis à jour, envoi des emails...');
-
-      // Envoyer les emails appropriés
-      if (actionType === 'approve') {
-        await sendRequestApproval({
-          request_id: selectedRequest.id,
-          request_type: selectedRequest.type,
-          user_name: selectedRequest.user_name,
-          user_email: selectedRequest.user_email,
-          user_phone: selectedRequest.user_phone,
-          business_name: selectedRequest.business_name,
-          selected_plan_name: selectedRequest.business_type || 'Plan Standard',
-          selected_plan_price: 0,
-          login_email: selectedRequest.user_email,
-          login_password: 'MotDePasse123!', // Le mot de passe sera envoyé par email
-          dashboard_url: `${window.location.origin}/${selectedRequest.type}-dashboard`,
-          approved_at: new Date().toISOString(),
-          approved_by: currentUser.email || 'admin@bradelivery.com'
-        });
+        toast.success('Demande approuvée avec succès. Le partenaire peut maintenant créer son compte.');
       } else if (actionType === 'reject') {
-        await sendRequestRejection(selectedRequest, {
-          reason: adminNotes || 'Votre demande ne répond pas aux critères requis.',
-          admin_notes: adminNotes,
-          rejected_by: currentUser.email || 'admin@bradelivery.com'
-        });
+        // Rejeter la demande
+        await rejectRequest(selectedRequest.id, adminNotes);
+        
+        toast.success('Demande rejetée avec succès.');
+      } else if (actionType === 'create_account') {
+        // Créer le compte utilisateur pour un business approuvé
+        setIsCreateAccountLoading(selectedRequest?.id || null);
+        const result = await createUserAccount(selectedRequest?.id || 0);
+        
+        if (result.success && result.credentials) {
+          setAccountCredentials({
+            email: result.credentials.email,
+            password: result.credentials.password,
+            businessName: result.credentials.businessName,
+            dashboardUrl: `${window.location.origin}/partner-dashboard`
+          });
+          setShowCredentialsModal(true);
+          toast.success('Compte utilisateur créé avec succès');
+        } else {
+          toast.error(result.error || 'Erreur lors de la création du compte');
+        }
       }
-
-      await sendAdminNotification(selectedRequest);
-
-      console.log('Action terminée avec succès');
 
       setIsActionDialogOpen(false);
       setAdminNotes('');
       setSelectedRequest(null);
-      toast.success(`Demande ${actionType === 'approve' ? 'approuvée et compte créé' : actionType === 'reject' ? 'rejetée' : 'mise en révision'} avec succès. Emails envoyés.`);
     } catch (error) {
       console.error('Erreur lors de l\'action sur la demande:', error);
       toast.error('Erreur lors de l\'action sur la demande');
+    } finally {
+      setIsActionLoading(null);
+      setIsCreateAccountLoading(null);
     }
   };
 
   // Gérer la suppression
-  const handleDelete = (request: Request) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette demande ?')) {
-      deleteRequest(request.id);
+  const handleDelete = (request: BusinessRequest) => {
+    if (confirm('Êtes-vous sûr de vouloir rejeter cette demande ?')) {
+      rejectRequest(request.id, 'Demande supprimée par l\'administrateur');
     }
   };
 
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copié dans le presse-papiers`);
+    } catch (error) {
+      toast.error('Erreur lors de la copie');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout navItems={adminNavItems} title="Administration">
+        <div className="p-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout navItems={adminNavItems} title="Administration">
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         {/* En-tête */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Gestion des Demandes</h1>
-            <p className="text-muted-foreground">
-              Gérez les demandes de partenariat et de chauffeur
-            </p>
-          </div>
-          <Button onClick={() => refetch()} variant="outline" disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
+        <div className="flex flex-col space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Gestion des Demandes</h1>
+          <p className="text-muted-foreground">
+            Gérez toutes les demandes de partenariat (en attente, approuvées, rejetées)
+          </p>
         </div>
 
         {/* Statistiques */}
@@ -293,20 +278,7 @@ const AdminRequests = () => {
             <CardTitle>Filtres</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Type</label>
-                <Select value={filters.type || 'all'} onValueChange={(value) => handleFilterChange('type', value === 'all' ? '' : value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tous les types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les types</SelectItem>
-                    <SelectItem value="partner">Partenaires</SelectItem>
-                    <SelectItem value="driver">Chauffeurs</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Statut</label>
                 <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value === 'all' ? '' : value)}>
@@ -314,21 +286,25 @@ const AdminRequests = () => {
                     <SelectValue placeholder="Tous les statuts" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="all">Toutes les demandes</SelectItem>
                     <SelectItem value="pending">En attente</SelectItem>
                     <SelectItem value="approved">Approuvées</SelectItem>
                     <SelectItem value="rejected">Rejetées</SelectItem>
-                    <SelectItem value="under_review">En révision</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
               <div className="space-y-2">
                 <label className="text-sm font-medium">Recherche</label>
-                <Input
-                  placeholder="Nom, email, commerce..."
-                  value={filters.search || ''}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Nom, email, téléphone..."
+                    value={filters.search || ''}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
             </div>
           </CardContent>
@@ -337,7 +313,12 @@ const AdminRequests = () => {
         {/* Tableau des demandes */}
         <Card>
           <CardHeader>
-            <CardTitle>Demandes</CardTitle>
+            <CardTitle>
+              {filters.status === 'approved' ? 'Demandes approuvées' :
+               filters.status === 'rejected' ? 'Demandes rejetées' :
+               filters.status === 'pending' ? 'Demandes en attente' :
+               'Toutes les demandes'}
+            </CardTitle>
             <CardDescription>
               {isLoading ? 'Chargement...' : `${requests.length} demande(s) trouvée(s)`}
             </CardDescription>
@@ -359,7 +340,7 @@ const AdminRequests = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Utilisateur</TableHead>
+                    <TableHead>Propriétaire</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Commerce</TableHead>
                     <TableHead>Statut</TableHead>
@@ -372,21 +353,21 @@ const AdminRequests = () => {
                     <TableRow key={request.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{request.user_name}</div>
-                          <div className="text-sm text-muted-foreground">{request.user_email}</div>
+                          <div className="font-medium">{request.owner_name}</div>
+                          <div className="text-sm text-muted-foreground">{request.owner_email}</div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {getTypeIcon(request.type)}
-                          <span className="capitalize">{request.type}</span>
+                          <Building2 className="h-4 w-4" />
+                          <span className="capitalize">partenaire</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {request.business_name || '-'}
+                        {request.name || '-'}
                       </TableCell>
                       <TableCell>
-                        {getStatusBadge(request.status)}
+                        {getStatusBadge(request.request_status)}
                       </TableCell>
                       <TableCell>
                         {formatDate(request.created_at)}
@@ -403,7 +384,7 @@ const AdminRequests = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {request.status === 'pending' && (
+                          {request.request_status === 'pending' && (
                             <>
                               <Button
                                 variant="outline"
@@ -431,58 +412,53 @@ const AdminRequests = () => {
                               </Button>
                             </>
                           )}
-                          {request.status === 'under_review' && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setActionType('approve');
-                                  setIsActionDialogOpen(true);
-                                }}
-                                className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setActionType('reject');
-                                  setIsActionDialogOpen(true);
-                                }}
-                                className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                          {request.status === 'approved' && (
+                          {request.request_status === 'approved' && !request.owner_id && (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-green-500 text-green-600 bg-green-50"
-                              disabled
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setActionType('create_account');
+                                setIsActionDialogOpen(true);
+                              }}
+                              className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                             >
-                              <CheckCircle className="h-4 w-4" />
+                              <UserPlus className="h-4 w-4" />
                             </Button>
                           )}
-                          {request.status === 'rejected' && (
+                          {request.request_status === 'approved' && (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="border-red-500 text-red-600 bg-red-50"
-                              disabled
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setActionType('reject');
+                                setIsActionDialogOpen(true);
+                              }}
+                              className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
                             >
                               <XCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {request.request_status === 'rejected' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setActionType('approve');
+                                setIsActionDialogOpen(true);
+                              }}
+                              className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                            >
+                              <Check className="h-4 w-4" />
                             </Button>
                           )}
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDelete(request)}
+                            className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -496,111 +472,23 @@ const AdminRequests = () => {
           </CardContent>
         </Card>
 
-        {/* Dialog de visualisation */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Détails de la demande</DialogTitle>
-            </DialogHeader>
-            {selectedRequest && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Nom</label>
-                    <p className="text-sm">{selectedRequest.user_name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <p className="text-sm">{selectedRequest.user_email}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Téléphone</label>
-                    <p className="text-sm">{selectedRequest.user_phone}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Type</label>
-                    <p className="text-sm capitalize">{selectedRequest.type}</p>
-                  </div>
-                  {selectedRequest.business_name && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium">Commerce</label>
-                        <p className="text-sm">{selectedRequest.business_name}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Type de commerce</label>
-                        <p className="text-sm">{selectedRequest.business_type}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Adresse</label>
-                        <p className="text-sm">{selectedRequest.business_address}</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-                {selectedRequest.notes && (
-                  <div>
-                    <label className="text-sm font-medium">Notes</label>
-                    <p className="text-sm">{selectedRequest.notes}</p>
-                  </div>
-                )}
-                <div>
-                  <label className="text-sm font-medium">Date de soumission</label>
-                  <p className="text-sm">{formatDate(selectedRequest.created_at)}</p>
-                </div>
-              </div>
-            )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                Fermer
-              </Button>
-              {selectedRequest?.status === 'pending' && (
-                <Button
-                  onClick={() => {
-                    setIsViewDialogOpen(false);
-                    setActionType('approve');
-                    setIsActionDialogOpen(true);
-                  }}
-                >
-                  Approuver
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {/* Dialog d'action */}
         <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
                 {actionType === 'approve' ? 'Approuver la demande' : 
-                 actionType === 'reject' ? 'Rejeter la demande' : 'Mettre en révision'}
+                 actionType === 'reject' ? 'Rejeter la demande' :
+                 'Créer le compte utilisateur'}
               </DialogTitle>
               <DialogDescription>
                 {actionType === 'approve' ? 
-                  'Cette action approuvera la demande et créera automatiquement un compte utilisateur avec un mot de passe généré. Les identifiants seront envoyés par email.' :
+                  'Cette action approuvera la demande. Le partenaire devra ensuite créer son compte séparément.' :
                  actionType === 'reject' ? 'Cette action rejettera définitivement la demande.' :
-                 'Cette action mettra la demande en révision pour plus d\'informations.'}
+                 'Cette action créera automatiquement un compte utilisateur avec un mot de passe généré. Les identifiants seront envoyés par email.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              {actionType === 'approve' && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-blue-600 mt-0.5" />
-                    <div className="text-sm text-blue-700">
-                      <p className="font-medium">Création automatique du compte :</p>
-                      <ul className="mt-1 space-y-1">
-                        <li>• Un mot de passe sécurisé sera généré automatiquement</li>
-                        <li>• Le compte sera créé avec le rôle "{selectedRequest?.type === 'partner' ? 'Partenaire' : 'Chauffeur'}"</li>
-                        <li>• Les identifiants seront envoyés par email à {selectedRequest?.user_email}</li>
-                        <li>• L'utilisateur pourra se connecter immédiatement</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
               <div>
                 <label className="text-sm font-medium">Notes (optionnel)</label>
                 <Textarea
@@ -617,27 +505,120 @@ const AdminRequests = () => {
               </Button>
               <Button
                 onClick={handleAction}
-                disabled={isUpdating}
+                disabled={isApproving || isRejecting || isActionLoading === selectedRequest?.id || isCreateAccountLoading === selectedRequest?.id}
                 className={
                   actionType === 'approve' 
                     ? 'bg-green-600 hover:bg-green-700 text-white' 
-                    : actionType === 'reject' 
+                    : actionType === 'reject'
                     ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }
-                style={{ cursor: isUpdating ? 'not-allowed' : 'pointer' }}
               >
-                {isUpdating ? (
+                {isApproving || isRejecting || isActionLoading === selectedRequest?.id || isCreateAccountLoading === selectedRequest?.id ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                     Traitement...
                   </>
                 ) : (
-                  actionType === 'approve' ? 'Approuver et créer le compte' :
-                  actionType === 'reject' ? 'Rejeter' : 'Mettre en révision'
+                  actionType === 'approve' ? 'Approuver' :
+                  actionType === 'reject' ? 'Rejeter' :
+                  'Créer le compte'
                 )}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal des identifiants de connexion */}
+        <Dialog open={showCredentialsModal} onOpenChange={setShowCredentialsModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Identifiants de connexion créés</DialogTitle>
+              <DialogDescription>
+                Les identifiants ont été envoyés par email. Voici un récapitulatif :
+              </DialogDescription>
+            </DialogHeader>
+            
+            {accountCredentials && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nom du commerce</label>
+                  <div className="flex items-center space-x-2">
+                    <Input value={accountCredentials.businessName} readOnly />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(accountCredentials.businessName, 'Nom du commerce')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email de connexion</label>
+                  <div className="flex items-center space-x-2">
+                    <Input value={accountCredentials.email} readOnly />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(accountCredentials.email, 'Email')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mot de passe</label>
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Input 
+                        type={showPassword ? 'text' : 'password'} 
+                        value={accountCredentials.password} 
+                        readOnly 
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(accountCredentials.password, 'Mot de passe')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-3 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note :</strong> Ces identifiants ont été envoyés par email au partenaire. 
+                    Ils peuvent se connecter immédiatement avec ces informations.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowCredentialsModal(false)}>
+                Fermer
+              </Button>
+              <Button onClick={() => {
+                if (accountCredentials) {
+                  window.open(accountCredentials.dashboardUrl, '_blank');
+                }
+                setShowCredentialsModal(false);
+              }}>
+                Ouvrir le dashboard
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

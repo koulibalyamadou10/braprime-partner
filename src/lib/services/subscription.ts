@@ -195,9 +195,9 @@ export const subscriptionService = {
         `)
         .eq('partner_id', partnerId)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw error;
       return data;
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'abonnement:', error);

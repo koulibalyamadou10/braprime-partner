@@ -96,3 +96,19 @@ BEGIN
     RAISE NOTICE '📊 Consultez les résultats ci-dessus pour diagnostiquer les icônes.';
     RAISE NOTICE '🎯 Les icônes Lucide sont prêtes pour l''utilisation avec le composant React.';
 END $$; 
+
+-- Script pour vérifier les business_types disponibles
+SELECT 'Business Types disponibles:' as info;
+SELECT id, name FROM business_types ORDER BY id;
+
+-- Vérifier les demandes existantes
+SELECT 'Demandes existantes:' as info;
+SELECT 
+  id,
+  business_type,
+  business_name,
+  user_email,
+  created_at
+FROM requests 
+WHERE type = 'partner' AND status = 'pending'
+ORDER BY created_at DESC; 
