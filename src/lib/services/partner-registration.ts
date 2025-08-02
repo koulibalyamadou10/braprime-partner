@@ -24,7 +24,6 @@ export interface PartnerRegistrationData {
   owner_name: string
   owner_email: string
   owner_phone: string
-  password: string
   
   // Informations du commerce
   business_name: string
@@ -322,10 +321,6 @@ export class PartnerRegistrationService {
       errors.push('Format d\'email invalide')
     }
     if (!data.owner_phone?.trim()) errors.push('Le téléphone du propriétaire est requis')
-    if (!data.password?.trim()) errors.push('Le mot de passe est requis')
-    if (data.password && data.password.length < 6) {
-      errors.push('Le mot de passe doit contenir au moins 6 caractères')
-    }
 
     // Validation des informations du business
     if (!data.business_name?.trim()) errors.push('Le nom du commerce est requis')

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerProfile } from '@/hooks/use-partner-profile';
-import { subscriptionUtils, useActivatePendingSubscription, useCreateSubscription, useCurrentUserSubscription, useCurrentUserSubscriptionHistory, useSubscriptionPlans, useUpdateBillingInfo } from '@/hooks/use-subscription';
+import { subscriptionUtils, useCreateSubscription, useCurrentUserSubscription, useCurrentUserSubscriptionHistory, useSubscriptionPlans, useUpdateBillingInfo } from '@/hooks/use-subscription';
 import { SubscriptionManagementService } from '@/lib/services/subscription-management';
 import {
     AlertCircle,
@@ -34,7 +34,15 @@ const PartnerBilling: React.FC = () => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateSubscriptionModal, setShowCreateSubscriptionModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<{ id: string; name: string; price: number; monthly_price: number; description: string; features: string[]; savings_percentage: number } | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<{
+    id: string;
+    name: string;
+    price: number;
+    monthly_price: number;
+    description: string;
+    features: string[];
+    savings_percentage: number;
+  } | null>(null);
   
   // États pour la désactivation
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
@@ -47,7 +55,6 @@ const PartnerBilling: React.FC = () => {
   const { data: subscriptionHistory, isLoading: historyLoading } = useCurrentUserSubscriptionHistory();
   const updateBillingInfo = useUpdateBillingInfo();
   const createSubscription = useCreateSubscription();
-  const activatePendingSubscription = useActivatePendingSubscription();
   
   // Hook partenaire
   const { profile: business, isLoading: businessLoading } = usePartnerProfile();
@@ -100,19 +107,10 @@ const PartnerBilling: React.FC = () => {
   };
 
   const handleSubscriptionCreated = (subscriptionId: string) => {
-    toast.success('Abonnement créé avec succès !');
+    console.log('Abonnement créé:', subscriptionId);
     setShowCreateSubscriptionModal(false);
     setSelectedPlan(null);
-  };
-
-  const handleActivateSubscription = async () => {
-    if (!currentSubscription) return;
-    
-    try {
-      await activatePendingSubscription.mutateAsync(currentSubscription.id);
-    } catch (error) {
-      console.error('Erreur lors de l\'activation:', error);
-    }
+    toast.success('Abonnement créé avec succès !');
   };
 
   const handlePayment = async (subscriptionId: string) => {
@@ -460,47 +458,11 @@ const PartnerBilling: React.FC = () => {
                             <CreditCard className="h-4 w-4 mr-2" />
                             Payer maintenant
                           </Button>
-                          <Button 
-                            onClick={handleActivateSubscription}
-                            disabled={activatePendingSubscription.isPending}
-                            variant="outline"
-                          >
-                            {activatePendingSubscription.isPending ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-                                Activation...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Activer sans paiement
-                              </>
-                            )}
-                          </Button>
                         </div>
                       </div>
                     )}
                     
                     {/* Boutons normaux pour les abonnements existants */}
-                    {!currentSubscription._from_request && currentSubscription.status === 'pending' && (
-                      <Button 
-                        onClick={handleActivateSubscription}
-                        disabled={activatePendingSubscription.isPending}
-                        className="bg-guinea-red hover:bg-guinea-red/90"
-                      >
-                        {activatePendingSubscription.isPending ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                            Activation...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Activer l'abonnement
-                          </>
-                        )}
-                      </Button>
-                    )}
                     {!currentSubscription._from_request && currentSubscription.status === 'pending' && (
                       <Button 
                         onClick={() => handlePayment(currentSubscription.id)}
@@ -543,46 +505,104 @@ const PartnerBilling: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Plans disponibles</h3>
-                    <Button 
-                      onClick={() => setShowCreateSubscriptionModal(true)}
-                      className="bg-guinea-red hover:bg-guinea-red/90"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nouvel abonnement
-                    </Button>
                   </div>
                   
                   {subscriptionPlans ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {subscriptionPlans.map((plan) => (
-                        <Card key={plan.id} className="relative">
-                          {plan.savings_percentage > 0 && (
-                            <Badge className="absolute -top-2 -right-2 bg-green-500 text-white">
-                              {plan.savings_percentage}% d'économie
-                            </Badge>
-                          )}
-                          <CardHeader>
-                            <CardTitle className="text-lg">{plan.name}</CardTitle>
-                            <CardDescription>{plan.description}</CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              <p className="text-2xl font-bold">
-                                {subscriptionUtils.formatPrice(plan.price)}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {subscriptionUtils.formatPrice(plan.monthly_price)}/mois
-                              </p>
-                              <Button 
-                                onClick={() => handleSelectPlan(plan.id)}
-                                className="w-full bg-guinea-red hover:bg-guinea-red/90"
-                              >
-                                Choisir ce plan
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                      {subscriptionPlans.map((plan) => {
+                        // Détecter si c'est le plan actuel du partenaire
+                        const isCurrentPlan = currentSubscription && 
+                          currentSubscription.plan && 
+                          currentSubscription.plan.id === plan.id;
+                        
+                        // Détecter si c'est le plan en attente de paiement
+                        const isPendingPlan = currentSubscription && 
+                          currentSubscription.status === 'pending' && 
+                          currentSubscription.plan && 
+                          currentSubscription.plan.id === plan.id;
+                        
+                        return (
+                          <Card 
+                            key={plan.id} 
+                            className={`relative ${
+                              isCurrentPlan ? 'ring-2 ring-green-500 bg-green-50' : 
+                              isPendingPlan ? 'ring-2 ring-yellow-500 bg-yellow-50' : ''
+                            }`}
+                          >
+                            {/* Badge pour le plan actuel */}
+                            {isCurrentPlan && (
+                              <Badge className="absolute -top-2 -left-2 bg-green-500 text-white z-10">
+                                Plan actuel
+                              </Badge>
+                            )}
+                            
+                            {/* Badge pour le plan en attente */}
+                            {isPendingPlan && (
+                              <Badge className="absolute -top-2 -left-2 bg-yellow-500 text-white z-10">
+                                En attente
+                              </Badge>
+                            )}
+                            
+                            {/* Badge d'économie */}
+                            {plan.savings_percentage > 0 && !isCurrentPlan && !isPendingPlan && (
+                              <Badge className="absolute -top-2 -right-2 bg-green-500 text-white">
+                                {plan.savings_percentage}% d'économie
+                              </Badge>
+                            )}
+                            
+                            <CardHeader>
+                              <CardTitle className="text-lg">{plan.name}</CardTitle>
+                              <CardDescription>{plan.description}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-2">
+                                <p className="text-2xl font-bold">
+                                  {subscriptionUtils.formatPrice(plan.price)}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {subscriptionUtils.formatPrice(plan.monthly_price)}/mois
+                                </p>
+                                
+                                {/* Bouton différent selon le statut */}
+                                {isCurrentPlan ? (
+                                  <Button 
+                                    disabled
+                                    className="w-full bg-green-500 hover:bg-green-600 text-white"
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Plan actuel
+                                  </Button>
+                                ) : isPendingPlan ? (
+                                  <Button 
+                                    onClick={() => handlePayment(currentSubscription.id)}
+                                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                                  >
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    Payer maintenant
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    onClick={() => handleSelectPlan(plan.id)}
+                                    className="w-full bg-guinea-red hover:bg-guinea-red/90"
+                                  >
+                                    {currentSubscription && currentSubscription.status === 'active' ? (
+                                      <>
+                                        <Settings className="h-4 w-4 mr-2" />
+                                        Changer de plan
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Choisir ce plan
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -686,7 +706,7 @@ const PartnerBilling: React.FC = () => {
               setShowCreateSubscriptionModal(false);
               setSelectedPlan(null);
             }}
-            selectedPlan={selectedPlan}
+            selectedPlan={selectedPlan as any}
             partnerId={business?.id || 0}
             onSubscriptionCreated={handleSubscriptionCreated}
           />

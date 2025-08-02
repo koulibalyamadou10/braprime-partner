@@ -208,6 +208,207 @@ export class OrderService {
   }
 
   /**
+   * Récupérer toutes les commandes d'un utilisateur
+   */
+  static async getUserOrders(userId: string): Promise<{ orders: Order[]; error: string | null }> {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          businesses!inner(name)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return { orders: [], error: error.message };
+      }
+
+      const orders: Order[] = (data || []).map(order => ({
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        business_id: order.business_id,
+        business_name: order.businesses?.name || 'Commerce',
+        items: order.items || [],
+        status: order.status,
+        total: order.total,
+        delivery_fee: order.delivery_fee,
+        tax: order.tax,
+        grand_total: order.grand_total,
+        delivery_method: order.delivery_method,
+        delivery_address: order.delivery_address,
+        delivery_instructions: order.delivery_instructions,
+        landmark: order.landmark,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        estimated_delivery: order.estimated_delivery,
+        actual_delivery: order.actual_delivery,
+        driver_id: order.driver_id,
+        driver_name: order.driver_name,
+        driver_phone: order.driver_phone
+      }));
+
+      return { orders, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commandes utilisateur:', error);
+      return { orders: [], error: 'Erreur lors de la récupération des commandes' };
+    }
+  }
+
+  /**
+   * Récupérer toutes les commandes d'un commerce
+   */
+  static async getBusinessOrders(businessId: number): Promise<{ orders: Order[]; error: string | null }> {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          businesses!inner(name)
+        `)
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return { orders: [], error: error.message };
+      }
+
+      const orders: Order[] = (data || []).map(order => ({
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        business_id: order.business_id,
+        business_name: order.businesses?.name || 'Commerce',
+        items: order.items || [],
+        status: order.status,
+        total: order.total,
+        delivery_fee: order.delivery_fee,
+        tax: order.tax,
+        grand_total: order.grand_total,
+        delivery_method: order.delivery_method,
+        delivery_address: order.delivery_address,
+        delivery_instructions: order.delivery_instructions,
+        landmark: order.landmark,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        estimated_delivery: order.estimated_delivery,
+        actual_delivery: order.actual_delivery,
+        driver_id: order.driver_id,
+        driver_name: order.driver_name,
+        driver_phone: order.driver_phone
+      }));
+
+      return { orders, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des commandes du commerce:', error);
+      return { orders: [], error: 'Erreur lors de la récupération des commandes' };
+    }
+  }
+
+  /**
+   * Annuler une commande
+   */
+  static async cancelOrder(orderId: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation de la commande:', error);
+      return { success: false, error: 'Erreur lors de l\'annulation de la commande' };
+    }
+  }
+
+  /**
+   * Assigner un chauffeur à une commande
+   */
+  static async assignDriver(orderId: string, driverId: string, driverName: string, driverPhone: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          driver_id: driverId,
+          driver_name: driverName,
+          driver_phone: driverPhone,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Erreur lors de l\'assignation du chauffeur:', error);
+      return { success: false, error: 'Erreur lors de l\'assignation du chauffeur' };
+    }
+  }
+
+  /**
+   * S'abonner aux changements d'une commande en temps réel
+   */
+  static subscribeToOrderChanges(orderId: string, callback: (order: Order) => void) {
+    return supabase
+      .channel(`order-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`
+        },
+        (payload) => {
+          const order = payload.new as Order;
+          callback(order);
+        }
+      )
+      .subscribe();
+  }
+
+  /**
+   * Ajouter un avis client à une commande
+   */
+  static async addCustomerReview(orderId: string, rating: number, review: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .insert({
+          order_id: orderId,
+          rating: rating,
+          review: review,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de l\'avis:', error);
+      return { success: false, error: 'Erreur lors de l\'ajout de l\'avis' };
+    }
+  }
+
+  /**
    * Créer une nouvelle commande avec notification email
    */
   static async createOrder(orderData: any): Promise<{ order: Order | null; error: string | null }> {

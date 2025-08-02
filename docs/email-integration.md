@@ -57,7 +57,14 @@ Headers:
   "selected_plan_name": "Plan Premium",
   "selected_plan_price": 50000,
   "notes": "Restaurant spécialisé dans la cuisine locale",
-  "submitted_at": "2024-01-15T10:30:00Z"
+  "submitted_at": "2024-01-15T10:30:00Z",
+  "business_phone": "+224 621 000 000",
+  "business_email": "contact@restaurant-legourmet.com",
+  "business_website": "https://restaurant-legourmet.com",
+  "business_hours": "8h-22h",
+  "cuisine_type": "Cuisine locale",
+  "estimated_processing_time": "2-3 jours ouvrables",
+  "next_steps": "Notre équipe va examiner votre demande et vous contactera sous 48h"
 }
 ```
 
@@ -89,7 +96,14 @@ curl -X POST http://localhost:3000/api/emails/request-confirmation \
     "selected_plan_name": "Plan Premium",
     "selected_plan_price": 50000,
     "notes": "Restaurant spécialisé dans la cuisine locale",
-    "submitted_at": "2024-01-15T10:30:00Z"
+    "submitted_at": "2024-01-15T10:30:00Z",
+    "business_phone": "+224 621 000 000",
+    "business_email": "contact@restaurant-legourmet.com",
+    "business_website": "https://restaurant-legourmet.com",
+    "business_hours": "8h-22h",
+    "cuisine_type": "Cuisine locale",
+    "estimated_processing_time": "2-3 jours ouvrables",
+    "next_steps": "Notre équipe va examiner votre demande et vous contactera sous 48h"
   }'
 ```
 
@@ -164,7 +178,7 @@ curl -X POST http://localhost:3000/api/emails/admin-notification \
 
 **Endpoint :** `POST /api/emails/request-approval`
 
-**Description :** Envoie un email au demandeur quand sa demande est approuvée, avec les informations de connexion.
+**Description :** Envoie un email au demandeur quand sa demande est approuvée, l'informant que l'équipe va le contacter pour les identifiants.
 
 #### Exemple Postman
 
@@ -187,8 +201,6 @@ Headers:
   "business_name": "Restaurant Le Gourmet",
   "selected_plan_name": "Plan Premium",
   "selected_plan_price": 50000,
-  "login_email": "mamadou@restaurant-legourmet.com",
-  "login_password": "MotDePasse123!",
   "dashboard_url": "https://bradelivery.com/partner-dashboard",
   "approved_at": "2024-01-16T09:15:00Z",
   "approved_by": "admin@bradelivery.com"
@@ -220,8 +232,6 @@ curl -X POST http://localhost:3000/api/emails/request-approval \
     "business_name": "Restaurant Le Gourmet",
     "selected_plan_name": "Plan Premium",
     "selected_plan_price": 50000,
-    "login_email": "mamadou@restaurant-legourmet.com",
-    "login_password": "MotDePasse123!",
     "dashboard_url": "https://bradelivery.com/partner-dashboard",
     "approved_at": "2024-01-16T09:15:00Z",
     "approved_by": "admin@bradelivery.com"
@@ -401,7 +411,15 @@ Headers:
   "delivery_address": "456 Avenue de la Liberté, Conakry",
   "estimated_delivery": "30-45 minutes",
   "order_number": "ORD-2024-001",
-  "created_at": "2024-01-15T10:30:00Z"
+  "created_at": "2024-01-15T10:30:00Z",
+  "delivery_type": "ASAP",
+  "payment_method": "Mobile Money",
+  "payment_status": "paid",
+  "customer_phone": "+224 621 456 789",
+  "special_instructions": "Appeler avant de livrer",
+  "tracking_url": "https://bradelivery.com/track/order_123456",
+  "support_phone": "+224 621 00 00 00",
+  "business_phone": "+224 621 000 000"
 }
 ```
 
@@ -447,7 +465,15 @@ curl -X POST http://localhost:3000/api/emails/order-confirmation \
     "delivery_address": "456 Avenue de la Liberté, Conakry",
     "estimated_delivery": "30-45 minutes",
     "order_number": "ORD-2024-001",
-    "created_at": "2024-01-15T10:30:00Z"
+    "created_at": "2024-01-15T10:30:00Z",
+    "delivery_type": "ASAP",
+    "payment_method": "Mobile Money",
+    "payment_status": "paid",
+    "customer_phone": "+224 621 456 789",
+    "special_instructions": "Appeler avant de livrer",
+    "tracking_url": "https://bradelivery.com/track/order_123456",
+    "support_phone": "+224 621 00 00 00",
+    "business_phone": "+224 621 000 000"
   }'
 ```
 
@@ -671,6 +697,455 @@ curl -X POST http://localhost:3000/api/emails/payment-reminder \
 
 ---
 
+### 10. Confirmation de Réservation
+
+**Endpoint :** `POST /api/emails/reservation-confirmation`
+
+**Description :** Envoie un email de confirmation après la création d'une réservation de table.
+
+#### Exemple Postman
+
+**Request :**
+```
+Method: POST
+URL: http://localhost:3000/api/emails/reservation-confirmation
+Headers:
+  Content-Type: application/json
+```
+
+**Body (JSON) :**
+```json
+{
+  "reservation_id": "res_123456",
+  "user_name": "Fatou Camara",
+  "user_email": "fatou.camara@email.com",
+  "user_phone": "+224 621 456 789",
+  "business_name": "Restaurant Le Gourmet",
+  "business_address": "123 Rue de la Paix, Conakry",
+  "reservation_date": "2024-01-20T19:00:00Z",
+  "party_size": 4,
+  "table_number": "T12",
+  "special_requests": "Table près de la fenêtre",
+  "reservation_number": "RES-2024-001",
+  "business_phone": "+224 621 000 000",
+  "cancellation_policy": "Annulation gratuite jusqu'à 2h avant",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Response (200) :**
+```json
+{
+  "success": true,
+  "message": "Email de confirmation de réservation envoyé avec succès",
+  "email_id": "email_reservation789",
+  "sent_at": "2024-01-15T10:30:05Z",
+  "reservation_id": "res_123456",
+  "reservation_number": "RES-2024-001"
+}
+```
+
+#### Test avec cURL
+
+```bash
+curl -X POST http://localhost:3000/api/emails/reservation-confirmation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reservation_id": "res_123456",
+    "user_name": "Fatou Camara",
+    "user_email": "fatou.camara@email.com",
+    "user_phone": "+224 621 456 789",
+    "business_name": "Restaurant Le Gourmet",
+    "business_address": "123 Rue de la Paix, Conakry",
+    "reservation_date": "2024-01-20T19:00:00Z",
+    "party_size": 4,
+    "table_number": "T12",
+    "special_requests": "Table près de la fenêtre",
+    "reservation_number": "RES-2024-001",
+    "business_phone": "+224 621 000 000",
+    "cancellation_policy": "Annulation gratuite jusqu'à 2h avant",
+    "created_at": "2024-01-15T10:30:00Z"
+  }'
+```
+
+---
+
+### 11. Notification de Livraison
+
+**Endpoint :** `POST /api/emails/delivery-notification`
+
+**Description :** Envoie un email au client quand le chauffeur commence la livraison.
+
+#### Exemple Postman
+
+**Request :**
+```
+Method: POST
+URL: http://localhost:3000/api/emails/delivery-notification
+Headers:
+  Content-Type: application/json
+```
+
+**Body (JSON) :**
+```json
+{
+  "order_id": "order_123456",
+  "user_name": "Fatou Camara",
+  "user_email": "fatou.camara@email.com",
+  "user_phone": "+224 621 456 789",
+  "driver_name": "Ibrahim Traoré",
+  "driver_phone": "+224 621 789 123",
+  "vehicle_plate": "ABC-123-GN",
+  "estimated_arrival": "15-20 minutes",
+  "delivery_address": "456 Avenue de la Liberté, Conakry",
+  "order_items": [
+    {
+      "name": "Poulet Yassa",
+      "quantity": 2,
+      "price": 5000
+    }
+  ],
+  "total": 13600,
+  "tracking_url": "https://bradelivery.com/track/order_123456",
+  "delivery_instructions": "Code d'accès: 1234",
+  "created_at": "2024-01-15T11:15:00Z"
+}
+```
+
+**Response (200) :**
+```json
+{
+  "success": true,
+  "message": "Notification de livraison envoyée avec succès",
+  "email_id": "email_delivery456",
+  "sent_at": "2024-01-15T11:15:05Z",
+  "order_id": "order_123456"
+}
+```
+
+#### Test avec cURL
+
+```bash
+curl -X POST http://localhost:3000/api/emails/delivery-notification \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_id": "order_123456",
+    "user_name": "Fatou Camara",
+    "user_email": "fatou.camara@email.com",
+    "user_phone": "+224 621 456 789",
+    "driver_name": "Ibrahim Traoré",
+    "driver_phone": "+224 621 789 123",
+    "vehicle_plate": "ABC-123-GN",
+    "estimated_arrival": "15-20 minutes",
+    "delivery_address": "456 Avenue de la Liberté, Conakry",
+    "order_items": [
+      {
+        "name": "Poulet Yassa",
+        "quantity": 2,
+        "price": 5000
+      }
+    ],
+    "total": 13600,
+    "tracking_url": "https://bradelivery.com/track/order_123456",
+    "delivery_instructions": "Code d'accès: 1234",
+    "created_at": "2024-01-15T11:15:00Z"
+  }'
+```
+
+---
+
+### 12. Notification de Chauffeur
+
+**Endpoint :** `POST /api/emails/driver-notification`
+
+**Description :** Envoie un email au chauffeur pour une nouvelle commande ou mise à jour.
+
+#### Exemple Postman
+
+**Request :**
+```
+Method: POST
+URL: http://localhost:3000/api/emails/driver-notification
+Headers:
+  Content-Type: application/json
+```
+
+**Body (JSON) :**
+```json
+{
+  "driver_id": "driver_123456",
+  "driver_name": "Ibrahim Traoré",
+  "driver_email": "ibrahim.traore@email.com",
+  "driver_phone": "+224 621 789 123",
+  "notification_type": "new_order",
+  "order_id": "order_123456",
+  "pickup_address": "Restaurant Le Gourmet, 123 Rue de la Paix",
+  "delivery_address": "456 Avenue de la Liberté, Conakry",
+  "estimated_earnings": 1500,
+  "order_items": [
+    {
+      "name": "Poulet Yassa",
+      "quantity": 2,
+      "price": 5000
+    }
+  ],
+  "customer_name": "Fatou Camara",
+  "customer_phone": "+224 621 456 789",
+  "special_instructions": "Appeler avant de livrer",
+  "created_at": "2024-01-15T11:15:00Z"
+}
+```
+
+**Response (200) :**
+```json
+{
+  "success": true,
+  "message": "Notification de chauffeur envoyée avec succès",
+  "email_id": "email_driver789",
+  "sent_at": "2024-01-15T11:15:05Z",
+  "driver_id": "driver_123456",
+  "order_id": "order_123456"
+}
+```
+
+#### Test avec cURL
+
+```bash
+curl -X POST http://localhost:3000/api/emails/driver-notification \
+  -H "Content-Type: application/json" \
+  -d '{
+    "driver_id": "driver_123456",
+    "driver_name": "Ibrahim Traoré",
+    "driver_email": "ibrahim.traore@email.com",
+    "driver_phone": "+224 621 789 123",
+    "notification_type": "new_order",
+    "order_id": "order_123456",
+    "pickup_address": "Restaurant Le Gourmet, 123 Rue de la Paix",
+    "delivery_address": "456 Avenue de la Liberté, Conakry",
+    "estimated_earnings": 1500,
+    "order_items": [
+      {
+        "name": "Poulet Yassa",
+        "quantity": 2,
+        "price": 5000
+      }
+    ],
+    "customer_name": "Fatou Camara",
+    "customer_phone": "+224 621 456 789",
+    "special_instructions": "Appeler avant de livrer",
+    "created_at": "2024-01-15T11:15:00Z"
+  }'
+```
+
+---
+
+### 13. Notification d'Abonnement
+
+**Endpoint :** `POST /api/emails/subscription-notification`
+
+**Description :** Envoie un email pour les notifications liées aux abonnements (activation, expiration, etc.).
+
+#### Exemple Postman
+
+**Request :**
+```
+Method: POST
+URL: http://localhost:3000/api/emails/subscription-notification
+Headers:
+  Content-Type: application/json
+```
+
+**Body (JSON) :**
+```json
+{
+  "subscription_id": "sub_123456",
+  "partner_name": "Mamadou Diallo",
+  "partner_email": "morykoulibaly2023@gmail.com",
+  "business_name": "Restaurant Le Gourmet",
+  "notification_type": "activated",
+  "plan_name": "Plan Premium",
+  "plan_price": 50000,
+  "billing_cycle": "monthly",
+  "next_billing_date": "2024-02-15T00:00:00Z",
+  "payment_method": "Mobile Money",
+  "subscription_status": "active",
+  "features": ["Livraison illimitée", "Support prioritaire", "Analytics avancées"],
+  "dashboard_url": "https://bradelivery.com/partner-dashboard/billing",
+  "support_email": "support@bradelivery.com",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Response (200) :**
+```json
+{
+  "success": true,
+  "message": "Notification d'abonnement envoyée avec succès",
+  "email_id": "email_subscription123",
+  "sent_at": "2024-01-15T10:30:05Z",
+  "subscription_id": "sub_123456",
+  "notification_type": "activated"
+}
+```
+
+#### Test avec cURL
+
+```bash
+curl -X POST http://localhost:3000/api/emails/subscription-notification \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subscription_id": "sub_123456",
+    "partner_name": "Mamadou Diallo",
+    "partner_email": "morykoulibaly2023@gmail.com",
+    "business_name": "Restaurant Le Gourmet",
+    "notification_type": "activated",
+    "plan_name": "Plan Premium",
+    "plan_price": 50000,
+    "billing_cycle": "monthly",
+    "next_billing_date": "2024-02-15T00:00:00Z",
+    "payment_method": "Mobile Money",
+    "subscription_status": "active",
+    "features": ["Livraison illimitée", "Support prioritaire", "Analytics avancées"],
+    "dashboard_url": "https://bradelivery.com/partner-dashboard/billing",
+    "support_email": "support@bradelivery.com",
+    "created_at": "2024-01-15T10:30:00Z"
+  }'
+```
+
+---
+
+### 14. Notification de Support
+
+**Endpoint :** `POST /api/emails/support-notification`
+
+**Description :** Envoie un email de confirmation pour les tickets de support.
+
+#### Exemple Postman
+
+**Request :**
+```
+Method: POST
+URL: http://localhost:3000/api/emails/support-notification
+Headers:
+  Content-Type: application/json
+```
+
+**Body (JSON) :**
+```json
+{
+  "ticket_id": "ticket_123456",
+  "user_name": "Fatou Camara",
+  "user_email": "fatou.camara@email.com",
+  "user_type": "customer",
+  "subject": "Problème avec ma commande",
+  "message": "Ma commande n'arrive pas...",
+  "priority": "high",
+  "category": "delivery",
+  "order_id": "order_123456",
+  "business_name": "Restaurant Le Gourmet",
+  "support_agent": "Support Team",
+  "estimated_response_time": "2-4 heures",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Response (200) :**
+```json
+{
+  "success": true,
+  "message": "Notification de support envoyée avec succès",
+  "email_id": "email_support456",
+  "sent_at": "2024-01-15T10:30:05Z",
+  "ticket_id": "ticket_123456"
+}
+```
+
+#### Test avec cURL
+
+```bash
+curl -X POST http://localhost:3000/api/emails/support-notification \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ticket_id": "ticket_123456",
+    "user_name": "Fatou Camara",
+    "user_email": "fatou.camara@email.com",
+    "user_type": "customer",
+    "subject": "Problème avec ma commande",
+    "message": "Ma commande n'arrive pas...",
+    "priority": "high",
+    "category": "delivery",
+    "order_id": "order_123456",
+    "business_name": "Restaurant Le Gourmet",
+    "support_agent": "Support Team",
+    "estimated_response_time": "2-4 heures",
+    "created_at": "2024-01-15T10:30:00Z"
+  }'
+```
+
+---
+
+### 15. Notification de Maintenance
+
+**Endpoint :** `POST /api/emails/maintenance-notification`
+
+**Description :** Envoie un email pour informer les utilisateurs des maintenances planifiées.
+
+#### Exemple Postman
+
+**Request :**
+```
+Method: POST
+URL: http://localhost:3000/api/emails/maintenance-notification
+Headers:
+  Content-Type: application/json
+```
+
+**Body (JSON) :**
+```json
+{
+  "notification_type": "scheduled",
+  "affected_services": ["orders", "payments", "delivery"],
+  "maintenance_start": "2024-01-20T02:00:00Z",
+  "maintenance_end": "2024-01-20T06:00:00Z",
+  "description": "Mise à jour du système de paiement",
+  "impact_level": "medium",
+  "alternative_contact": "+224 621 00 00 00",
+  "status_page_url": "https://status.bradelivery.com",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Response (200) :**
+```json
+{
+  "success": true,
+  "message": "Notification de maintenance envoyée avec succès",
+  "email_id": "email_maintenance789",
+  "sent_at": "2024-01-15T10:30:05Z",
+  "notification_type": "scheduled"
+}
+```
+
+#### Test avec cURL
+
+```bash
+curl -X POST http://localhost:3000/api/emails/maintenance-notification \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notification_type": "scheduled",
+    "affected_services": ["orders", "payments", "delivery"],
+    "maintenance_start": "2024-01-20T02:00:00Z",
+    "maintenance_end": "2024-01-20T06:00:00Z",
+    "description": "Mise à jour du système de paiement",
+    "impact_level": "medium",
+    "alternative_contact": "+224 621 00 00 00",
+    "status_page_url": "https://status.bradelivery.com",
+    "created_at": "2024-01-15T10:30:00Z"
+  }'
+```
+
+---
+
 ## 📊 Collection Postman Complète
 
 ### Import de la Collection
@@ -703,7 +1178,7 @@ Vous pouvez importer cette collection dans Postman en créant un fichier JSON av
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request_id\": \"req_123456789\",\n  \"request_type\": \"partner\",\n  \"user_name\": \"Mamadou Diallo\",\n  \"user_email\": \"morykoulibaly2023@gmail.com\",\n  \"user_phone\": \"+224 621 123 456\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"business_type\": \"Restaurant\",\n  \"business_address\": \"123 Rue de la Paix, Conakry\",\n  \"selected_plan_name\": \"Plan Premium\",\n  \"selected_plan_price\": 50000,\n  \"notes\": \"Restaurant spécialisé dans la cuisine locale\",\n  \"submitted_at\": \"2024-01-15T10:30:00Z\"\n}"
+          "raw": "{\n  \"request_id\": \"req_123456789\",\n  \"request_type\": \"partner\",\n  \"user_name\": \"Mamadou Diallo\",\n  \"user_email\": \"morykoulibaly2023@gmail.com\",\n  \"user_phone\": \"+224 621 123 456\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"business_type\": \"Restaurant\",\n  \"business_address\": \"123 Rue de la Paix, Conakry\",\n  \"selected_plan_name\": \"Plan Premium\",\n  \"selected_plan_price\": 50000,\n  \"notes\": \"Restaurant spécialisé dans la cuisine locale\",\n  \"submitted_at\": \"2024-01-15T10:30:00Z\",\n  \"business_phone\": \"+224 621 000 000\",\n  \"business_email\": \"contact@restaurant-legourmet.com\",\n  \"business_website\": \"https://restaurant-legourmet.com\",\n  \"business_hours\": \"8h-22h\",\n  \"cuisine_type\": \"Cuisine locale\",\n  \"estimated_processing_time\": \"2-3 jours ouvrables\",\n  \"next_steps\": \"Notre équipe va examiner votre demande et vous contactera sous 48h\"\n}"
         }
       }
     },
@@ -749,7 +1224,7 @@ Vous pouvez importer cette collection dans Postman en créant un fichier JSON av
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request_id\": \"req_123456789\",\n  \"request_type\": \"partner\",\n  \"user_name\": \"Mamadou Diallo\",\n  \"user_email\": \"morykoulibaly2023@gmail.com\",\n  \"user_phone\": \"+224 621 123 456\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"selected_plan_name\": \"Plan Premium\",\n  \"selected_plan_price\": 50000,\n  \"login_email\": \"mamadou@restaurant-legourmet.com\",\n  \"login_password\": \"MotDePasse123!\",\n  \"dashboard_url\": \"https://bradelivery.com/partner-dashboard\",\n  \"approved_at\": \"2024-01-16T09:15:00Z\",\n  \"approved_by\": \"admin@bradelivery.com\"\n}"
+          "raw": "{\n  \"request_id\": \"req_123456789\",\n  \"request_type\": \"partner\",\n  \"user_name\": \"Mamadou Diallo\",\n  \"user_email\": \"morykoulibaly2023@gmail.com\",\n  \"user_phone\": \"+224 621 123 456\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"selected_plan_name\": \"Plan Premium\",\n  \"selected_plan_price\": 50000,\n  \"dashboard_url\": \"https://bradelivery.com/partner-dashboard\",\n  \"approved_at\": \"2024-01-16T09:15:00Z\",\n  \"approved_by\": \"admin@bradelivery.com\"\n}"
         }
       }
     },
@@ -818,7 +1293,7 @@ Vous pouvez importer cette collection dans Postman en créant un fichier JSON av
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"order_id\": \"order_123456\",\n  \"user_name\": \"Fatou Camara\",\n  \"user_email\": \"fatou.camara@email.com\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"business_address\": \"123 Rue de la Paix, Conakry\",\n  \"order_items\": [\n    {\n      \"name\": \"Poulet Yassa\",\n      \"quantity\": 2,\n      \"price\": 5000\n    },\n    {\n      \"name\": \"Riz au gras\",\n      \"quantity\": 1,\n      \"price\": 2000\n    }\n  ],\n  \"subtotal\": 12000,\n  \"delivery_fee\": 1000,\n  \"tax\": 600,\n  \"total\": 13600,\n  \"delivery_address\": \"456 Avenue de la Liberté, Conakry\",\n  \"estimated_delivery\": \"30-45 minutes\",\n  \"order_number\": \"ORD-2024-001\",\n  \"created_at\": \"2024-01-15T10:30:00Z\"\n}"
+          "raw": "{\n  \"order_id\": \"order_123456\",\n  \"user_name\": \"Fatou Camara\",\n  \"user_email\": \"fatou.camara@email.com\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"business_address\": \"123 Rue de la Paix, Conakry\",\n  \"order_items\": [\n    {\n      \"name\": \"Poulet Yassa\",\n      \"quantity\": 2,\n      \"price\": 5000\n    },\n    {\n      \"name\": \"Riz au gras\",\n      \"quantity\": 1,\n      \"price\": 2000\n    }\n  ],\n  \"subtotal\": 12000,\n  \"delivery_fee\": 1000,\n  \"tax\": 600,\n  \"total\": 13600,\n  \"delivery_address\": \"456 Avenue de la Liberté, Conakry\",\n  \"estimated_delivery\": \"30-45 minutes\",\n  \"order_number\": \"ORD-2024-001\",\n  \"created_at\": \"2024-01-15T10:30:00Z\",\n  \"delivery_type\": \"ASAP\",\n  \"payment_method\": \"Mobile Money\",\n  \"payment_status\": \"paid\",\n  \"customer_phone\": \"+224 621 456 789\",\n  \"special_instructions\": \"Appeler avant de livrer\",\n  \"tracking_url\": \"https://bradelivery.com/track/order_123456\",\n  \"support_phone\": \"+224 621 00 00 00\",\n  \"business_phone\": \"+224 621 000 000\"\n}"
         }
       }
     },
@@ -888,6 +1363,144 @@ Vous pouvez importer cette collection dans Postman en créant un fichier JSON av
         "body": {
           "mode": "raw",
           "raw": "{\n  \"partner_id\": \"partner_456789\",\n  \"partner_name\": \"Mamadou Diallo\",\n  \"partner_email\": \"morykoulibaly2023@gmail.com\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"subscription_id\": \"sub_123456\",\n  \"plan_name\": \"Plan Premium\",\n  \"plan_price\": 50000,\n  \"days_remaining\": 7,\n  \"payment_url\": \"https://bradelivery.com/partner-dashboard/settings/billing\",\n  \"reminder_type\": \"first\"\n}"
+        }
+      }
+    },
+    {
+      "name": "10. Confirmation de Réservation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/emails/reservation-confirmation",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "emails", "reservation-confirmation"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reservation_id\": \"res_123456\",\n  \"user_name\": \"Fatou Camara\",\n  \"user_email\": \"fatou.camara@email.com\",\n  \"user_phone\": \"+224 621 456 789\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"business_address\": \"123 Rue de la Paix, Conakry\",\n  \"reservation_date\": \"2024-01-20T19:00:00Z\",\n  \"party_size\": 4,\n  \"table_number\": \"T12\",\n  \"special_requests\": \"Table près de la fenêtre\",\n  \"reservation_number\": \"RES-2024-001\",\n  \"business_phone\": \"+224 621 000 000\",\n  \"cancellation_policy\": \"Annulation gratuite jusqu'à 2h avant\",\n  \"created_at\": \"2024-01-15T10:30:00Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "11. Notification de Livraison",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/emails/delivery-notification",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "emails", "delivery-notification"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"order_id\": \"order_123456\",\n  \"user_name\": \"Fatou Camara\",\n  \"user_email\": \"fatou.camara@email.com\",\n  \"user_phone\": \"+224 621 456 789\",\n  \"driver_name\": \"Ibrahim Traoré\",\n  \"driver_phone\": \"+224 621 789 123\",\n  \"vehicle_plate\": \"ABC-123-GN\",\n  \"estimated_arrival\": \"15-20 minutes\",\n  \"delivery_address\": \"456 Avenue de la Liberté, Conakry\",\n  \"order_items\": [\n    {\n      \"name\": \"Poulet Yassa\",\n      \"quantity\": 2,\n      \"price\": 5000\n    }\n  ],\n  \"total\": 13600,\n  \"tracking_url\": \"https://bradelivery.com/track/order_123456\",\n  \"delivery_instructions\": \"Code d'accès: 1234\",\n  \"created_at\": \"2024-01-15T11:15:00Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "12. Notification de Chauffeur",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/emails/driver-notification",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "emails", "driver-notification"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"driver_id\": \"driver_123456\",\n  \"driver_name\": \"Ibrahim Traoré\",\n  \"driver_email\": \"ibrahim.traore@email.com\",\n  \"driver_phone\": \"+224 621 789 123\",\n  \"notification_type\": \"new_order\",\n  \"order_id\": \"order_123456\",\n  \"pickup_address\": \"Restaurant Le Gourmet, 123 Rue de la Paix\",\n  \"delivery_address\": \"456 Avenue de la Liberté, Conakry\",\n  \"estimated_earnings\": 1500,\n  \"order_items\": [\n    {\n      \"name\": \"Poulet Yassa\",\n      \"quantity\": 2,\n      \"price\": 5000\n    }\n  ],\n  \"customer_name\": \"Fatou Camara\",\n  \"customer_phone\": \"+224 621 456 789\",\n  \"special_instructions\": \"Appeler avant de livrer\",\n  \"created_at\": \"2024-01-15T11:15:00Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "13. Notification d'Abonnement",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/emails/subscription-notification",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "emails", "subscription-notification"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"subscription_id\": \"sub_123456\",\n  \"partner_name\": \"Mamadou Diallo\",\n  \"partner_email\": \"morykoulibaly2023@gmail.com\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"notification_type\": \"activated\",\n  \"plan_name\": \"Plan Premium\",\n  \"plan_price\": 50000,\n  \"billing_cycle\": \"monthly\",\n  \"next_billing_date\": \"2024-02-15T00:00:00Z\",\n  \"payment_method\": \"Mobile Money\",\n  \"subscription_status\": \"active\",\n  \"features\": [\"Livraison illimitée\", \"Support prioritaire\", \"Analytics avancées\"],\n  \"dashboard_url\": \"https://bradelivery.com/partner-dashboard/billing\",\n  \"support_email\": \"support@bradelivery.com\",\n  \"created_at\": \"2024-01-15T10:30:00Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "14. Notification de Support",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/emails/support-notification",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "emails", "support-notification"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ticket_id\": \"ticket_123456\",\n  \"user_name\": \"Fatou Camara\",\n  \"user_email\": \"fatou.camara@email.com\",\n  \"user_type\": \"customer\",\n  \"subject\": \"Problème avec ma commande\",\n  \"message\": \"Ma commande n'arrive pas...\",\n  \"priority\": \"high\",\n  \"category\": \"delivery\",\n  \"order_id\": \"order_123456\",\n  \"business_name\": \"Restaurant Le Gourmet\",\n  \"support_agent\": \"Support Team\",\n  \"estimated_response_time\": \"2-4 heures\",\n  \"created_at\": \"2024-01-15T10:30:00Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "15. Notification de Maintenance",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:3000/api/emails/maintenance-notification",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api", "emails", "maintenance-notification"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification_type\": \"scheduled\",\n  \"affected_services\": [\"orders\", \"payments\", \"delivery\"],\n  \"maintenance_start\": \"2024-01-20T02:00:00Z\",\n  \"maintenance_end\": \"2024-01-20T06:00:00Z\",\n  \"description\": \"Mise à jour du système de paiement\",\n  \"impact_level\": \"medium\",\n  \"alternative_contact\": \"+224 621 00 00 00\",\n  \"status_page_url\": \"https://status.bradelivery.com\",\n  \"created_at\": \"2024-01-15T10:30:00Z\"\n}"
         }
       }
     }

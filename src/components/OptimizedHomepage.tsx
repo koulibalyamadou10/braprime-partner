@@ -55,7 +55,7 @@ const BecomePartnerDriver = () => {
   };
 
   const handleBecomeDriver = () => {
-    navigate('/devenir-chauffeur');
+    navigate('/devenir-conducteur');
   };
 
   return (

@@ -4,9 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useEmailService } from '@/hooks/use-email-service'
 import { PartnerRegistrationData, PartnerRegistrationService } from '@/lib/services/partner-registration'
-import { ArrowLeft, ArrowRight, Building2, CheckCircle, DollarSign, Eye, EyeOff, Star, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Building2, CheckCircle, DollarSign, Star, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -104,19 +103,17 @@ const cuisineTypes = [
 ]
 
 export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistrationFormProps) {
+  const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [step, setStep] = useState(1)
-  const [showPassword, setShowPassword] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState<any>(null)
-  const { sendPartnerRequestEmails } = useEmailService()
-  
-  const [formData, setFormData] = useState<PartnerRegistrationData>({
+  const [formData, setFormData] = useState({
+    // Informations du propriétaire
     owner_name: '',
     owner_email: '',
     owner_phone: '',
-    password: '',
+    
+    // Informations du commerce
     business_name: '',
-    business_type: 'restaurant',
+    business_type: '',
     business_address: '',
     business_phone: '',
     business_email: '',
@@ -124,102 +121,111 @@ export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistra
     opening_hours: '',
     delivery_radius: 5,
     cuisine_type: '',
-    specialties: []
+    specialties: [] as string[],
+    
+    // Plan sélectionné
+    selectedPlan: null as any
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [selectedPlan, setSelectedPlan] = useState<any>(null)
 
   // Validation en temps réel
   useEffect(() => {
-    const validation = PartnerRegistrationService.validateRegistrationData(formData)
-    setValidationErrors(validation.errors)
-  }, [formData])
-
-  const validateStep = (currentStep: number) => {
     const newErrors: Record<string, string> = {}
-
+    
     if (currentStep === 1) {
       if (!formData.owner_name.trim()) newErrors.owner_name = 'Le nom est requis'
       if (!formData.owner_email.trim()) newErrors.owner_email = 'L\'email est requis'
       else if (!/\S+@\S+\.\S+/.test(formData.owner_email)) newErrors.owner_email = 'Email invalide'
       if (!formData.owner_phone.trim()) newErrors.owner_phone = 'Le téléphone est requis'
-      if (!formData.password.trim()) newErrors.password = 'Le mot de passe est requis'
-      else if (formData.password.length < 6) newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères'
     }
-
+    
     if (currentStep === 2) {
       if (!formData.business_name.trim()) newErrors.business_name = 'Le nom du commerce est requis'
+      if (!formData.business_type) newErrors.business_type = 'Le type de commerce est requis'
       if (!formData.business_address.trim()) newErrors.business_address = 'L\'adresse est requise'
       if (!formData.business_phone.trim()) newErrors.business_phone = 'Le téléphone du commerce est requis'
       if (!formData.business_email.trim()) newErrors.business_email = 'L\'email du commerce est requis'
       else if (!/\S+@\S+\.\S+/.test(formData.business_email)) newErrors.business_email = 'Email invalide'
     }
-
-    if (currentStep === 4) {
-      if (!selectedPlan) newErrors.plan = 'Veuillez sélectionner un plan d\'abonnement'
+    
+    if (currentStep === 3) {
+      if (!formData.business_description.trim()) newErrors.business_description = 'La description est requise'
+      if (!formData.opening_hours.trim()) newErrors.opening_hours = 'Les horaires d\'ouverture sont requis'
     }
+    
+    setErrors(newErrors)
+  }, [formData, currentStep])
 
+  const validateStep = (currentStep: number) => {
+    const newErrors: Record<string, string> = {}
+    
+    if (currentStep === 1) {
+      if (!formData.owner_name.trim()) newErrors.owner_name = 'Le nom est requis'
+      if (!formData.owner_email.trim()) newErrors.owner_email = 'L\'email est requis'
+      else if (!/\S+@\S+\.\S+/.test(formData.owner_email)) newErrors.owner_email = 'Email invalide'
+      if (!formData.owner_phone.trim()) newErrors.owner_phone = 'Le téléphone est requis'
+    }
+    
+    if (currentStep === 2) {
+      if (!formData.business_name.trim()) newErrors.business_name = 'Le nom du commerce est requis'
+      if (!formData.business_type) newErrors.business_type = 'Le type de commerce est requis'
+      if (!formData.business_address.trim()) newErrors.business_address = 'L\'adresse est requise'
+      if (!formData.business_phone.trim()) newErrors.business_phone = 'Le téléphone du commerce est requis'
+      if (!formData.business_email.trim()) newErrors.business_email = 'L\'email du commerce est requis'
+      else if (!/\S+@\S+\.\S+/.test(formData.business_email)) newErrors.business_email = 'Email invalide'
+    }
+    
+    if (currentStep === 3) {
+      if (!formData.business_description.trim()) newErrors.business_description = 'La description est requise'
+      if (!formData.opening_hours.trim()) newErrors.opening_hours = 'Les horaires d\'ouverture sont requis'
+    }
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleNext = () => {
-    if (validateStep(step)) {
-      setStep(step + 1)
+    if (validateStep(currentStep)) {
+      setCurrentStep(currentStep + 1)
     }
   }
 
   const handlePrevious = () => {
-    setStep(step - 1)
+    setCurrentStep(currentStep - 1)
   }
 
   const handleSubmit = async () => {
-    if (!validateStep(step)) return
-    if (validationErrors.length > 0) {
-      toast.error('Veuillez corriger les erreurs de validation')
+    if (!validateStep(currentStep)) {
+      toast.error('Veuillez corriger les erreurs avant de continuer')
+      return
+    }
+
+    if (!selectedPlan) {
+      toast.error('Veuillez sélectionner un plan')
       return
     }
 
     setIsSubmitting(true)
+
     try {
-      // Inclure le plan sélectionné dans les données
       const registrationData = {
         ...formData,
-        selectedPlan: selectedPlan
+        selectedPlan
       }
-      
-      // Étape 1: Créer la demande
-      const result = await PartnerRegistrationService.createPartnerAccount(registrationData)
-                
-      if (result.success) {
-        // Étape 2: Envoyer les emails de notification
-        try {
-          await sendPartnerRequestEmails({
-            request_id: result.request?.id || '',
-            user_name: formData.owner_name,
-            user_email: formData.owner_email,
-            user_phone: formData.owner_phone,
-            business_name: formData.business_name,
-            business_type: formData.business_type,
-            business_address: formData.business_address,
-            selected_plan_name: selectedPlan?.name,
-            selected_plan_price: selectedPlan?.price,
-            notes: formData.business_description,
-            submitted_at: new Date().toISOString()
-          });
-        } catch (emailError) {
-          console.warn('Erreur lors de l\'envoi des emails:', emailError);
-          // Ne pas faire échouer la demande à cause des emails
-        }
 
-        toast.success(result.message || 'Demande de partenariat envoyée avec succès ! Vous recevrez une notification après approbation.')
+      const result = await PartnerRegistrationService.createPartnerAccount(registrationData)
+
+      if (result.success) {
+        toast.success('Demande de partenariat envoyée avec succès !')
         onSuccess?.(result)
       } else {
-        toast.error(`Erreur: ${result.error}`)
+        toast.error(result.error || 'Erreur lors de l\'envoi de la demande')
       }
     } catch (error) {
-      toast.error('Erreur lors de l\'envoi de la demande de partenariat')
+      console.error('Erreur lors de la soumission:', error)
+      toast.error('Erreur lors de l\'envoi de la demande')
     } finally {
       setIsSubmitting(false)
     }
@@ -243,121 +249,26 @@ export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistra
 
   // Fonction pour pré-remplir avec des données aléatoires
   const fillWithRandomData = () => {
-    const randomNames = [
-      'Mamadou Diallo', 'Fatoumata Bah', 'Ibrahima Camara', 'Aissatou Barry',
-      'Ousmane Keita', 'Mariama Sow', 'Alpha Conde', 'Fanta Toure',
-      'Moussa Fofana', 'Aminata Diallo', 'Sekou Traore', 'Hawa Camara'
-    ]
+    const randomNames = ['Alpha Restaurant', 'Beta Café', 'Gamma Market', 'Delta Pharmacy', 'Epsilon Electronics']
+    const randomEmails = ['alpha@test.com', 'beta@test.com', 'gamma@test.com', 'delta@test.com', 'epsilon@test.com']
+    const randomPhones = ['+224 123 456 789', '+224 234 567 890', '+224 345 678 901', '+224 456 789 012', '+224 567 890 123']
     
-    const randomEmails = [
-      'mamadou.diallo@test.com', 'fatoumata.bah@test.com', 'ibrahima.camara@test.com',
-      'aissatou.barry@test.com', 'ousmane.keita@test.com', 'mariama.sow@test.com',
-      'alpha.conde@test.com', 'fanta.toure@test.com', 'moussa.fofana@test.com',
-      'aminata.diallo@test.com', 'sekou.traore@test.com', 'hawa.camara@test.com'
-    ]
-    
-    const randomPhones = [
-      '622123456', '623456789', '624789123', '625123456',
-      '626456789', '627789123', '628123456', '629456789',
-      '630789123', '631123456', '632456789', '633789123'
-    ]
-    
-    const randomBusinessNames = [
-      'Restaurant Le Gourmet', 'Café Central', 'Pizzeria Bella Vista',
-      'Restaurant Chez Maman', 'Café du Marché', 'Restaurant Le Palais',
-      'Pizzeria Napoli', 'Café de la Gare', 'Restaurant Le Petit Paris',
-      'Café des Artistes', 'Restaurant Le Jardin', 'Pizzeria Roma'
-    ]
-    
-    const randomAddresses = [
-      '123 Avenue de la République, Conakry', '456 Rue du Commerce, Kaloum',
-      '789 Boulevard du Port, Conakry', '321 Rue de la Paix, Dixinn',
-      '654 Avenue des Nations, Ratoma', '987 Rue de la Liberté, Conakry',
-      '147 Boulevard de la Mer, Kaloum', '258 Rue du Marché, Dixinn',
-      '369 Avenue de l\'Indépendance, Ratoma', '741 Rue de la Gare, Conakry',
-      '852 Boulevard du Centre, Kaloum', '963 Rue de l\'Université, Dixinn'
-    ]
-    
-    const randomBusinessPhones = [
-      '622987654', '623654321', '624321987', '625987654',
-      '626654321', '627321987', '628987654', '629654321',
-      '630321987', '631987654', '632654321', '633321987'
-    ]
-    
-    const randomBusinessEmails = [
-      'contact@legourmet.test', 'info@cafecentral.test', 'reservation@bellavista.test',
-      'contact@chezmaman.test', 'info@cafedumarche.test', 'reservation@lepalais.test',
-      'contact@napoli.test', 'info@cafedelagare.test', 'reservation@petitparis.test',
-      'contact@artistes.test', 'info@jardin.test', 'reservation@roma.test'
-    ]
-    
-    const randomDescriptions = [
-      'Restaurant traditionnel guinéen avec une cuisine authentique et des saveurs locales.',
-      'Café moderne avec une ambiance chaleureuse et un service de qualité.',
-      'Pizzeria italienne avec des pizzas faites maison et des ingrédients frais.',
-      'Restaurant familial avec une cuisine française et africaine fusion.',
-      'Café du marché avec des produits locaux et une atmosphère conviviale.',
-      'Restaurant gastronomique avec une cuisine raffinée et un service premium.',
-      'Pizzeria traditionnelle avec des recettes authentiques et des fours à bois.',
-      'Café de la gare avec une ambiance urbaine et un service rapide.',
-      'Restaurant français avec une cuisine classique et une ambiance élégante.',
-      'Café des artistes avec une ambiance créative et des expositions régulières.',
-      'Restaurant avec jardin avec une cuisine naturelle et un cadre verdoyant.',
-      'Pizzeria romaine avec des pizzas traditionnelles et des saveurs authentiques.'
-    ]
-    
-    const randomOpeningHours = [
-      'Lun-Sam: 7h-22h, Dim: 8h-21h',
-      'Lun-Ven: 8h-20h, Sam-Dim: 9h-18h',
-      'Mar-Dim: 11h-23h, Lun: Fermé',
-      'Lun-Sam: 6h-21h, Dim: 7h-20h',
-      'Lun-Ven: 7h-19h, Sam-Dim: 8h-18h',
-      'Mar-Dim: 12h-24h, Lun: Fermé',
-      'Lun-Sam: 10h-22h, Dim: 11h-21h',
-      'Lun-Ven: 6h-20h, Sam-Dim: 7h-19h',
-      'Mar-Dim: 11h-23h, Lun: Fermé',
-      'Lun-Sam: 8h-21h, Dim: 9h-20h',
-      'Lun-Ven: 7h-18h, Sam-Dim: 8h-17h',
-      'Mar-Dim: 12h-22h, Lun: Fermé'
-    ]
-    
-    // Sélectionner des données aléatoires
-    const randomIndex = Math.floor(Math.random() * randomNames.length)
-    
-    const randomData: PartnerRegistrationData = {
-      owner_name: randomNames[randomIndex],
-      owner_email: randomEmails[randomIndex],
-      owner_phone: randomPhones[randomIndex],
-      password: 'Test123!',
-      business_name: randomBusinessNames[randomIndex],
-      business_type: businessTypes[Math.floor(Math.random() * businessTypes.length)].value as any,
-      business_address: randomAddresses[randomIndex],
-      business_phone: randomBusinessPhones[randomIndex],
-      business_email: randomBusinessEmails[randomIndex],
-      business_description: randomDescriptions[randomIndex],
-      opening_hours: randomOpeningHours[randomIndex],
-      delivery_radius: Math.floor(Math.random() * 10) + 3, // 3-12 km
-      cuisine_type: cuisineTypes[Math.floor(Math.random() * cuisineTypes.length)],
-      specialties: []
-    }
-    
-    // Ajouter quelques spécialités aléatoires
-    const allSpecialties = [
-      'Cuisine locale', 'Pizza', 'Burger', 'Sushi', 'Poulet braisé',
-      'Poisson grillé', 'Salades', 'Desserts', 'Boissons', 'Café',
-      'Thé', 'Jus naturels', 'Cocktails', 'Vins', 'Bières locales'
-    ]
-    
-    const numSpecialties = Math.floor(Math.random() * 4) + 2 // 2-5 spécialités
-    for (let i = 0; i < numSpecialties; i++) {
-      const specialty = allSpecialties[Math.floor(Math.random() * allSpecialties.length)]
-      if (!randomData.specialties.includes(specialty)) {
-        randomData.specialties.push(specialty)
-      }
-    }
-    
-    setFormData(randomData)
-    toast.success('Formulaire pré-rempli avec des données de test!')
+    setFormData({
+      ...formData,
+      owner_name: randomNames[Math.floor(Math.random() * randomNames.length)],
+      owner_email: randomEmails[Math.floor(Math.random() * randomEmails.length)],
+      owner_phone: randomPhones[Math.floor(Math.random() * randomPhones.length)],
+      business_name: randomNames[Math.floor(Math.random() * randomNames.length)],
+      business_type: 'restaurant',
+      business_address: 'Conakry, Guinée',
+      business_phone: randomPhones[Math.floor(Math.random() * randomPhones.length)],
+      business_email: randomEmails[Math.floor(Math.random() * randomEmails.length)],
+      business_description: 'Commerce de test avec des produits de qualité',
+      opening_hours: '8h-18h, Lundi-Samedi',
+      delivery_radius: 5,
+      cuisine_type: 'Africaine',
+      specialties: ['Plats locaux', 'Boissons fraîches']
+    })
   }
 
   const renderStep1 = () => (
@@ -423,28 +334,6 @@ export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistra
             className={errors.owner_phone ? 'border-red-500' : ''}
           />
           {errors.owner_phone && <p className="text-red-500 text-sm mt-1">{errors.owner_phone}</p>}
-        </div>
-
-        <div>
-          <Label htmlFor="password">Mot de passe *</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              value={formData.password}
-              onChange={(e) => handleInputChange('password', e.target.value)}
-              placeholder="Mot de passe"
-              className={errors.password ? 'border-red-500' : ''}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
-          {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
         </div>
       </div>
     </div>
@@ -659,7 +548,8 @@ export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistra
         </Card>
       </div>
 
-      {validationErrors.length > 0 && (
+      {/* validationErrors is no longer used, but keeping the structure */}
+      {/* {validationErrors.length > 0 && (
         <Card className="border-red-200 bg-red-50">
           <CardHeader>
             <CardTitle className="text-red-800">Erreurs de validation</CardTitle>
@@ -672,7 +562,7 @@ export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistra
             </ul>
           </CardContent>
         </Card>
-      )}
+      )} */}
     </div>
   )
 
@@ -754,40 +644,40 @@ export function PartnerRegistrationForm({ onSuccess, onCancel }: PartnerRegistra
           {[1, 2, 3, 4].map((stepNumber) => (
             <div key={stepNumber} className="flex items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step >= stepNumber ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
+                currentStep >= stepNumber ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {stepNumber}
               </div>
               {stepNumber < 4 && (
                 <div className={`w-12 h-0.5 mx-2 ${
-                  step > stepNumber ? 'bg-primary' : 'bg-gray-200'
+                  currentStep > stepNumber ? 'bg-primary' : 'bg-gray-200'
                 }`} />
               )}
             </div>
           ))}
         </div>
-        <span className="text-sm text-gray-500">Étape {step} sur 4</span>
+        <span className="text-sm text-gray-500">Étape {currentStep} sur 4</span>
       </div>
 
       {/* Step content */}
-      {step === 1 && renderStep1()}
-      {step === 2 && renderStep2()}
-      {step === 3 && renderStep3()}
-      {step === 4 && renderStep4()}
+      {currentStep === 1 && renderStep1()}
+      {currentStep === 2 && renderStep2()}
+      {currentStep === 3 && renderStep3()}
+      {currentStep === 4 && renderStep4()}
 
       {/* Navigation buttons */}
       <div className="flex justify-between pt-6">
         <Button
           variant="outline"
-          onClick={step === 1 ? onCancel : handlePrevious}
+          onClick={currentStep === 1 ? onCancel : handlePrevious}
           disabled={isSubmitting}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          {step === 1 ? 'Annuler' : 'Précédent'}
+          {currentStep === 1 ? 'Annuler' : 'Précédent'}
         </Button>
 
         <div className="flex gap-2">
-          {step < 4 ? (
+          {currentStep < 4 ? (
             <Button onClick={handleNext} disabled={isSubmitting}>
               Suivant
               <ArrowRight className="h-4 w-4 ml-2" />

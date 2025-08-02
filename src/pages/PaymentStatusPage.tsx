@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { PaymentService } from '@/lib/services/payment';
+import { supabase } from '@/lib/supabase';
 import {
     AlertCircle,
     AlertTriangle,
@@ -23,22 +23,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 type PaymentStatus = 'checking' | 'success' | 'failed' | 'pending' | 'error' | 'unknown';
 
-interface PaymentStatusData {
+interface OrderData {
   id: string;
-  order_id: string;
-  pay_id: string;
-  amount: number;
-  currency: string;
   status: string;
-  method: string;
+  payment_status: string;
+  total: number;
+  grand_total: number;
   created_at: string;
   updated_at: string;
-  gateway_response: {
-    status: string;
-    pay_id: string;
-    date: string;
-    amount: number;
-  };
+  business_name: string;
+  items: any[];
 }
 
 const PaymentStatusPage = () => {
@@ -48,7 +42,7 @@ const PaymentStatusPage = () => {
   
   const [status, setStatus] = useState<PaymentStatus>('checking');
   const [message, setMessage] = useState('Vérification du paiement...');
-  const [paymentData, setPaymentData] = useState<PaymentStatusData | null>(null);
+  const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [isPolling, setIsPolling] = useState(false);
 
   useEffect(() => {
@@ -58,66 +52,71 @@ const PaymentStatusPage = () => {
 
     console.log('PaymentStatusPage: URL params:', { orderId, payId });
 
-    if (orderId && payId) {
-      console.log('PaymentStatusPage: Starting payment status check');
-      checkPaymentStatus(payId);
+    if (orderId) {
+      console.log('PaymentStatusPage: Starting order status check');
+      checkOrderStatus(orderId);
     } else {
-      console.log('PaymentStatusPage: Missing parameters');
+      console.log('PaymentStatusPage: Missing order_id parameter');
       setStatus('error');
-      setMessage('Paramètres manquants. Veuillez vérifier l\'URL.');
+      setMessage('Paramètre order_id manquant. Veuillez vérifier l\'URL.');
     }
   }, [searchParams]);
 
-  const checkPaymentStatus = async (payId: string) => {
-    console.log('PaymentStatusPage: checkPaymentStatus called with payId:', payId);
+  const checkOrderStatus = async (orderId: string) => {
+    console.log('PaymentStatusPage: checkOrderStatus called with orderId:', orderId);
     try {
       setIsPolling(true);
       
-      // Utiliser le service de paiement pour vérifier le statut
-      console.log('PaymentStatusPage: Calling PaymentService.checkPaymentStatus');
-      const response = await PaymentService.checkPaymentStatus({ pay_id: payId });
-      console.log('PaymentStatusPage: PaymentService response:', response);
+      // Vérifier directement le statut dans la table orders
+      console.log('PaymentStatusPage: Checking order status in database');
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
 
-      if (response.success && response.data) {
-        const paymentStatus = response.data.status;
-        setPaymentData(response.data);
-        console.log('PaymentStatusPage: Payment status:', paymentStatus);
+      console.log('PaymentStatusPage: Database response:', { order, error });
+
+      if (error) {
+        console.error('PaymentStatusPage: Database error:', error);
+        setStatus('error');
+        setMessage('Erreur lors de la récupération de la commande');
+        return;
+      }
+
+      if (order) {
+        setOrderData(order);
+        console.log('PaymentStatusPage: Order found:', order);
         
-        switch (paymentStatus) {
-          case 'success':
-          case 'SUCCESS':
-            setStatus('success');
-            setMessage('Paiement confirmé avec succès !');
-            
-            // Mettre à jour le statut dans la base de données locale
-            await PaymentService.updatePaymentStatus(payId, 'success', response.data.gateway_response);
-            break;
-          case 'failed':
-          case 'FAILED':
-            setStatus('failed');
-            setMessage('Le paiement a échoué. Veuillez réessayer.');
-            
-            // Mettre à jour le statut dans la base de données locale
-            await PaymentService.updatePaymentStatus(payId, 'failed', response.data.gateway_response);
-            break;
-          case 'initiated':
-          case 'INITIATED':
-            setStatus('pending');
-            setMessage('Paiement en cours de traitement...');
-            // Continuer le polling pour les paiements en cours
-            setTimeout(() => checkPaymentStatus(payId), 5000);
-            return;
-          default:
-            setStatus('unknown');
-            setMessage('Statut de paiement inconnu');
+        // Déterminer le statut basé sur payment_status et status
+        const paymentStatus = order.payment_status?.toLowerCase();
+        const orderStatus = order.status?.toLowerCase();
+        
+        console.log('PaymentStatusPage: Status analysis:', { paymentStatus, orderStatus });
+        
+        if (paymentStatus === 'paid' || paymentStatus === 'success') {
+          setStatus('success');
+          setMessage('Paiement confirmé avec succès !');
+        } else if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
+          setStatus('failed');
+          setMessage('Le paiement a échoué. Veuillez réessayer.');
+        } else if (paymentStatus === 'pending' || orderStatus === 'pending') {
+          setStatus('pending');
+          setMessage('Paiement en cours de traitement...');
+          // Continuer le polling pour les paiements en cours
+          setTimeout(() => checkOrderStatus(orderId), 5000);
+          return;
+        } else {
+          setStatus('unknown');
+          setMessage('Statut de paiement inconnu');
         }
       } else {
-        console.log('PaymentStatusPage: Response not successful:', response);
+        console.log('PaymentStatusPage: Order not found');
         setStatus('error');
-        setMessage('Erreur lors de la vérification du paiement');
+        setMessage('Commande non trouvée');
       }
     } catch (error) {
-      console.error('PaymentStatusPage: Error checking payment status:', error);
+      console.error('PaymentStatusPage: Error checking order status:', error);
       setStatus('error');
       setMessage('Erreur de connexion au serveur');
     } finally {
@@ -126,11 +125,11 @@ const PaymentStatusPage = () => {
   };
 
   const handleRetry = () => {
-    const payId = searchParams.get('pay_id');
-    if (payId) {
+    const orderId = searchParams.get('order_id');
+    if (orderId) {
       setStatus('checking');
       setMessage('Vérification du paiement...');
-      checkPaymentStatus(payId);
+      checkOrderStatus(orderId);
     }
   };
 
@@ -147,26 +146,32 @@ const PaymentStatusPage = () => {
       case 'success':
         return <CheckCircle2 className="h-20 w-20 text-guinea-green" />;
       case 'failed':
-        return <XCircle className="h-20 w-20 text-guinea-red" />;
+        return <XCircle className="h-20 w-20 text-red-500" />;
       case 'pending':
-        return <Clock className="h-20 w-20 text-guinea-yellow" />;
+        return <Clock className="h-20 w-20 text-yellow-500" />;
       case 'checking':
-        return <Loader2 className="h-20 w-20 text-guinea-red animate-spin" />;
+        return <Loader2 className="h-20 w-20 text-blue-500 animate-spin" />;
+      case 'error':
+        return <AlertCircle className="h-20 w-20 text-red-500" />;
       default:
-        return <AlertCircle className="h-20 w-20 text-gray-500" />;
+        return <AlertTriangle className="h-20 w-20 text-yellow-500" />;
     }
   };
 
   const getStatusColor = () => {
     switch (status) {
       case 'success':
-        return 'bg-gradient-to-br from-guinea-green/5 to-emerald-50 border-guinea-green/20';
+        return 'bg-guinea-green/10 border-guinea-green/20 text-guinea-green';
       case 'failed':
-        return 'bg-gradient-to-br from-guinea-red/5 to-rose-50 border-guinea-red/20';
+        return 'bg-red-50 border-red-200 text-red-700';
       case 'pending':
-        return 'bg-gradient-to-br from-guinea-yellow/5 to-amber-50 border-guinea-yellow/20';
+        return 'bg-yellow-50 border-yellow-200 text-yellow-700';
+      case 'checking':
+        return 'bg-blue-50 border-blue-200 text-blue-700';
+      case 'error':
+        return 'bg-red-50 border-red-200 text-red-700';
       default:
-        return 'bg-gradient-to-br from-gray-50 to-slate-50 border-gray-200';
+        return 'bg-gray-50 border-gray-200 text-gray-700';
     }
   };
 
@@ -179,40 +184,40 @@ const PaymentStatusPage = () => {
       case 'pending':
         return 'Paiement en Cours';
       case 'checking':
-        return 'Vérification du Paiement';
+        return 'Vérification en Cours';
       case 'error':
-        return 'Erreur de Paiement';
+        return 'Erreur de Vérification';
       default:
-        return 'Statut du Paiement';
+        return 'Statut Inconnu';
     }
   };
 
   const getStatusDescription = () => {
     switch (status) {
       case 'success':
-        return 'Votre paiement a été traité avec succès. Votre commande est maintenant en cours de préparation.';
+        return 'Votre paiement a été traité avec succès. Votre commande est confirmée et sera préparée rapidement.';
       case 'failed':
         return 'Le paiement n\'a pas pu être traité. Veuillez vérifier vos informations et réessayer.';
       case 'pending':
-        return 'Votre paiement est en cours de traitement. Veuillez patienter quelques instants.';
+        return 'Votre paiement est en cours de traitement. Cette opération peut prendre quelques minutes.';
       case 'checking':
-        return 'Nous vérifions le statut de votre paiement...';
+        return 'Nous vérifions actuellement le statut de votre paiement. Veuillez patienter.';
       case 'error':
-        return 'Une erreur s\'est produite lors de la vérification du paiement.';
+        return 'Une erreur est survenue lors de la vérification. Veuillez réessayer ou contacter le support.';
       default:
-        return 'Vérification du statut de votre paiement.';
+        return 'Le statut de votre paiement n\'a pas pu être déterminé.';
     }
   };
 
   const formatCurrency = (amount: number, currency: string = 'GNF') => {
-    return PaymentService.formatAmount(amount, currency);
+    return (amount / 100).toFixed(2) + ' FG'; // Assuming amount is in cents
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
       year: 'numeric',
+      month: 'long',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
@@ -305,7 +310,7 @@ const PaymentStatusPage = () => {
               
               <CardContent className="space-y-6">
                 {/* Détails du paiement si disponibles - Style BraPrime */}
-                {paymentData && (
+                {orderData && (
                   <>
                     <Separator />
                     <div className="space-y-4">
@@ -322,21 +327,14 @@ const PaymentStatusPage = () => {
                         <div className="bg-white/70 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
                           <p className="text-sm font-medium text-gray-600 mb-2">Montant</p>
                           <p className="text-2xl font-bold text-gray-900">
-                            {formatCurrency(paymentData.amount, paymentData.currency)}
-                          </p>
-                        </div>
-                        
-                        <div className="bg-white/70 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
-                          <p className="text-sm font-medium text-gray-600 mb-2">Méthode</p>
-                          <p className="text-lg font-semibold text-gray-900 capitalize">
-                            {paymentData.method.replace('_', ' ')}
+                            {formatCurrency(orderData.grand_total)}
                           </p>
                         </div>
                         
                         <div className="bg-white/70 rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
                           <p className="text-sm font-medium text-gray-600 mb-2">Date</p>
                           <p className="text-lg font-semibold text-gray-900">
-                            {formatDate(paymentData.created_at)}
+                            {formatDate(orderData.created_at)}
                           </p>
                         </div>
                         
@@ -344,9 +342,9 @@ const PaymentStatusPage = () => {
                           <p className="text-sm font-medium text-gray-600 mb-2">Statut</p>
                           <Badge 
                             variant={status === 'success' ? 'default' : 'secondary'}
-                            className={`${PaymentService.getStatusColor(paymentData.status)} text-sm font-medium`}
+                            className={`${status === 'success' ? 'bg-guinea-green/20 text-guinea-green' : 'bg-gray-100 text-gray-700'} text-sm font-medium`}
                           >
-                            {PaymentService.getStatusLabel(paymentData.status)}
+                            {orderData.status.replace('_', ' ')}
                           </Badge>
                         </div>
                       </div>
