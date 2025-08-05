@@ -66,6 +66,11 @@ export function useCart(): UseCartReturn {
     }
   }, [currentUser, toast])
 
+  // Mettre à jour l'état local du panier après une modification
+  const updateLocalCart = useCallback((updatedCart: Cart | null) => {
+    setCart(updatedCart)
+  }, [])
+
   // Ajouter un article au panier
   const addToCart = useCallback(async (item: AddToCartItem, businessId: number, businessName: string) => {
     if (!currentUser) {
@@ -81,7 +86,7 @@ export function useCart(): UseCartReturn {
     setError(null)
 
     try {
-      const { success, error: addError } = await CartService.addToCart(
+      const { success, error: addError, cart: updatedCart } = await CartService.addToCart(
         currentUser.id,
         item,
         businessId,
@@ -96,8 +101,8 @@ export function useCart(): UseCartReturn {
           variant: "destructive",
         })
       } else if (success) {
-        // Recharger le panier pour avoir les données à jour
-        await loadCart()
+        // Mettre à jour l'état local directement
+        updateLocalCart(updatedCart)
         toast({
           title: "Ajouté au panier",
           description: `${item.name} a été ajouté à votre panier.`,
@@ -114,19 +119,37 @@ export function useCart(): UseCartReturn {
     } finally {
       setLoading(false)
     }
-  }, [currentUser, loadCart, toast])
+  }, [currentUser, updateLocalCart, toast])
 
   // Mettre à jour la quantité d'un article
   const updateQuantity = useCallback(async (itemId: string, quantity: number) => {
     if (!currentUser) return
 
-    setLoading(true)
-    setError(null)
+    // Mise à jour optimiste de l'interface
+    setCart(prevCart => {
+      if (!prevCart) return prevCart
+      
+      const updatedItems = prevCart.items.map(item => 
+        item.id === itemId ? { ...item, quantity } : item
+      )
+      
+      const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      const newItemCount = updatedItems.reduce((sum, item) => sum + item.quantity, 0)
+      
+      return {
+        ...prevCart,
+        items: updatedItems,
+        total: newTotal,
+        item_count: newItemCount
+      }
+    })
 
     try {
-      const { success, error: updateError } = await CartService.updateQuantity(itemId, quantity)
+      const { success, error: updateError, cart: updatedCart } = await CartService.updateQuantity(itemId, quantity)
 
       if (updateError) {
+        // En cas d'erreur, recharger le panier pour revenir à l'état correct
+        await loadCart()
         setError(updateError)
         toast({
           title: "Erreur",
@@ -134,14 +157,16 @@ export function useCart(): UseCartReturn {
           variant: "destructive",
         })
       } else if (success) {
-        // Recharger le panier pour avoir les données à jour
-        await loadCart()
+        // Mettre à jour avec les données du serveur pour s'assurer de la cohérence
+        updateLocalCart(updatedCart)
         toast({
           title: "Quantité mise à jour",
           description: "La quantité a été mise à jour dans votre panier.",
         })
       }
     } catch (err) {
+      // En cas d'erreur, recharger le panier
+      await loadCart()
       const errorMessage = 'Erreur lors de la mise à jour de la quantité'
       setError(errorMessage)
       toast({
@@ -149,22 +174,35 @@ export function useCart(): UseCartReturn {
         description: errorMessage,
         variant: "destructive",
       })
-    } finally {
-      setLoading(false)
     }
-  }, [currentUser, loadCart, toast])
+  }, [currentUser, updateLocalCart, loadCart, toast])
 
   // Supprimer un article du panier
   const removeFromCart = useCallback(async (itemId: string) => {
     if (!currentUser) return
 
-    setLoading(true)
-    setError(null)
+    // Mise à jour optimiste de l'interface
+    setCart(prevCart => {
+      if (!prevCart) return prevCart
+      
+      const updatedItems = prevCart.items.filter(item => item.id !== itemId)
+      const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+      const newItemCount = updatedItems.reduce((sum, item) => sum + item.quantity, 0)
+      
+      return {
+        ...prevCart,
+        items: updatedItems,
+        total: newTotal,
+        item_count: newItemCount
+      }
+    })
 
     try {
-      const { success, error: removeError } = await CartService.removeFromCart(itemId)
+      const { success, error: removeError, cart: updatedCart } = await CartService.removeFromCart(itemId)
 
       if (removeError) {
+        // En cas d'erreur, recharger le panier
+        await loadCart()
         setError(removeError)
         toast({
           title: "Erreur",
@@ -172,14 +210,16 @@ export function useCart(): UseCartReturn {
           variant: "destructive",
         })
       } else if (success) {
-        // Recharger le panier pour avoir les données à jour
-        await loadCart()
+        // Mettre à jour avec les données du serveur
+        updateLocalCart(updatedCart)
         toast({
           title: "Article supprimé",
           description: "L'article a été retiré de votre panier.",
         })
       }
     } catch (err) {
+      // En cas d'erreur, recharger le panier
+      await loadCart()
       const errorMessage = 'Erreur lors de la suppression'
       setError(errorMessage)
       toast({
@@ -187,22 +227,22 @@ export function useCart(): UseCartReturn {
         description: errorMessage,
         variant: "destructive",
       })
-    } finally {
-      setLoading(false)
     }
-  }, [currentUser, loadCart, toast])
+  }, [currentUser, updateLocalCart, loadCart, toast])
 
   // Vider le panier
   const clearCart = useCallback(async () => {
     if (!currentUser) return
 
-    setLoading(true)
-    setError(null)
+    // Mise à jour optimiste
+    setCart(null)
 
     try {
       const { success, error: clearError } = await CartService.clearCart(currentUser.id)
 
       if (clearError) {
+        // En cas d'erreur, recharger le panier
+        await loadCart()
         setError(clearError)
         toast({
           title: "Erreur",
@@ -210,13 +250,14 @@ export function useCart(): UseCartReturn {
           variant: "destructive",
         })
       } else if (success) {
-        setCart(null)
         toast({
           title: "Panier vidé",
           description: "Votre panier a été vidé avec succès.",
         })
       }
     } catch (err) {
+      // En cas d'erreur, recharger le panier
+      await loadCart()
       const errorMessage = 'Erreur lors du vidage du panier'
       setError(errorMessage)
       toast({
@@ -224,10 +265,8 @@ export function useCart(): UseCartReturn {
         description: errorMessage,
         variant: "destructive",
       })
-    } finally {
-      setLoading(false)
     }
-  }, [currentUser, toast])
+  }, [currentUser, loadCart, toast])
 
   // Synchroniser depuis le localStorage
   const syncFromLocal = useCallback(async (
@@ -241,7 +280,7 @@ export function useCart(): UseCartReturn {
     setError(null)
 
     try {
-      const { success, error: syncError } = await CartService.syncFromLocal(
+      const { success, error: syncError, cart: updatedCart } = await CartService.syncFromLocal(
         currentUser.id, 
         localItems, 
         businessId, 
@@ -256,8 +295,7 @@ export function useCart(): UseCartReturn {
           variant: "destructive",
         })
       } else if (success) {
-        // Recharger le panier pour avoir les données à jour
-        await loadCart()
+        updateLocalCart(updatedCart)
         toast({
           title: "Synchronisation réussie",
           description: "Votre panier local a été synchronisé avec votre compte.",
@@ -274,7 +312,7 @@ export function useCart(): UseCartReturn {
     } finally {
       setLoading(false)
     }
-  }, [currentUser, loadCart, toast])
+  }, [currentUser, updateLocalCart, toast])
 
   // Recharger le panier
   const refreshCart = useCallback(async () => {

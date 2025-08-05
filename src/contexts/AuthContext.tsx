@@ -91,6 +91,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               businessName: user.business_name
             };
             setCurrentUser(convertedUser);
+            
+            // Optimisation : Précharger les données du dashboard si l'utilisateur est un client
+            if (user.role === 'customer') {
+              // Précharger les données en arrière-plan
+              setTimeout(() => {
+                import('@/lib/services/dashboard').then(({ DashboardService }) => {
+                  DashboardService.getCustomerStats(user.id).catch(console.error);
+                  DashboardService.getRecentCustomerOrders(user.id, 5).catch(console.error);
+                  DashboardService.getNotifications(user.id, 'customer').catch(console.error);
+                });
+              }, 100);
+            }
           } else {
             setCurrentUser(null);
           }

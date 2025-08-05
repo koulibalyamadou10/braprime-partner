@@ -1,171 +1,118 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AdminRequestsService } from '@/lib/services/admin-requests';
-import { Request, RequestStats, RequestFilters } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
+import { AdminBusinessRequestsService } from '../lib/services/admin-business-requests';
 
-export const useAdminRequests = (filters: RequestFilters = {}) => {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
+interface BusinessRequestFilters {
+  status?: string;
+  search?: string;
+}
 
-  // Récupérer toutes les demandes
-  const {
-    data: requests,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: ['admin-requests', filters],
-    queryFn: () => AdminRequestsService.getRequests(filters),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+interface CreateAccountResult {
+  success: boolean;
+  error?: string;
+  credentials?: {
+    email: string;
+    password: string;
+    businessName: string;
+  };
+}
 
-  // Récupérer les statistiques
-  const {
-    data: stats,
-    isLoading: statsLoading
-  } = useQuery({
-    queryKey: ['admin-requests-stats'],
-    queryFn: () => AdminRequestsService.getRequestStats(),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-  });
+export const useAdminRequests = (filters: BusinessRequestFilters = {}) => {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<any>(null);
 
-  // Mutation pour mettre à jour le statut
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ 
-      id, 
-      status, 
-      admin_notes 
-    }: { 
-      id: string; 
-      status: 'approved' | 'rejected' | 'under_review'; 
-      admin_notes?: string;
-    }) => AdminRequestsService.updateRequestStatus(id, status, admin_notes),
-    onSuccess: (result, variables) => {
-      if (result.success) {
-        toast({
-          title: "Statut mis à jour",
-          description: `La demande a été ${variables.status === 'approved' ? 'approuvée' : variables.status === 'rejected' ? 'rejetée' : 'mise en révision'}`,
-        });
-        // Invalider les requêtes
-        queryClient.invalidateQueries({ queryKey: ['admin-requests'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-requests-stats'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      } else {
-        toast({
-          title: "Erreur",
-          description: result.error || "Erreur lors de la mise à jour du statut",
-          variant: "destructive",
-        });
-      }
-    },
-    onError: (error: any) => {
-      console.error('Erreur lors de la mise à jour du statut:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la mise à jour du statut",
-        variant: "destructive",
-      });
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true);
+      const result = await AdminBusinessRequestsService.getBusinessRequests(filters);
+      setRequests(result.data || []);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des demandes');
+    } finally {
+      setIsLoading(false);
     }
-  });
-
-  // Mutation pour supprimer une demande
-  const deleteRequestMutation = useMutation({
-    mutationFn: (id: string) => AdminRequestsService.deleteRequest(id),
-    onSuccess: (result) => {
-      if (result.success) {
-        toast({
-          title: "Demande supprimée",
-          description: "La demande a été supprimée avec succès",
-        });
-        // Invalider les requêtes
-        queryClient.invalidateQueries({ queryKey: ['admin-requests'] });
-        queryClient.invalidateQueries({ queryKey: ['admin-requests-stats'] });
-      } else {
-        toast({
-          title: "Erreur",
-          description: result.error || "Erreur lors de la suppression",
-          variant: "destructive",
-        });
-      }
-    },
-    onError: (error: any) => {
-      console.error('Erreur lors de la suppression:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la suppression de la demande",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Mutation pour ajouter des notes admin
-  const addNotesMutation = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes: string }) => 
-      AdminRequestsService.addAdminNotes(id, notes),
-    onSuccess: (result) => {
-      if (result.success) {
-        toast({
-          title: "Notes ajoutées",
-          description: "Les notes ont été ajoutées avec succès",
-        });
-        // Invalider les requêtes
-        queryClient.invalidateQueries({ queryKey: ['admin-requests'] });
-      } else {
-        toast({
-          title: "Erreur",
-          description: result.error || "Erreur lors de l'ajout des notes",
-          variant: "destructive",
-        });
-      }
-    },
-    onError: (error: any) => {
-      console.error('Erreur lors de l\'ajout des notes:', error);
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de l'ajout des notes",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Fonctions utilitaires
-  const updateStatus = (id: string, status: 'approved' | 'rejected' | 'under_review', admin_notes?: string) => {
-    updateStatusMutation.mutate({ id, status, admin_notes });
   };
 
-  const deleteRequest = (id: string) => {
-    deleteRequestMutation.mutate(id);
+  const fetchStats = async () => {
+    try {
+      const result = await AdminBusinessRequestsService.getBusinessRequestStats();
+      setStats(result);
+    } catch (err) {
+      console.error('Erreur lors du chargement des statistiques:', err);
+    }
   };
 
-  const addNotes = (id: string, notes: string) => {
-    addNotesMutation.mutate({ id, notes });
+  const approveRequest = async (requestId: number) => {
+    try {
+      await AdminBusinessRequestsService.approveBusinessRequest(requestId);
+      await fetchRequests();
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'approbation';
+      throw new Error(errorMessage);
+    }
   };
+
+  const rejectRequest = async (requestId: number) => {
+    try {
+      await AdminBusinessRequestsService.rejectBusinessRequest(requestId);
+      await fetchRequests();
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du rejet';
+      throw new Error(errorMessage);
+    }
+  };
+
+  const createUserAccount = async (requestId: number): Promise<CreateAccountResult> => {
+    try {
+      const result = await AdminBusinessRequestsService.createUserAccountForBusiness(requestId);
+      
+      if (result.success && result.userId) {
+        // Récupérer les informations du business pour les credentials
+        const businessRequest = await AdminBusinessRequestsService.getBusinessRequest(requestId);
+        
+        if (businessRequest.data) {
+          return {
+            success: true,
+            credentials: {
+              email: businessRequest.data.owner_email,
+              password: result.password || 'Mot de passe généré automatiquement',
+              businessName: businessRequest.data.name
+            }
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        error: result.error || 'Erreur lors de la création du compte'
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création du compte';
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+    fetchStats();
+  }, [filters.status, filters.search]);
 
   return {
-    // Données
-    requests: requests?.data || [],
-    stats: stats?.data,
-    
-    // États de chargement
+    requests,
     isLoading,
-    statsLoading,
-    isUpdating: updateStatusMutation.isPending,
-    isDeleting: deleteRequestMutation.isPending,
-    isAddingNotes: addNotesMutation.isPending,
-    
-    // Erreurs
-    error: error?.message || requests?.error,
-    
-    // Actions
-    updateStatus,
-    deleteRequest,
-    addNotes,
-    refetch,
-    
-    // Mutations (pour accéder aux états si nécessaire)
-    updateStatusMutation,
-    deleteRequestMutation,
-    addNotesMutation
+    error,
+    stats,
+    approveRequest,
+    rejectRequest,
+    createUserAccount,
+    refetch: fetchRequests
   };
 };
 
@@ -180,7 +127,7 @@ export const useAdminRequest = (id: string) => {
     error
   } = useQuery({
     queryKey: ['admin-request', id],
-    queryFn: () => AdminRequestsService.getRequest(id),
+    queryFn: () => AdminBusinessRequestsService.getBusinessRequest(id),
     enabled: !!id,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });

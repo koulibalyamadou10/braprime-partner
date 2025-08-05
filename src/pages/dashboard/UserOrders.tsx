@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Clock, ExternalLink, Filter, Package, Search, ShoppingBag, Tag, Truck } from 'lucide-react';
+import { ArrowRight, Clock, ExternalLink, Filter, Package, Search, ShoppingBag, Tag, Truck, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +22,7 @@ import { format } from 'date-fns';
 import { useDashboardOrders, type DashboardOrder } from '@/hooks/use-dashboard-orders';
 import { type Order as SupabaseOrder } from '@/lib/services/orders';
 import { UserOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { useNavigate } from 'react-router-dom';
 
 // Define the Order type
 type OrderStatus = SupabaseOrder['status'];
@@ -107,6 +108,7 @@ const formatCurrency = (amount: number) => {
 
 const UserOrders = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const { 
     orders: dashboardOrders, 
     loading, 
@@ -343,42 +345,46 @@ const UserOrders = () => {
         {/* Order Details Modal */}
         {selectedOrder && (
           <Dialog open={showOrderDetails} onOpenChange={setShowOrderDetails}>
-            <DialogContent className="max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>Détails de la commande</DialogTitle>
-                <DialogDescription>
-                  Commande #{selectedOrder.id} - Passée le {format(new Date(selectedOrder.orderDate), 'dd MMMM yyyy')}
+            <DialogContent className="w-[95vw] max-w-[425px] md:max-w-[600px] lg:max-w-[800px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-lg md:text-xl">Détails de la commande</DialogTitle>
+                <DialogDescription className="text-sm">
+                  Commande #{selectedOrder.order_number || selectedOrder.id.slice(0, 8)} - {format(new Date(selectedOrder.orderDate), 'dd MMM yyyy')}
                 </DialogDescription>
               </DialogHeader>
               
-              <div className="space-y-6">
-                {/* Order Status */}
-                <div className="flex items-center justify-between">
+              <div className="space-y-4 md:space-y-6">
+                {/* Order Status and Total - Mobile Optimized */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center">
-                    <span className={`flex items-center text-sm px-3 py-1 rounded-full font-semibold ${getStatusBadge(selectedOrder.status).color}`}>
+                    <span className={`flex items-center text-xs md:text-sm px-2 md:px-3 py-1 md:py-1.5 rounded-full font-medium ${getStatusBadge(selectedOrder.status).color}`}>
                       {getStatusBadge(selectedOrder.status).icon}
-                      {getStatusBadge(selectedOrder.status).label}
+                      <span className="ml-1">{getStatusBadge(selectedOrder.status).label}</span>
                     </span>
                   </div>
-                  <p className="font-semibold text-lg">Total: {formatCurrency(selectedOrder.total)}</p>
+                  <p className="font-semibold text-base md:text-lg text-right">Total: {formatCurrency(selectedOrder.total)}</p>
                 </div>
                 
                 <Separator />
                 
-                {/* Order Items */}
+                {/* Order Items - Mobile Optimized */}
                 <div>
-                  <h3 className="text-lg font-medium mb-4">Articles commandés</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-base md:text-lg font-medium mb-3 md:mb-4">Articles commandés</h3>
+                  <div className="space-y-2 md:space-y-3">
                     {selectedOrder.items.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-gray-500">Quantité: {item.quantity}</p>
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 bg-gray-50 rounded-lg gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
+                          <p className="text-xs md:text-sm text-gray-500">Quantité: {item.quantity}</p>
                           {item.specialInstructions && (
-                            <p className="text-sm text-gray-500">Note: {item.specialInstructions}</p>
+                            <p className="text-xs md:text-sm text-gray-500 mt-1 break-words">
+                              Note: {item.specialInstructions}
+                            </p>
                           )}
                         </div>
-                        <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
+                        <p className="font-medium text-sm md:text-base text-right sm:text-left">
+                          {formatCurrency(item.price * item.quantity)}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -386,43 +392,77 @@ const UserOrders = () => {
                 
                 <Separator />
                 
-                {/* Delivery Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Delivery Information - Mobile Optimized */}
+                <div className="space-y-4 md:space-y-6">
                   <div>
-                    <h3 className="text-lg font-medium mb-3">Informations de livraison</h3>
-                    <div className="space-y-2">
-                      <p><span className="font-medium">Adresse:</span> {selectedOrder.customerAddress}</p>
-                      <p><span className="font-medium">Méthode:</span> {selectedOrder.deliveryMethod === 'delivery' ? 'Livraison' : 'Retrait'}</p>
-                      <p><span className="font-medium">Restaurant:</span> {selectedOrder.businessName}</p>
+                    <h3 className="text-base md:text-lg font-medium mb-3">Informations de livraison</h3>
+                    <div className="space-y-2 text-sm md:text-base">
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-1">
+                        <span className="font-medium text-gray-700 min-w-[80px]">Adresse:</span>
+                        <span className="break-words">{selectedOrder.customerAddress}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                        <span className="font-medium text-gray-700 min-w-[80px]">Méthode:</span>
+                        <span>{selectedOrder.deliveryMethod === 'delivery' ? 'Livraison' : 'Retrait'}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-1">
+                        <span className="font-medium text-gray-700 min-w-[80px]">Restaurant:</span>
+                        <span className="break-words">{selectedOrder.businessName}</span>
+                      </div>
                       {selectedOrder.driverName && (
-                        <p><span className="font-medium">Livreur:</span> {selectedOrder.driverName}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                          <span className="font-medium text-gray-700 min-w-[80px]">Livreur:</span>
+                          <span>{selectedOrder.driverName}</span>
+                        </div>
                       )}
                       {selectedOrder.driverPhone && (
-                        <p><span className="font-medium">Téléphone livreur:</span> {selectedOrder.driverPhone}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                          <span className="font-medium text-gray-700 min-w-[80px]">Téléphone:</span>
+                          <span className="break-all">{selectedOrder.driverPhone}</span>
+                        </div>
                       )}
                     </div>
                   </div>
                   
                   <div>
-                    <h3 className="text-lg font-medium mb-3">Informations de paiement</h3>
-                    <div className="space-y-2">
-                      <p><span className="font-medium">Méthode:</span> {selectedOrder.paymentMethod}</p>
-                      <p><span className="font-medium">Livraison estimée:</span> {format(new Date(selectedOrder.estimatedDelivery), 'dd/MM/yyyy HH:mm')}</p>
+                    <h3 className="text-base md:text-lg font-medium mb-3">Informations de paiement</h3>
+                    <div className="space-y-2 text-sm md:text-base">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                        <span className="font-medium text-gray-700 min-w-[80px]">Méthode:</span>
+                        <span>{selectedOrder.paymentMethod}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-1">
+                        <span className="font-medium text-gray-700 min-w-[80px]">Livraison:</span>
+                        <span>{format(new Date(selectedOrder.estimatedDelivery), 'dd/MM/yyyy HH:mm')}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* Action Buttons */}
+                {/* Action Buttons - Mobile Optimized */}
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                  <Button 
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      setShowOrderDetails(false);
+                      navigate(`/order-tracking/${selectedOrder.id}`);
+                    }}
+                  >
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Suivre ma commande
+                  </Button>
+                  
                 {selectedOrder.status === 'pending' && (
-                  <div className="flex gap-2">
                     <Button 
                       variant="destructive" 
+                      className="w-full sm:w-auto"
                       onClick={() => handleCancelOrder(selectedOrder.id)}
                     >
                       Annuler la commande
                     </Button>
+                  )}
                   </div>
-                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -445,7 +485,7 @@ const OrdersTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Commande #</TableHead>
+            <TableHead>Commande</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Statut</TableHead>
             <TableHead>Articles</TableHead>
@@ -456,7 +496,7 @@ const OrdersTable = ({
         <TableBody>
           {orders.map((order) => (
             <TableRow key={order.id}>
-              <TableCell className="font-medium">{order.id}</TableCell>
+              <TableCell className="font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
               <TableCell>{format(order.date, 'dd MMM yyyy')}</TableCell>
               <TableCell>
                 <div className="flex items-center">

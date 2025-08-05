@@ -1,303 +1,369 @@
-import { supabase } from '@/lib/supabase'
-import type { Inserts } from '@/lib/supabase'
-import { NotificationService } from './notifications'
+import { supabase } from '@/lib/supabase';
+import { EmailService } from './email';
 
 export interface Order {
-  id: string
-  user_id: string
-  business_id: number
-  business_name: string
-  items: any[]
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled'
-  total: number
-  delivery_fee: number
-  tax: number
-  grand_total: number
-  delivery_method: string
-  delivery_address: string
-  delivery_instructions?: string
-  payment_method: string
-  payment_status: string
-  estimated_delivery?: string
-  actual_delivery?: string
-  driver_id?: string
-  driver_name?: string
-  driver_phone?: string
-  driver_location?: any
-  customer_rating?: number
-  customer_review?: string
-  pickup_coordinates?: any
-  delivery_coordinates?: any
-  estimated_pickup_time?: string
-  estimated_delivery_time?: string
-  actual_pickup_time?: string
-  actual_delivery_time?: string
-  created_at: string
-  updated_at: string
-  preferred_delivery_time?: string
-  delivery_type: 'asap' | 'scheduled'
-  available_for_drivers: boolean
-  scheduled_delivery_window_start?: string
-  scheduled_delivery_window_end?: string
+  id: string;
+  order_number: string;
+  user_id: string;
+  business_id: number;
+  business_name: string;
+  items: OrderItem[];
+  status: OrderStatus;
+  total: number;
+  delivery_fee: number;
+  tax: number;
+  grand_total: number;
+  delivery_method: 'delivery' | 'pickup';
+  delivery_address: string;
+  delivery_instructions?: string;
+  landmark?: string;
+  payment_method: 'cash' | 'card' | 'mobile_money' | 'online';
+  payment_status: 'pending' | 'paid' | 'failed' | 'refunded';
+  created_at: string;
+  updated_at: string;
+  estimated_delivery?: string;
+  actual_delivery?: string;
+  driver_id?: string;
+  driver_name?: string;
+  driver_phone?: string;
 }
 
-// Type pour la création de commande
-export interface CreateOrderData {
-  id: string
-  user_id: string
-  business_id: number
-  business_name: string
-  items: any[]
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled'
-  total: number
-  delivery_fee: number
-  tax: number
-  grand_total: number
-  delivery_address: string
-  delivery_instructions?: string
-  delivery_method: string
-  payment_method?: string
-  payment_status?: string
-  // Champs pour les types de livraison
-  delivery_type: 'asap' | 'scheduled'
-  available_for_drivers: boolean
-  preferred_delivery_time?: string
-  scheduled_delivery_window_start?: string
-  scheduled_delivery_window_end?: string
+export interface OrderItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+  special_instructions?: string;
 }
+
+export type OrderStatus = 
+  | 'pending' 
+  | 'confirmed' 
+  | 'preparing' 
+  | 'ready' 
+  | 'picked_up' 
+  | 'out_for_delivery'
+  | 'delivered' 
+  | 'cancelled';
+
+export type DeliveryMethod = 'delivery' | 'pickup';
+export type PaymentMethod = 'cash' | 'card' | 'mobile_money' | 'online';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export class OrderService {
-  // Créer une nouvelle commande
-  static async createOrder(orderData: CreateOrderData): Promise<{ order: Order | null; error: string | null }> {
-    try {
-      console.log('Création de commande:', orderData)
-      
-      const { data, error } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Erreur création commande:', error)
-        return { order: null, error: error.message }
-      }
-
-      console.log('Commande créée avec succès:', data)
-
-      // Créer une notification pour la nouvelle commande
-      await NotificationService.create({
-        user_id: orderData.user_id,
-        type: 'order_status',
-        title: 'Commande confirmée',
-        message: `Votre commande #${data.id.substring(0, 8)} a été confirmée et est en cours de préparation.`,
-        priority: 'medium',
-        data: {
-          order_id: data.id,
-          business_name: orderData.business_name,
-          total: orderData.grand_total
-        }
-      })
-
-      return { order: data, error: null }
-    } catch (error) {
-      console.error('Erreur lors de la création de la commande:', error)
-      return { order: null, error: 'Erreur lors de la création de la commande' }
-    }
-  }
-
-  // Récupérer une commande par ID
+  /**
+   * Récupérer une commande par ID
+   */
   static async getOrderById(orderId: string): Promise<{ order: Order | null; error: string | null }> {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          businesses!inner(name)
+        `)
         .eq('id', orderId)
-        .single()
+        .single();
 
       if (error) {
-        return { order: null, error: error.message }
+        return { order: null, error: error.message };
       }
 
-      return { order: data, error: null }
+      if (!data) {
+        return { order: null, error: 'Commande non trouvée' };
+      }
+
+      const order: Order = {
+        id: data.id,
+        order_number: data.order_number,
+        user_id: data.user_id,
+        business_id: data.business_id,
+        business_name: data.businesses?.name || 'Commerce',
+        items: data.items || [],
+        status: data.status,
+        total: data.total,
+        delivery_fee: data.delivery_fee,
+        tax: data.tax,
+        grand_total: data.grand_total,
+        delivery_method: data.delivery_method,
+        delivery_address: data.delivery_address,
+        delivery_instructions: data.delivery_instructions,
+        landmark: data.landmark,
+        payment_method: data.payment_method,
+        payment_status: data.payment_status,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        estimated_delivery: data.estimated_delivery,
+        actual_delivery: data.actual_delivery,
+        driver_id: data.driver_id,
+        driver_name: data.driver_name,
+        driver_phone: data.driver_phone
+      };
+
+      return { order, error: null };
     } catch (error) {
-      return { order: null, error: 'Erreur lors de la récupération de la commande' }
+      console.error('Erreur lors de la récupération de la commande:', error);
+      return { order: null, error: 'Erreur lors de la récupération de la commande' };
     }
   }
 
-  // Récupérer les commandes d'un utilisateur
+  /**
+   * Mettre à jour le statut d'une commande avec notification email
+   */
+  static async updateOrderStatus(
+    orderId: string, 
+    newStatus: OrderStatus, 
+    driverInfo?: { name: string; phone: string }
+  ): Promise<{ success: boolean; error: string | null }> {
+    try {
+      // 1. Récupérer la commande actuelle
+      const { order: currentOrder, error: fetchError } = await this.getOrderById(orderId);
+      if (fetchError || !currentOrder) {
+        return { success: false, error: fetchError || 'Commande non trouvée' };
+      }
+
+      const oldStatus = currentOrder.status;
+
+      // 2. Mettre à jour le statut
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      // Ajouter les informations du chauffeur si fournies
+      if (driverInfo) {
+        updateData.driver_name = driverInfo.name;
+        updateData.driver_phone = driverInfo.phone;
+      }
+
+      // Mettre à jour estimated_delivery pour certains statuts
+      if (newStatus === 'out_for_delivery') {
+        updateData.estimated_delivery = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes
+      }
+
+      if (newStatus === 'delivered') {
+        updateData.actual_delivery = new Date().toISOString();
+      }
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId);
+
+      if (updateError) {
+        return { success: false, error: updateError.message };
+      }
+
+      // 3. Récupérer les informations utilisateur
+      const { data: userData, error: userError } = await supabase
+        .from('user_profiles')
+        .select('name, email')
+        .eq('id', currentOrder.user_id)
+        .single();
+
+      if (userError) {
+        console.warn('Erreur lors de la récupération des données utilisateur:', userError);
+      }
+
+      // 4. Envoyer l'email de notification de changement de statut
+      if (userData && oldStatus !== newStatus) {
+        try {
+          const statusLabels = {
+            pending: 'En attente',
+            confirmed: 'Confirmée',
+            preparing: 'En préparation',
+            ready: 'Prête',
+            picked_up: 'Récupérée',
+            out_for_delivery: 'En cours de livraison',
+            delivered: 'Livrée',
+            cancelled: 'Annulée'
+          };
+
+          await EmailService.sendOrderStatusUpdate({
+            order_id: orderId,
+            user_name: userData.name,
+            user_email: userData.email,
+            business_name: currentOrder.business_name,
+            order_number: currentOrder.order_number,
+            old_status: oldStatus,
+            new_status: newStatus,
+            status_label: statusLabels[newStatus] || newStatus,
+            estimated_delivery: updateData.estimated_delivery,
+            driver_name: driverInfo?.name,
+            driver_phone: driverInfo?.phone,
+            updated_at: new Date().toISOString()
+          });
+        } catch (emailError) {
+          console.warn('Erreur lors de l\'envoi de l\'email de notification:', emailError);
+          // Ne pas faire échouer la mise à jour du statut à cause de l'email
+        }
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du statut:', error);
+      return { success: false, error: 'Erreur lors de la mise à jour du statut' };
+    }
+  }
+
+  /**
+   * Récupérer toutes les commandes d'un utilisateur
+   */
   static async getUserOrders(userId: string): Promise<{ orders: Order[]; error: string | null }> {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          businesses!inner(name)
+        `)
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false });
 
       if (error) {
-        return { orders: [], error: error.message }
+        return { orders: [], error: error.message };
       }
 
-      return { orders: data || [], error: null }
+      const orders: Order[] = (data || []).map(order => ({
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        business_id: order.business_id,
+        business_name: order.businesses?.name || 'Commerce',
+        items: order.items || [],
+        status: order.status,
+        total: order.total,
+        delivery_fee: order.delivery_fee,
+        tax: order.tax,
+        grand_total: order.grand_total,
+        delivery_method: order.delivery_method,
+        delivery_address: order.delivery_address,
+        delivery_instructions: order.delivery_instructions,
+        landmark: order.landmark,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        estimated_delivery: order.estimated_delivery,
+        actual_delivery: order.actual_delivery,
+        driver_id: order.driver_id,
+        driver_name: order.driver_name,
+        driver_phone: order.driver_phone
+      }));
+
+      return { orders, error: null };
     } catch (error) {
-      return { orders: [], error: 'Erreur lors de la récupération des commandes' }
+      console.error('Erreur lors de la récupération des commandes utilisateur:', error);
+      return { orders: [], error: 'Erreur lors de la récupération des commandes' };
     }
   }
 
-  // Récupérer les commandes d'un commerce (pour les partenaires)
+  /**
+   * Récupérer toutes les commandes d'un commerce
+   */
   static async getBusinessOrders(businessId: number): Promise<{ orders: Order[]; error: string | null }> {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          businesses!inner(name)
+        `)
         .eq('business_id', businessId)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false });
 
       if (error) {
-        return { orders: [], error: error.message }
+        return { orders: [], error: error.message };
       }
 
-      return { orders: data || [], error: null }
+      const orders: Order[] = (data || []).map(order => ({
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        business_id: order.business_id,
+        business_name: order.businesses?.name || 'Commerce',
+        items: order.items || [],
+        status: order.status,
+        total: order.total,
+        delivery_fee: order.delivery_fee,
+        tax: order.tax,
+        grand_total: order.grand_total,
+        delivery_method: order.delivery_method,
+        delivery_address: order.delivery_address,
+        delivery_instructions: order.delivery_instructions,
+        landmark: order.landmark,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        estimated_delivery: order.estimated_delivery,
+        actual_delivery: order.actual_delivery,
+        driver_id: order.driver_id,
+        driver_name: order.driver_name,
+        driver_phone: order.driver_phone
+      }));
+
+      return { orders, error: null };
     } catch (error) {
-      return { orders: [], error: 'Erreur lors de la récupération des commandes du commerce' }
+      console.error('Erreur lors de la récupération des commandes du commerce:', error);
+      return { orders: [], error: 'Erreur lors de la récupération des commandes' };
     }
   }
 
-  // Mettre à jour le statut d'une commande
-  static async updateOrderStatus(orderId: string, status: Order['status']): Promise<{ order: Order | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .update({ 
-          status, 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', orderId)
-        .select()
-        .single()
-
-      if (error) {
-        return { order: null, error: error.message }
-      }
-
-      // Créer une notification selon le nouveau statut
-      if (data) {
-        await createStatusNotification(data, status)
-      }
-
-      return { order: data, error: null }
-    } catch (error) {
-      return { order: null, error: 'Erreur lors de la mise à jour du statut' }
-    }
-  }
-
-  // Annuler une commande
-  static async cancelOrder(orderId: string): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'cancelled', 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', orderId)
-
-      if (error) {
-        return { error: error.message }
-      }
-
-      return { error: null }
-    } catch (error) {
-      return { error: 'Erreur lors de l\'annulation de la commande' }
-    }
-  }
-
-  // Assigner un livreur à une commande
-  static async assignDriver(orderId: string, driverId: string, driverName: string, driverPhone: string): Promise<{ error: string | null }> {
+  /**
+   * Annuler une commande
+   */
+  static async cancelOrder(orderId: string): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ 
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation de la commande:', error);
+      return { success: false, error: 'Erreur lors de l\'annulation de la commande' };
+    }
+  }
+
+  /**
+   * Assigner un chauffeur à une commande
+   */
+  static async assignDriver(orderId: string, driverId: string, driverName: string, driverPhone: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
           driver_id: driverId,
           driver_name: driverName,
           driver_phone: driverPhone,
-          updated_at: new Date().toISOString() 
+          updated_at: new Date().toISOString()
         })
-        .eq('id', orderId)
+        .eq('id', orderId);
 
       if (error) {
-        return { error: error.message }
+        return { success: false, error: error.message };
       }
 
-      return { error: null }
+      return { success: true, error: null };
     } catch (error) {
-      return { error: 'Erreur lors de l\'assignation du livreur' }
+      console.error('Erreur lors de l\'assignation du chauffeur:', error);
+      return { success: false, error: 'Erreur lors de l\'assignation du chauffeur' };
     }
   }
 
-  // Mettre à jour la position du livreur
-  static async updateDriverLocation(orderId: string, location: { lat: number; lng: number }): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          driver_location: location,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', orderId)
-
-      if (error) {
-        return { error: error.message }
-      }
-
-      return { error: null }
-    } catch (error) {
-      return { error: 'Erreur lors de la mise à jour de la position' }
-    }
-  }
-
-  // Ajouter une note et avis client
-  static async addCustomerReview(orderId: string, rating: number, review: string): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          customer_rating: rating,
-          customer_review: review,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', orderId)
-
-      if (error) {
-        return { error: error.message }
-      }
-
-      return { error: null }
-    } catch (error) {
-      return { error: 'Erreur lors de l\'ajout de l\'avis' }
-    }
-  }
-
-  // Récupérer les commandes par statut
-  static async getOrdersByStatus(status: Order['status']): Promise<{ orders: Order[]; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('status', status)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        return { orders: [], error: error.message }
-      }
-
-      return { orders: data || [], error: null }
-    } catch (error) {
-      return { orders: [], error: 'Erreur lors de la récupération des commandes' }
-    }
-  }
-
-  // Écouter les changements de commandes en temps réel
+  /**
+   * S'abonner aux changements d'une commande en temps réel
+   */
   static subscribeToOrderChanges(orderId: string, callback: (order: Order) => void) {
     return supabase
       .channel(`order-${orderId}`)
@@ -310,100 +376,79 @@ export class OrderService {
           filter: `id=eq.${orderId}`
         },
         (payload) => {
-          callback(payload.new as Order)
+          const order = payload.new as Order;
+          callback(order);
         }
       )
-      .subscribe()
+      .subscribe();
   }
 
-  // Écouter les nouvelles commandes d'un commerce
-  static subscribeToBusinessOrders(businessId: number, callback: (order: Order) => void) {
-    return supabase
-      .channel(`business-orders-${businessId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `business_id=eq.${businessId}`
-        },
-        (payload) => {
-          callback(payload.new as Order)
-        }
-      )
-      .subscribe()
-  }
+  /**
+   * Ajouter un avis client à une commande
+   */
+  static async addCustomerReview(orderId: string, rating: number, review: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .insert({
+          order_id: orderId,
+          rating: rating,
+          review: review,
+          created_at: new Date().toISOString()
+        });
 
-  // Écouter les changements de statut des commandes d'un utilisateur
-  static subscribeToUserOrderStatus(userId: string, callback: (order: Order) => void) {
-    return supabase
-      .channel(`user-orders-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          callback(payload.new as Order)
-        }
-      )
-      .subscribe()
-  }
-}
+      if (error) {
+        return { success: false, error: error.message };
+      }
 
-// Fonction helper pour créer des notifications selon le statut
-const createStatusNotification = async (order: Order, status: string) => {
-  const statusMessages = {
-    'confirmed': {
-      title: 'Commande confirmée',
-      message: `Votre commande #${order.id.substring(0, 8)} a été confirmée par ${order.business_name}.`,
-      priority: 'medium' as const
-    },
-    'preparing': {
-      title: 'Commande en préparation',
-      message: `Votre commande #${order.id.substring(0, 8)} est en cours de préparation chez ${order.business_name}.`,
-      priority: 'medium' as const
-    },
-    'ready': {
-      title: 'Commande prête',
-      message: `Votre commande #${order.id.substring(0, 8)} est prête pour la livraison.`,
-      priority: 'high' as const
-    },
-    'picked_up': {
-      title: 'Commande en livraison',
-      message: `Votre commande #${order.id.substring(0, 8)} est en cours de livraison.`,
-      priority: 'high' as const
-    },
-    'delivered': {
-      title: 'Commande livrée',
-      message: `Votre commande #${order.id.substring(0, 8)} a été livrée. Bon appétit !`,
-      priority: 'medium' as const
-    },
-    'cancelled': {
-      title: 'Commande annulée',
-      message: `Votre commande #${order.id.substring(0, 8)} a été annulée.`,
-      priority: 'high' as const
+      return { success: true, error: null };
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de l\'avis:', error);
+      return { success: false, error: 'Erreur lors de l\'ajout de l\'avis' };
     }
   }
 
-  const notificationData = statusMessages[status as keyof typeof statusMessages]
-  
-  if (notificationData) {
-    await NotificationService.create({
-      user_id: order.user_id,
-      type: 'order_status',
-      title: notificationData.title,
-      message: notificationData.message,
-      priority: notificationData.priority,
-      data: {
-        order_id: order.id,
-        business_name: order.business_name,
-        status: status
+  /**
+   * Créer une nouvelle commande avec notification email
+   */
+  static async createOrder(orderData: any): Promise<{ order: Order | null; error: string | null }> {
+    try {
+      // 1. Créer la commande
+      const { data, error } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (error) {
+        return { order: null, error: error.message };
       }
-    })
+
+      // 2. Récupérer les informations utilisateur pour l'email
+      const { data: userData, error: userError } = await supabase
+        .from('user_profiles')
+        .select('name, email')
+        .eq('id', orderData.user_id)
+        .single();
+
+      if (userError) {
+        console.warn('Erreur lors de la récupération des données utilisateur:', userError);
+      }
+
+      // 3. Envoyer l'email de confirmation de commande
+      if (userData) {
+        try {
+          await EmailService.sendOrderConfirmationEmail(data, userData);
+        } catch (emailError) {
+          console.warn('Erreur lors de l\'envoi de l\'email de confirmation:', emailError);
+          // Ne pas faire échouer la création de commande à cause de l'email
+        }
+      }
+
+      return { order: data, error: null };
+    } catch (error) {
+      console.error('Erreur lors de la création de la commande:', error);
+      return { order: null, error: 'Erreur lors de la création de la commande' };
+    }
   }
 } 

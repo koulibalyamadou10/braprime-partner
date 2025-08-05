@@ -1,58 +1,64 @@
-import React, { useState, useEffect } from 'react';
+
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Settings, 
-  Bell, 
-  Shield, 
-  CreditCard, 
-  Globe, 
-  Clock, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Building2,
-  Save,
-  AlertCircle,
-  CheckCircle,
-  Eye,
-  EyeOff,
-  Key,
-  Users,
-  Calendar,
-  DollarSign
-} from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePartnerProfile } from '@/hooks/use-partner-profile';
+import { subscriptionUtils } from '@/hooks/use-subscription';
+import { supabase } from '@/lib/supabase';
+import {
+    AlertCircle,
+    Bell,
+    Building2,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    Globe,
+    Phone,
+    Save,
+    Settings,
+    Shield,
+    Truck
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface BusinessSettings {
+  // Informations de base
   name: string;
   description: string;
   phone: string;
   email: string;
   address: string;
-  city: string;
-  postal_code: string;
-  country: string;
+  
+  // Informations de livraison
+  delivery_time: string;
+  delivery_fee: number;
+  delivery_radius: number;
+  max_orders_per_slot: number;
+  
+  // Informations de cuisine
+  cuisine_type: string;
+  opening_hours: string;
+  
+  // Statut
+  is_active: boolean;
+  is_open: boolean;
+  
+  // Paramètres régionaux
   timezone: string;
   currency: string;
   language: string;
-  is_active: boolean;
-  auto_accept_orders: boolean;
-  require_prepayment: boolean;
-  delivery_radius: number;
-  min_order_amount: number;
-  max_delivery_time: number;
 }
 
 interface NotificationSettings {
@@ -80,25 +86,46 @@ const PartnerSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Hook partenaire pour diagnostic
+  const { profile: partnerProfile, isLoading: partnerLoading } = usePartnerProfile();
   
+  // Utiliser partnerProfile comme business data
+  const business = partnerProfile;
+  const businessLoading = partnerLoading;
+  
+  console.log('🔍 [PartnerSettings] Diagnostic des hooks:');
+  console.log('  - usePartnerProfile (business):', { business, businessLoading });
+  console.log('  - user:', user);
+  console.log('  - business?.id:', business?.id);
+  console.log('  - loading state:', loading);
+  console.log('  - businessLoading state:', businessLoading);
+
   const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
+    // Informations de base
     name: '',
     description: '',
     phone: '',
     email: '',
     address: '',
-    city: '',
-    postal_code: '',
-    country: 'Guinée',
+    
+    // Informations de livraison
+    delivery_time: '30-45 min',
+    delivery_fee: 5000,
+    delivery_radius: 10,
+    max_orders_per_slot: 10,
+    
+    // Informations de cuisine
+    cuisine_type: '',
+    opening_hours: '',
+    
+    // Statut
+    is_active: true,
+    is_open: true,
+    
+    // Paramètres régionaux
     timezone: 'Africa/Conakry',
     currency: 'GNF',
-    language: 'fr',
-    is_active: true,
-    auto_accept_orders: false,
-    require_prepayment: false,
-    delivery_radius: 10,
-    min_order_amount: 5000,
-    max_delivery_time: 60
+    language: 'fr'
   });
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -121,38 +148,78 @@ const PartnerSettings: React.FC = () => {
   });
 
   useEffect(() => {
+    console.log('🔄 [PartnerSettings] useEffect triggered:', { business, businessLoading });
     loadSettings();
-  }, []);
+  }, [business, businessLoading]);
 
   const loadSettings = async () => {
     try {
+      console.log('🔄 [PartnerSettings] Début du chargement des paramètres');
+      console.log('🔄 [PartnerSettings] businessLoading:', businessLoading);
+      console.log('🔄 [PartnerSettings] business:', business);
       setLoading(true);
-      // Simuler le chargement des paramètres
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Données de test
-      setBusinessSettings({
-        name: 'Restaurant Le Gourmet',
-        description: 'Restaurant gastronomique spécialisé dans la cuisine française',
-        phone: '+224 123 456 789',
-        email: 'contact@legourmet.gn',
-        address: '123 Avenue de la République',
-        city: 'Conakry',
-        postal_code: '001',
-        country: 'Guinée',
-        timezone: 'Africa/Conakry',
-        currency: 'GNF',
-        language: 'fr',
-        is_active: true,
-        auto_accept_orders: false,
-        require_prepayment: false,
-        delivery_radius: 10,
-        min_order_amount: 5000,
-        max_delivery_time: 60
-      });
+      // Charger même si businessLoading est true, pour voir si ça débloque
+      if (business) {
+        console.log('📊 [PartnerSettings] Chargement des vraies données du business:', business);
+        
+        setBusinessSettings({
+          // Informations de base
+          name: business.name || '',
+          description: business.description || '',
+          phone: business.phone || '',
+          email: business.email || '',
+          address: business.address || '',
+          
+          // Informations de livraison
+          delivery_time: business.delivery_time || '30-45 min',
+          delivery_fee: business.delivery_fee || 5000,
+          delivery_radius: business.delivery_radius || 10,
+          max_orders_per_slot: business.max_orders_per_slot || 10,
+          
+          // Informations de cuisine
+          cuisine_type: business.cuisine_type || '',
+          opening_hours: business.opening_hours || '',
+          
+          // Statut
+          is_active: business.is_active ?? true,
+          is_open: business.is_open ?? true,
+          
+          // Paramètres régionaux
+          timezone: 'Africa/Conakry',
+          currency: 'GNF',
+          language: 'fr'
+        });
+        
+        console.log('✅ [PartnerSettings] Paramètres chargés avec succès');
+      } else {
+        console.log('⚠️ [PartnerSettings] Aucun business trouvé');
+        // Charger des données par défaut pour éviter le skeleton infini
+        setBusinessSettings({
+          name: 'Chargement...',
+          description: '',
+          phone: '',
+          email: '',
+          address: '',
+          city: 'Conakry',
+          postal_code: '',
+          country: 'Guinée',
+          timezone: 'Africa/Conakry',
+          currency: 'GNF',
+          language: 'fr',
+          is_active: true,
+          auto_accept_orders: false,
+          require_prepayment: false,
+          delivery_radius: 10,
+          min_order_amount: 5000,
+          max_delivery_time: 60
+        });
+      }
     } catch (error) {
+      console.error('❌ [PartnerSettings] Erreur lors du chargement des paramètres:', error);
       toast.error('Erreur lors du chargement des paramètres');
     } finally {
+      console.log('🏁 [PartnerSettings] Fin du chargement, setting loading = false');
       setLoading(false);
     }
   };
@@ -160,10 +227,49 @@ const PartnerSettings: React.FC = () => {
   const saveBusinessSettings = async () => {
     try {
       setSaving(true);
-      // Simuler la sauvegarde
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (!business?.id) {
+        toast.error('Aucun business associé à ce compte');
+        return;
+      }
+      
+      console.log('💾 [PartnerSettings] Sauvegarde des paramètres du business:', businessSettings);
+      
+      // Mettre à jour la base de données
+      const { error } = await supabase
+        .from('businesses')
+        .update({
+          name: businessSettings.name,
+          description: businessSettings.description,
+          phone: businessSettings.phone,
+          email: businessSettings.email,
+          address: businessSettings.address,
+          delivery_time: businessSettings.delivery_time,
+          delivery_fee: businessSettings.delivery_fee,
+          delivery_radius: businessSettings.delivery_radius,
+          max_orders_per_slot: businessSettings.max_orders_per_slot,
+          cuisine_type: businessSettings.cuisine_type,
+          opening_hours: businessSettings.opening_hours,
+          is_active: businessSettings.is_active,
+          is_open: businessSettings.is_open,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', business.id);
+      
+      if (error) {
+        console.error('❌ [PartnerSettings] Erreur lors de la sauvegarde:', error);
+        toast.error('Erreur lors de la sauvegarde: ' + error.message);
+        return;
+      }
+      
+      console.log('✅ [PartnerSettings] Paramètres sauvegardés avec succès');
       toast.success('Paramètres sauvegardés avec succès');
+      
+      // Recharger les données pour s'assurer qu'elles sont à jour
+      window.location.reload();
+      
     } catch (error) {
+      console.error('❌ [PartnerSettings] Erreur lors de la sauvegarde:', error);
       toast.error('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
@@ -194,6 +300,16 @@ const PartnerSettings: React.FC = () => {
     }
   };
 
+
+
+  // Debug: Afficher l'état de chargement
+  console.log('🔍 [PartnerSettings] État de chargement:', {
+    loading,
+    businessLoading,
+    business: !!business,
+    businessData: business
+  });
+
   if (loading) {
     return (
       <DashboardLayout navItems={partnerNavItems}>
@@ -216,6 +332,26 @@ const PartnerSettings: React.FC = () => {
     );
   }
 
+  // Si pas de business, afficher un message d'erreur
+  if (!business) {
+    return (
+      <DashboardLayout navItems={partnerNavItems}>
+        <div className="space-y-6">
+          <div className="text-center py-12">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Aucun business trouvé</h2>
+            <p className="text-muted-foreground mb-4">
+              Aucun business n'est associé à votre compte. Veuillez contacter l'administrateur.
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Actualiser la page
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout navItems={partnerNavItems}>
       <div className="space-y-6">
@@ -229,7 +365,7 @@ const PartnerSettings: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Général
@@ -242,18 +378,15 @@ const PartnerSettings: React.FC = () => {
               <Shield className="h-4 w-4" />
               Sécurité
             </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Facturation
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-6">
+            {/* Informations de base */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Informations de l'entreprise
+                  Informations de base
                 </CardTitle>
                 <CardDescription>
                   Modifiez les informations de base de votre entreprise
@@ -290,12 +423,12 @@ const PartnerSettings: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="business-city">Ville</Label>
+                    <Label htmlFor="business-cuisine">Type de cuisine</Label>
                     <Input
-                      id="business-city"
-                      value={businessSettings.city}
-                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, city: e.target.value }))}
-                      placeholder="Conakry"
+                      id="business-cuisine"
+                      value={businessSettings.cuisine_type}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, cuisine_type: e.target.value }))}
+                      placeholder="Ex: Africaine, Européenne, Asiatique..."
                     />
                   </div>
                 </div>
@@ -317,6 +450,110 @@ const PartnerSettings: React.FC = () => {
                     onChange={(e) => setBusinessSettings(prev => ({ ...prev, address: e.target.value }))}
                     placeholder="Adresse complète de votre entreprise..."
                     rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="business-hours">Heures d'ouverture</Label>
+                  <Input
+                    id="business-hours"
+                    value={businessSettings.opening_hours}
+                    onChange={(e) => setBusinessSettings(prev => ({ ...prev, opening_hours: e.target.value }))}
+                    placeholder="Ex: 8h-22h, Lundi-Dimanche"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Paramètres de livraison */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Paramètres de livraison
+                </CardTitle>
+                <CardDescription>
+                  Configurez les paramètres de livraison et de service
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery-time">Temps de livraison</Label>
+                    <Input
+                      id="delivery-time"
+                      value={businessSettings.delivery_time}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, delivery_time: e.target.value }))}
+                      placeholder="Ex: 30-45 min"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery-fee">Frais de livraison (FG)</Label>
+                    <Input
+                      id="delivery-fee"
+                      type="number"
+                      value={businessSettings.delivery_fee}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, delivery_fee: parseInt(e.target.value) || 0 }))}
+                      placeholder="5000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery-radius">Rayon de livraison (km)</Label>
+                    <Input
+                      id="delivery-radius"
+                      type="number"
+                      value={businessSettings.delivery_radius}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, delivery_radius: parseInt(e.target.value) || 0 }))}
+                      placeholder="10"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max-orders">Commandes max par créneau</Label>
+                    <Input
+                      id="max-orders"
+                      type="number"
+                      value={businessSettings.max_orders_per_slot}
+                      onChange={(e) => setBusinessSettings(prev => ({ ...prev, max_orders_per_slot: parseInt(e.target.value) || 0 }))}
+                      placeholder="10"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Statut du business */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Statut du business
+                </CardTitle>
+                <CardDescription>
+                  Gérez le statut de votre business
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Business actif</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activez ou désactivez votre business
+                    </p>
+                  </div>
+                  <Switch
+                    checked={businessSettings.is_active}
+                    onCheckedChange={(checked) => setBusinessSettings(prev => ({ ...prev, is_active: checked }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Business ouvert</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Indiquez si votre business est ouvert aux commandes
+                    </p>
+                  </div>
+                  <Switch
+                    checked={businessSettings.is_open}
+                    onCheckedChange={(checked) => setBusinessSettings(prev => ({ ...prev, is_open: checked }))}
                   />
                 </div>
               </CardContent>
@@ -722,121 +959,11 @@ const PartnerSettings: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="billing" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Facturation et paiements
-                </CardTitle>
-                <CardDescription>
-                  Gérez vos informations de facturation
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="bg-muted p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <span className="font-medium">Plan actuel : Gratuit</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Vous utilisez actuellement le plan gratuit. Passez à un plan payant pour accéder à plus de fonctionnalités.
-                  </p>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Gratuit</CardTitle>
-                      <CardDescription>Plan de base</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold mb-4">0 GNF</div>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Jusqu'à 50 commandes/mois
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Support par email
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Tableau de bord de base
-                        </li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Pro</CardTitle>
-                      <CardDescription>Plan recommandé</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold mb-4">50,000 GNF</div>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Commandes illimitées
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Support prioritaire
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Analytics avancés
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Gestion des livreurs
-                        </li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg">Enterprise</CardTitle>
-                      <CardDescription>Pour les grandes entreprises</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold mb-4">150,000 GNF</div>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Tout du plan Pro
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Support dédié
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          API personnalisée
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          Formation sur mesure
-                        </li>
-                      </ul>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="flex justify-center">
-                  <Button size="lg">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Mettre à niveau le plan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
+
+
     </DashboardLayout>
   );
 };

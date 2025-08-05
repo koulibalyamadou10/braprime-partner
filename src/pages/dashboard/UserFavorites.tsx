@@ -25,31 +25,40 @@ import { UserFavoritesSkeleton } from '@/components/dashboard/DashboardSkeletons
 const UserFavorites = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('businesses');
-  const { favorites, removeFavorite, isLoading, error } = useFavorites();
+  const { 
+    favoriteBusinesses, 
+    favoriteMenuItems, 
+    toggleBusinessFavorite, 
+    toggleMenuItemFavorite,
+    isLoadingFavoriteBusinesses,
+    isLoadingFavoriteMenuItems,
+    errorFavoriteBusinesses,
+    errorFavoriteMenuItems
+  } = useFavorites();
 
   // Filtrer les favoris selon la recherche
-  const filteredBusinesses = favorites.businesses?.filter(business =>
-    business.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    business.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredBusinesses = favoriteBusinesses?.filter(business =>
+    business.business.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    business.business.cuisine_type?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  const filteredItems = favorites.items?.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.business_name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredItems = favoriteMenuItems?.filter(item =>
+    item.menu_item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.menu_item.business_name?.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   const handleRemoveBusinessFavorite = async (businessId: number) => {
     try {
-      await removeFavorite('business', businessId);
+      toggleBusinessFavorite(businessId);
       toast.success('Commerce retiré des favoris');
     } catch (error) {
       toast.error('Erreur lors de la suppression du favori');
     }
   };
 
-  const handleRemoveItemFavorite = async (itemId: string) => {
+  const handleRemoveItemFavorite = async (menuItemId: number) => {
     try {
-      await removeFavorite('item', itemId);
+      toggleMenuItemFavorite(menuItemId);
       toast.success('Article retiré des favoris');
     } catch (error) {
       toast.error('Erreur lors de la suppression du favori');
@@ -85,6 +94,9 @@ const UserFavorites = () => {
         return category;
     }
   };
+
+  const isLoading = isLoadingFavoriteBusinesses || isLoadingFavoriteMenuItems;
+  const hasError = errorFavoriteBusinesses || errorFavoriteMenuItems;
 
   if (isLoading) {
     return (
@@ -141,47 +153,64 @@ const UserFavorites = () => {
             {filteredBusinesses.length > 0 ? (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {filteredBusinesses.map((business) => (
-                  <Card key={business.id} className="hover:shadow-md transition-shadow">
+                  <Card key={business.id} className="hover:shadow-md transition-shadow overflow-hidden">
+                    {/* Image du commerce */}
+                    <div className="relative h-48 w-full bg-gray-100">
+                      {business.business.cover_image ? (
+                        <>
+                          <img 
+                            src={business.business.cover_image} 
+                            alt={business.business.name}
+                            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/20"></div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <Building2 className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
-                          {getCategoryIcon(business.category)}
+                          {getCategoryIcon(business.business.cuisine_type || 'restaurant')}
                           <Badge variant="outline">
-                            {getCategoryLabel(business.category)}
+                            {getCategoryLabel(business.business.cuisine_type || 'restaurant')}
                           </Badge>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveBusinessFavorite(business.id)}
+                          onClick={() => handleRemoveBusinessFavorite(business.business.id)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         >
                           <Heart className="h-4 w-4 fill-current" />
                         </Button>
                       </div>
-                      <CardTitle className="text-lg">{business.name}</CardTitle>
+                      <CardTitle className="text-lg">{business.business.name}</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <MapPin className="h-4 w-4" />
-                          <span>{business.address}</span>
+                          <span>{business.business.address}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Star className="h-4 w-4 text-yellow-500" />
-                          <span>{business.rating.toFixed(1)} ({business.review_count} avis)</span>
+                          <span>{business.business.rating.toFixed(1)} ({business.business.review_count} avis)</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Clock className="h-4 w-4" />
-                          <span>{business.delivery_time} min</span>
+                          <span>{business.business.delivery_time}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Truck className="h-4 w-4" />
-                          <span>{business.delivery_fee} GNF</span>
+                          <span>{business.business.delivery_fee} GNF</span>
                         </div>
                       </div>
                       <Button className="w-full mt-4" asChild>
-                        <a href={`/services/${business.id}`}>
+                        <a href={`/services/${business.business.id}`}>
                           Voir le menu
                         </a>
                       </Button>
@@ -219,25 +248,48 @@ const UserFavorites = () => {
             {filteredItems.length > 0 ? (
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {filteredItems.map((item) => (
-                  <Card key={item.id} className="hover:shadow-md transition-shadow">
+                  <Card key={item.id} className="hover:shadow-md transition-shadow overflow-hidden">
+                    {/* Image de l'article */}
+                    <div className="relative h-48 w-full bg-gray-100">
+                      {item.menu_item.image ? (
+                        <>
+                          <img 
+                            src={item.menu_item.image} 
+                            alt={item.menu_item.name}
+                            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-black/20"></div>
+                          {/* Badge de prix flottant */}
+                          <div className="absolute top-3 right-3">
+                            <Badge className="bg-green-600 text-white font-semibold">
+                              {item.menu_item.price} GNF
+                            </Badge>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                          <Utensils className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">
-                            {item.category}
+                            Article
                           </Badge>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveItemFavorite(item.id)}
+                          onClick={() => handleRemoveItemFavorite(item.menu_item.id)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50"
                         >
                           <Heart className="h-4 w-4 fill-current" />
                         </Button>
                       </div>
-                      <CardTitle className="text-lg">{item.name}</CardTitle>
-                      <CardDescription>{item.business_name}</CardDescription>
+                      <CardTitle className="text-lg">{item.menu_item.name}</CardTitle>
+                      <CardDescription>{item.menu_item.business_name}</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2">
@@ -246,16 +298,16 @@ const UserFavorites = () => {
                           <span>{item.rating?.toFixed(1) || 'N/A'} ({item.review_count || 0} avis)</span>
                         </div>
                         <div className="text-lg font-semibold text-green-600">
-                          {item.price} GNF
+                          {item.menu_item.price} GNF
                         </div>
-                        {item.description && (
+                        {item.menu_item.description && (
                           <p className="text-sm text-gray-600 line-clamp-2">
-                            {item.description}
+                            {item.menu_item.description}
                           </p>
                         )}
                       </div>
                       <Button className="w-full mt-4" asChild>
-                        <a href={`/services/${item.business_id}`}>
+                        <a href={`/services/${item.menu_item.business_id}`}>
                           Commander
                         </a>
                       </Button>

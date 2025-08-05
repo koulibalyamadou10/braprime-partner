@@ -1,13 +1,32 @@
-import { ReactNode, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Menu, X, LogOut, Home, ChevronRight, 
-  UserCircle, ShoppingBag, MapPin, CreditCard, Bell, Calendar, Truck, Key, Building2, Users, BarChart3, Settings, Shield, Package, DollarSign, TrendingUp, FileText
+import { cn } from '@/lib/utils';
+import {
+    BarChart3,
+    Bell,
+    Building2,
+    Calendar,
+    ChevronRight,
+    CreditCard,
+    DollarSign,
+    FileText, Heart,
+    Home,
+    LogOut,
+    Mail,
+    MapPin,
+    Menu,
+    Package,
+    Settings, Shield,
+    ShoppingBag,
+    TrendingUp,
+    Truck,
+    UserCircle,
+    Users,
+    X
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ReactNode, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 interface NavItemProps {
   href: string;
@@ -54,7 +73,7 @@ const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) =>
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-gray-900 px-4 sm:px-6 lg:px-8">
         <Button
           variant="outline"
           size="icon"
@@ -71,8 +90,7 @@ const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) =>
 
         <div className="flex flex-1 items-center gap-4 md:gap-8">
           <Link to="/" className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-full overflow-hidden guinea-gradient"></div>
-            <span className="font-bold text-xl hidden md:inline-block">BraPrime</span>
+            <img src="/logo.png" alt="BraPrime Logo" className="block h-10 sm:h-12 md:h-14 w-auto" />
           </Link>
           <div className="ml-auto flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2">
@@ -81,11 +99,11 @@ const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) =>
                 <AvatarFallback>{currentUser?.name?.[0] || 'U'}</AvatarFallback>
               </Avatar>
               <div className="hidden md:block">
-                <p className="text-sm font-medium">{currentUser?.name}</p>
-                <p className="text-xs text-gray-500">{currentUser?.email}</p>
+                <p className="text-sm font-medium text-white">{currentUser?.name}</p>
+                <p className="text-xs text-gray-300">{currentUser?.email}</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-white hover:bg-gray-800">
               <LogOut className="h-5 w-5" />
               <span className="sr-only">Logout</span>
             </Button>
@@ -152,6 +170,11 @@ export const userNavItems = [
     icon: <Calendar className="h-5 w-5" />,
   },
   {
+    href: '/dashboard/favorites',
+    label: 'Favoris',
+    icon: <Heart className="h-5 w-5" />,
+  },
+  {
     href: '/dashboard/profile',
     label: 'Profil',
     icon: <UserCircle className="h-5 w-5" />,
@@ -171,7 +194,6 @@ export const userNavItems = [
     label: 'Notifications',
     icon: <Bell className="h-5 w-5" />,
   },
-
 ];
 
 export const partnerNavItems = [
@@ -200,10 +222,14 @@ export const partnerNavItems = [
     label: 'Livreurs',
     icon: <Truck className="h-5 w-5" />,
   },
-
   {
     href: '/partner-dashboard/revenue',
     label: 'Revenus',
+    icon: <DollarSign className="h-5 w-5" />,
+  },
+  {
+    href: '/partner-dashboard/billing',
+    label: 'Facturation',
     icon: <CreditCard className="h-5 w-5" />,
   },
   {
@@ -278,6 +304,11 @@ export const adminNavItems = [
     icon: <FileText className="h-5 w-5" />,
   },
   {
+    href: '/admin-dashboard/subscriptions',
+    label: 'Abonnements',
+    icon: <CreditCard className="h-5 w-5" />,
+  },
+  {
     href: '/admin-dashboard/content',
     label: 'Contenu',
     icon: <Package className="h-5 w-5" />,
@@ -291,6 +322,11 @@ export const adminNavItems = [
     href: '/admin-dashboard/system',
     label: 'Système',
     icon: <Settings className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/email-test',
+    label: 'Test Mail',
+    icon: <Mail className="h-5 w-5" />,
   },
   {
     href: '/admin-dashboard/settings',

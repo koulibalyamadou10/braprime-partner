@@ -48,6 +48,38 @@ export const useReservations = () => {
     }
   };
 
+  // Mettre à jour une réservation
+  const updateReservation = async (data: { id: string; date: string; time: string; guests: number; special_requests?: string }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data: reservation, error } = await ReservationService.update(data.id, {
+        special_requests: data.special_requests
+      });
+      
+      if (error) {
+        return { success: false, error };
+      }
+
+      if (reservation) {
+        // Mettre à jour la réservation dans l'état local avec les nouvelles données
+        setReservations(prev => 
+          prev.map(res => res.id === data.id ? {
+            ...res,
+            date: data.date,
+            time: data.time,
+            guests: data.guests,
+            special_requests: data.special_requests,
+            updated_at: new Date().toISOString()
+          } : res)
+        );
+        return { success: true };
+      }
+
+      return { success: false, error: 'Erreur lors de la mise à jour de la réservation' };
+    } catch (err) {
+      return { success: false, error: 'Erreur de connexion' };
+    }
+  };
+
   // Annuler une réservation
   const cancelReservation = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -81,6 +113,7 @@ export const useReservations = () => {
     error,
     loadReservations,
     createReservation,
+    updateReservation,
     cancelReservation
   };
 }; 

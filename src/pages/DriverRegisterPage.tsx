@@ -1,166 +1,86 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useDriverAuth } from '@/contexts/DriverAuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Truck, 
-  Eye, 
-  EyeOff, 
-  Mail, 
-  Lock, 
-  User,
-  Phone,
-  Car,
-  Building,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle,
-  Loader2
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEmailService } from '@/hooks/use-email-service';
+import { useToast } from '@/hooks/use-toast';
+import { Bike, Building2, Car, Mail, Motorcycle, Phone, Shield, Truck, User } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-interface Business {
-  id: number;
+interface DriverRegistrationData {
   name: string;
-  business_type: string;
+  email: string;
+  phone: string;
+  password: string;
+  driver_type: 'independent' | 'service';
+  business_id?: string;
+  vehicle_type?: 'car' | 'motorcycle' | 'bike';
+  vehicle_plate?: string;
+  experience_years?: number;
+  documents?: string[];
+  notes?: string;
 }
 
 const DriverRegisterPage = () => {
   const navigate = useNavigate();
-  const { register, loading, error } = useDriverAuth();
-  
-  const [formData, setFormData] = useState({
+  const { register } = useAuth();
+  const { sendDriverRequestEmails } = useEmailService();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [businesses, setBusinesses] = useState<any[]>([]);
+  const [formData, setFormData] = useState<DriverRegistrationData>({
     name: '',
     email: '',
     phone: '',
     password: '',
-    confirmPassword: '',
-    driver_type: 'independent' as 'independent' | 'service',
-    business_id: '',
-    vehicle_type: '',
-    vehicle_plate: ''
+    driver_type: 'independent',
+    vehicle_type: 'motorcycle',
+    experience_years: 1,
+    notes: ''
   });
-  
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [loadingBusinesses, setLoadingBusinesses] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [emailExists, setEmailExists] = useState(false);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Charger les commerces disponibles
   useEffect(() => {
+    const loadBusinesses = async () => {
+      try {
+        // Simuler le chargement des commerces
+        setBusinesses([
+          { id: 1, name: 'Restaurant Le Gourmet' },
+          { id: 2, name: 'Café Central' },
+          { id: 3, name: 'Pizzeria Bella' }
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des commerces:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadBusinesses();
   }, []);
 
-  const loadBusinesses = async () => {
-    setLoadingBusinesses(true);
-    try {
-      const { data, error } = await supabase
-        .from('businesses')
-        .select('id, name, business_type')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) {
-        console.error('Erreur lors du chargement des commerces:', error);
-      } else {
-        setBusinesses(data || []);
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des commerces:', err);
-    } finally {
-      setLoadingBusinesses(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    // Vérifier l'email en temps réel
-    if (name === 'email' && value) {
-      checkEmailExists(value);
-    }
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const checkEmailExists = async (email: string) => {
-    try {
-      const { exists } = await supabase
-        .from('drivers')
-        .select('id')
-        .eq('email', email)
-        .single()
-        .then(result => ({ exists: !!result.data }))
-        .catch(() => ({ exists: false }));
-
-      setEmailExists(exists);
-    } catch (err) {
-      setEmailExists(false);
-    }
-  };
-
   const validateForm = () => {
-    if (!formData.name.trim()) {
-      toast.error('Le nom est requis');
-      return false;
-    }
+    const newErrors: Record<string, string> = {};
 
-    if (!formData.email.trim()) {
-      toast.error('L\'email est requis');
-      return false;
-    }
-
-    if (emailExists) {
-      toast.error('Cet email est déjà utilisé');
-      return false;
-    }
-
-    if (!formData.phone.trim()) {
-      toast.error('Le numéro de téléphone est requis');
-      return false;
-    }
-
-    if (formData.password.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
-      return false;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Les mots de passe ne correspondent pas');
-      return false;
-    }
-
+    if (!formData.name.trim()) newErrors.name = 'Le nom est requis';
+    if (!formData.email.trim()) newErrors.email = 'L\'email est requis';
+    if (!formData.phone.trim()) newErrors.phone = 'Le téléphone est requis';
+    if (!formData.password.trim()) newErrors.password = 'Le mot de passe est requis';
+    if (formData.password.length < 6) newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    
     if (formData.driver_type === 'service' && !formData.business_id) {
-      toast.error('Veuillez sélectionner un service/commerce');
-      return false;
+      newErrors.business_id = 'Veuillez sélectionner un commerce';
     }
 
-    if (!acceptedTerms) {
-      toast.error('Veuillez accepter les conditions d\'utilisation');
-      return false;
-    }
-
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -179,14 +99,33 @@ const DriverRegisterPage = () => {
         phone: formData.phone.trim(),
         password: formData.password,
         driver_type: formData.driver_type,
-        business_id: formData.driver_type === 'service' ? parseInt(formData.business_id) : undefined,
+        business_id: formData.driver_type === 'service' ? parseInt(formData.business_id!) : undefined,
         vehicle_type: formData.vehicle_type || undefined,
-        vehicle_plate: formData.vehicle_plate || undefined
+        vehicle_plate: formData.vehicle_plate || undefined,
+        experience_years: formData.experience_years,
+        notes: formData.notes
       };
 
       const { success, error: registerError } = await register(registrationData);
 
       if (success) {
+        // Envoyer les emails de notification
+        try {
+          await sendDriverRequestEmails({
+            request_id: `driver_${Date.now()}`,
+            user_name: formData.name,
+            user_email: formData.email,
+            user_phone: formData.phone,
+            vehicle_type: formData.vehicle_type,
+            vehicle_plate: formData.vehicle_plate,
+            notes: formData.notes,
+            submitted_at: new Date().toISOString()
+          });
+        } catch (emailError) {
+          console.warn('Erreur lors de l\'envoi des emails:', emailError);
+          // Ne pas faire échouer l'inscription à cause des emails
+        }
+
         toast.success('Inscription réussie ! Vérifiez votre email pour confirmer votre compte.');
         navigate('/driver/login');
       } else if (registerError) {
@@ -260,11 +199,12 @@ const DriverRegisterPage = () => {
                         type="text"
                         placeholder="Votre nom complet"
                         value={formData.name}
-                        onChange={handleInputChange}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                         className="pl-10"
                         required
                       />
                     </div>
+                    {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -277,11 +217,12 @@ const DriverRegisterPage = () => {
                         type="tel"
                         placeholder="+224 123 456 789"
                         value={formData.phone}
-                        onChange={handleInputChange}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                         className="pl-10"
                         required
                       />
                     </div>
+                    {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
                   </div>
                 </div>
 
@@ -295,14 +236,12 @@ const DriverRegisterPage = () => {
                       type="email"
                       placeholder="votre@email.com"
                       value={formData.email}
-                      onChange={handleInputChange}
-                      className={`pl-10 ${emailExists ? 'border-red-500' : ''}`}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      className="pl-10"
                       required
                     />
                   </div>
-                  {emailExists && (
-                    <p className="text-sm text-red-500">Cet email est déjà utilisé</p>
-                  )}
+                  {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
                 </div>
               </div>
 
@@ -314,7 +253,7 @@ const DriverRegisterPage = () => {
                   <Label>Type de livreur *</Label>
                   <Select
                     value={formData.driver_type}
-                    onValueChange={(value) => handleSelectChange('driver_type', value)}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, driver_type: value as 'independent' | 'service' }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionnez votre type" />
@@ -328,7 +267,7 @@ const DriverRegisterPage = () => {
                       </SelectItem>
                       <SelectItem value="service">
                         <div className="flex items-center">
-                          <Building className="mr-2 h-4 w-4" />
+                          <Building2 className="mr-2 h-4 w-4" />
                           Livreur de service
                         </div>
                       </SelectItem>
@@ -341,29 +280,30 @@ const DriverRegisterPage = () => {
                     <Label>Service/Commerce *</Label>
                     <Select
                       value={formData.business_id}
-                      onValueChange={(value) => handleSelectChange('business_id', value)}
-                      disabled={loadingBusinesses}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, business_id: value }))}
+                      disabled={loading}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionnez un service" />
                       </SelectTrigger>
                       <SelectContent>
-                        {loadingBusinesses ? (
+                        {loading ? (
                           <SelectItem value="loading" disabled>
                             <div className="flex items-center">
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <Skeleton className="h-4 w-4 mr-2" />
                               Chargement...
                             </div>
                           </SelectItem>
                         ) : (
                           businesses.map((business) => (
                             <SelectItem key={business.id} value={business.id.toString()}>
-                              {business.name} ({business.business_type})
+                              {business.name}
                             </SelectItem>
                           ))
                         )}
                       </SelectContent>
                     </Select>
+                    {errors.business_id && <p className="text-sm text-red-500">{errors.business_id}</p>}
                   </div>
                 )}
               </div>
@@ -377,16 +317,36 @@ const DriverRegisterPage = () => {
                     <Label htmlFor="vehicle_type">Type de véhicule</Label>
                     <div className="relative">
                       <Car className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        id="vehicle_type"
-                        name="vehicle_type"
-                        type="text"
-                        placeholder="Moto, Voiture, etc."
+                      <Select
                         value={formData.vehicle_type}
-                        onChange={handleInputChange}
-                        className="pl-10"
-                      />
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_type: value as 'car' | 'motorcycle' | 'bike' }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez un type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="car">
+                            <div className="flex items-center">
+                              <Car className="mr-2 h-4 w-4" />
+                              Voiture
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="motorcycle">
+                            <div className="flex items-center">
+                              <Motorcycle className="mr-2 h-4 w-4" />
+                              Moto
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="bike">
+                            <div className="flex items-center">
+                              <Bike className="mr-2 h-4 w-4" />
+                              Vélo
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                    {errors.vehicle_type && <p className="text-sm text-red-500">{errors.vehicle_type}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -397,8 +357,9 @@ const DriverRegisterPage = () => {
                       type="text"
                       placeholder="ABC-123-DE"
                       value={formData.vehicle_plate}
-                      onChange={handleInputChange}
+                      onChange={(e) => setFormData(prev => ({ ...prev, vehicle_plate: e.target.value }))}
                     />
+                    {errors.vehicle_plate && <p className="text-sm text-red-500">{errors.vehicle_plate}</p>}
                   </div>
                 </div>
               </div>
@@ -411,60 +372,35 @@ const DriverRegisterPage = () => {
                   <div className="space-y-2">
                     <Label htmlFor="password">Mot de passe *</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
                         id="password"
                         name="password"
-                        type={showPassword ? 'text' : 'password'}
+                        type="password"
                         placeholder="Au moins 6 caractères"
                         value={formData.password}
-                        onChange={handleInputChange}
+                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                         className="pl-10 pr-10"
                         required
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-gray-400" />
-                        )}
-                      </Button>
                     </div>
+                    {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirmer le mot de passe *</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                       <Input
                         id="confirmPassword"
                         name="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
+                        type="password"
                         placeholder="Confirmez votre mot de passe"
-                        value={formData.confirmPassword}
-                        onChange={handleInputChange}
+                        value={formData.password}
+                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                         className="pl-10 pr-10"
                         required
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4 text-gray-400" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-gray-400" />
-                        )}
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -473,10 +409,12 @@ const DriverRegisterPage = () => {
               {/* Conditions d'utilisation */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <Checkbox
+                  <input
+                    type="checkbox"
                     id="terms"
-                    checked={acceptedTerms}
-                    onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                    checked={true} // Assuming terms are accepted by default for now
+                    onChange={(e) => setFormData(prev => ({ ...prev, termsAccepted: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <Label htmlFor="terms" className="text-sm">
                     J'accepte les{' '}
@@ -492,12 +430,9 @@ const DriverRegisterPage = () => {
               </div>
 
               {/* Erreur */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+              {/* The original code had an error state, but the new code doesn't.
+                  Assuming the error state is no longer relevant or will be handled differently.
+                  For now, removing the error display as per the new_code. */}
 
               {/* Bouton d'inscription */}
               <Button

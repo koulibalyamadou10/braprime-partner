@@ -1,85 +1,130 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import DashboardLayout, { adminNavItems } from '@/components/dashboard/DashboardLayout';
-import { 
-  Building2, 
-  Truck, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Eye, 
-  Edit, 
-  Trash2,
-  Filter,
-  Search,
-  Download,
-  RefreshCw,
-  AlertCircle,
-  FileText,
-  Calendar,
-  Phone,
-  Mail,
-  MapPin,
-  Car,
-  User,
-  Key,
-  Copy,
-  Check
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue
+} from '@/components/ui/select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAdminRequests } from '@/hooks/use-admin-requests';
+import { useAdminDriverRequests } from '@/hooks/use-admin-driver-requests';
+import { useEmailService } from '@/hooks/use-email-service';
+import { BusinessRequest, BusinessRequestFilters } from '@/lib/services/admin-business-requests';
+import { AdminDriverRequestsService, DriverRequest } from '@/lib/services/admin-driver-requests';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useAdminRequests } from '@/hooks/use-admin-requests';
-import { Request, RequestFilters } from '@/lib/types';
-import { toast } from 'sonner';
-import { AdminAccountCreationService } from '@/lib/services/admin-account-creation';
+import {
+    Building2,
+    Car,
+    Check,
+    CheckCircle,
+    Clock,
+    Copy,
+    Eye,
+    EyeOff,
+    FileText,
+    Loader2,
+    Search,
+    Truck,
+    UserPlus,
+    Users,
+    XCircle
+} from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+interface AccountCredentials {
+  email: string;
+  password: string;
+  businessName: string;
+  dashboardUrl: string;
+}
+
+
 
 const AdminRequests = () => {
-  const [filters, setFilters] = useState<RequestFilters>({});
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | 'review'>('approve');
-  const [adminNotes, setAdminNotes] = useState('');
-  const [isCreateAccountDialogOpen, setIsCreateAccountDialogOpen] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState('');
-  const [isPasswordCopied, setIsPasswordCopied] = useState(false);
-  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'partners' | 'drivers'>('partners');
+  
+  // États pour les demandes de partenaires
+  const [partnerFilters, setPartnerFilters] = useState<BusinessRequestFilters>({});
+  const [selectedPartnerRequest, setSelectedPartnerRequest] = useState<BusinessRequest | null>(null);
+  const [isPartnerViewDialogOpen, setIsPartnerViewDialogOpen] = useState(false);
+  const [isPartnerActionDialogOpen, setIsPartnerActionDialogOpen] = useState(false);
+  const [partnerActionType, setPartnerActionType] = useState<'approve' | 'reject' | 'create_account'>('approve');
+  const [partnerAdminNotes, setPartnerAdminNotes] = useState('');
+  const [isPartnerActionLoading, setIsPartnerActionLoading] = useState<number | null>(null);
+  const [isPartnerCreateAccountLoading, setIsPartnerCreateAccountLoading] = useState<number | null>(null);
+  const [showPartnerCredentialsModal, setShowPartnerCredentialsModal] = useState(false);
+  const [partnerAccountCredentials, setPartnerAccountCredentials] = useState<AccountCredentials | null>(null);
+  const [showPartnerPassword, setShowPartnerPassword] = useState(false);
 
+  // États pour les demandes de chauffeurs
+  const [driverFilters, setDriverFilters] = useState({ status: '', search: '' });
+  const [selectedDriverRequest, setSelectedDriverRequest] = useState<DriverRequest | null>(null);
+  const [isDriverViewDialogOpen, setIsDriverViewDialogOpen] = useState(false);
+  const [isDriverActionDialogOpen, setIsDriverActionDialogOpen] = useState(false);
+  const [driverActionType, setDriverActionType] = useState<'approve' | 'reject'>('approve');
+  const [driverAdminNotes, setDriverAdminNotes] = useState('');
+  const [isDriverActionLoading, setIsDriverActionLoading] = useState<number | null>(null);
+  const [showDriverCredentialsModal, setShowDriverCredentialsModal] = useState(false);
+  const [driverAccountCredentials, setDriverAccountCredentials] = useState<AccountCredentials | null>(null);
+  const [showDriverPassword, setShowDriverPassword] = useState(false);
+
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { sendRequestApproval, sendRequestRejection, sendAdminNotification } = useEmailService();
+
+  // Hook pour les demandes de partenaires
   const {
-    requests,
-    stats,
-    isLoading,
-    statsLoading,
-    isUpdating,
-    updateStatus,
-    deleteRequest,
-    refetch
-  } = useAdminRequests(filters);
+    requests: partnerRequests,
+    stats: partnerStats,
+    isLoading: partnerLoading,
+    statsLoading: partnerStatsLoading,
+    isApproving: partnerApproving,
+    isRejecting: partnerRejecting,
+    approveRequest: approvePartnerRequest,
+    rejectRequest: rejectPartnerRequest,
+    refetch: refetchPartners,
+    createUserAccount: createPartnerAccount
+  } = useAdminRequests(partnerFilters);
+
+  // Hook pour les demandes de chauffeurs
+  const {
+    requests: driverRequests,
+    stats: driverStats,
+    isLoading: driverLoading,
+    statsLoading: driverStatsLoading,
+    isApproving: driverApproving,
+    isRejecting: driverRejecting,
+    approveRequest: approveDriverRequest,
+    rejectRequest: rejectDriverRequest,
+    createDriverAccount,
+    refetch: refetchDrivers
+  } = useAdminDriverRequests(driverFilters);
 
   // Formater la date
   const formatDate = (dateString: string) => {
@@ -89,174 +134,145 @@ const AdminRequests = () => {
   // Obtenir le badge de statut
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: { label: 'En attente', variant: 'secondary' as const, icon: Clock },
-      approved: { label: 'Approuvée', variant: 'default' as const, icon: CheckCircle },
-      rejected: { label: 'Rejetée', variant: 'destructive' as const, icon: XCircle },
-      under_review: { label: 'En révision', variant: 'outline' as const, icon: AlertCircle }
+      pending: { label: 'En attente', variant: 'secondary' as const },
+      approved: { label: 'Approuvée', variant: 'default' as const },
+      rejected: { label: 'Rejetée', variant: 'destructive' as const }
     };
-
-    const config = statusConfig[status as keyof typeof statusConfig] || { 
-      label: status, 
-      variant: 'outline' as const, 
-      icon: AlertCircle 
-    };
-
-    return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
-        <config.icon className="h-3 w-3" />
-        {config.label}
-      </Badge>
-    );
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  // Obtenir l'icône du type
-  const getTypeIcon = (type: string) => {
-    return type === 'partner' ? Building2 : Truck;
+  // Gestionnaires pour les partenaires
+  const handlePartnerFilterChange = (key: keyof BusinessRequestFilters, value: string) => {
+    setPartnerFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  // Gérer les filtres
-  const handleFilterChange = (key: keyof RequestFilters, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value || undefined
-    }));
-  };
+  const handlePartnerAction = async () => {
+    if (!selectedPartnerRequest) return;
 
-  // Gérer l'action sur une demande
-  const handleAction = () => {
-    if (!selectedRequest) return;
-
-    const statusMap = {
-      approve: 'approved' as const,
-      reject: 'rejected' as const,
-      review: 'under_review' as const
-    };
-
-    updateStatus(selectedRequest.id, statusMap[actionType], adminNotes);
-    setIsActionDialogOpen(false);
-    setAdminNotes('');
-    setSelectedRequest(null);
-  };
-
-  // Supprimer une demande
-  const handleDelete = (request: Request) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer la demande de ${request.user_name} ?`)) {
-      deleteRequest(request.id);
-    }
-  };
-
-  // Générer un mot de passe sécurisé
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setGeneratedPassword(password);
-    setIsPasswordCopied(false);
-  };
-
-  // Copier le mot de passe
-  const copyPassword = async () => {
+    setIsPartnerActionLoading(selectedPartnerRequest.id);
     try {
-      await navigator.clipboard.writeText(generatedPassword);
-      setIsPasswordCopied(true);
-      setTimeout(() => setIsPasswordCopied(false), 2000);
-    } catch (error) {
-      console.error('Erreur lors de la copie:', error);
-    }
-  };
-
-  // Créer le compte utilisateur
-  const handleCreateAccount = async () => {
-    if (!selectedRequest || !generatedPassword) return;
-
-    setIsCreatingAccount(true);
-    try {
-      // Vérifier si l'email existe déjà
-      const emailExists = await AdminAccountCreationService.checkEmailExists(selectedRequest.user_email);
-      if (emailExists) {
-        toast.error('Un compte avec cet email existe déjà');
-        return;
+      if (partnerActionType === 'approve') {
+        await approvePartnerRequest(selectedPartnerRequest.id);
+        toast.success('Demande approuvée avec succès');
+      } else if (partnerActionType === 'reject') {
+        await rejectPartnerRequest(selectedPartnerRequest.id, partnerAdminNotes);
+        toast.success('Demande rejetée avec succès');
       }
-
-      // Créer le compte utilisateur
-      const result = await AdminAccountCreationService.createUserAccount({
-        email: selectedRequest.user_email,
-        password: generatedPassword,
-        name: selectedRequest.user_name,
-        phone_number: selectedRequest.user_phone !== 'Non renseigné' ? selectedRequest.user_phone : undefined,
-        role: selectedRequest.type,
-        requestId: selectedRequest.id
-      });
-
-      // Envoyer l'email avec les informations de connexion
-      await AdminAccountCreationService.sendLoginCredentials(
-        selectedRequest.user_email,
-        generatedPassword,
-        selectedRequest.user_name,
-        selectedRequest.type
-      );
-
-      // Connecter automatiquement l'utilisateur
-      try {
-        const loginResult = await AdminAccountCreationService.autoLoginUser(
-          selectedRequest.user_email,
-          generatedPassword
-        );
-
-        if (loginResult.success) {
-          // Rediriger vers le dashboard approprié
-          const dashboardRoute = selectedRequest.type === 'partner' ? '/partner-dashboard' : '/driver-dashboard';
-          toast.success(`Compte ${selectedRequest.type} créé et connecté avec succès ! Redirection vers le dashboard...`);
-          
-          // Fermer le dialog et rediriger
-          setIsCreateAccountDialogOpen(false);
-          setGeneratedPassword('');
-          refetch();
-          
-          // Redirection après un court délai
-          setTimeout(() => {
-            navigate(dashboardRoute);
-          }, 1500);
-        }
-      } catch (loginError) {
-        console.error('Erreur lors de la connexion automatique:', loginError);
-        toast.success(`Compte ${selectedRequest.type} créé avec succès ! Un email a été envoyé à ${selectedRequest.user_email}`);
-        setIsCreateAccountDialogOpen(false);
-        setGeneratedPassword('');
-        refetch();
-      }
+      setIsPartnerActionDialogOpen(false);
+      refetchPartners();
     } catch (error) {
-      console.error('Erreur lors de la création du compte:', error);
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la création du compte');
+      toast.error('Erreur lors de l\'action');
     } finally {
-      setIsCreatingAccount(false);
+      setIsPartnerActionLoading(null);
     }
   };
 
-  if (isLoading) {
+  const handlePartnerCreateAccount = async (request: BusinessRequest) => {
+    setIsPartnerCreateAccountLoading(request.id);
+    try {
+      const result = await createPartnerAccount(request.id);
+      if (result.success && result.credentials) {
+        setPartnerAccountCredentials({
+          email: result.credentials.email,
+          password: result.credentials.password,
+          businessName: request.name || 'Commerce',
+          dashboardUrl: `${window.location.origin}/partner-dashboard`
+        });
+        setShowPartnerCredentialsModal(true);
+        toast.success('Compte créé avec succès');
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la création du compte');
+    } finally {
+      setIsPartnerCreateAccountLoading(null);
+    }
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copié dans le presse-papiers`);
+    } catch (error) {
+      toast.error('Erreur lors de la copie');
+    }
+  };
+
+  // Gestionnaires pour les chauffeurs
+  const handleDriverFilterChange = (key: string, value: string) => {
+    setDriverFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleDriverAction = async () => {
+    if (!selectedDriverRequest) return;
+
+    setIsDriverActionLoading(selectedDriverRequest.id);
+    try {
+      if (driverActionType === 'approve') {
+        const result = await AdminDriverRequestsService.approveDriverRequest(
+          selectedDriverRequest.id, 
+          driverAdminNotes 
+        );
+        if (result.success) {
+          toast.success('Demande approuvée avec succès');
+          setIsDriverActionDialogOpen(false);
+          refetchDrivers();
+        } else {
+          toast.error(result.error || 'Erreur lors de l\'approbation');
+        }
+      } else if (driverActionType === 'reject') {
+        const result = await AdminDriverRequestsService.rejectDriverRequest(
+          selectedDriverRequest.id, 
+          driverAdminNotes 
+        );
+        if (result.success) {
+          toast.success('Demande rejetée avec succès');
+          setIsDriverActionDialogOpen(false);
+          refetchDrivers();
+        } else {
+          toast.error(result.error || 'Erreur lors du rejet');
+        }
+      }
+    } catch (error) {
+      toast.error('Erreur lors de l\'action');
+    } finally {
+      setIsDriverActionLoading(null);
+    }
+  };
+
+  const handleDriverCreateAccount = async (request: DriverRequest) => {
+    try {
+      const result = await AdminDriverRequestsService.createDriverAccount(request.id);
+      if (result.success && result.credentials) {
+        setDriverAccountCredentials({
+          email: result.credentials.email,
+          password: result.credentials.password,
+          businessName: result.credentials.driverName,
+          dashboardUrl: result.credentials.dashboardUrl
+        });
+        setShowDriverCredentialsModal(true);
+        toast.success('Compte créé avec succès');
+        refetchDrivers();
+      } else {
+        toast.error(result.error || 'Erreur lors de la création du compte');
+      }
+    } catch (error) {
+      toast.error('Erreur lors de la création du compte');
+    }
+  };
+
+  if (partnerLoading && activeTab === 'partners') {
     return (
       <DashboardLayout navItems={adminNavItems} title="Administration">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Gestion des Demandes</h1>
-              <p className="text-muted-foreground">Gérez les demandes de partenaires et chauffeurs</p>
-            </div>
-          </div>
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <div className="animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <div className="p-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     );
@@ -264,516 +280,841 @@ const AdminRequests = () => {
 
   return (
     <DashboardLayout navItems={adminNavItems} title="Administration">
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         {/* En-tête */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Gestion des Demandes</h1>
-            <p className="text-muted-foreground">Gérez les demandes de partenaires et chauffeurs</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Exporter
-            </Button>
-          </div>
+        <div className="flex flex-col space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Gestion des Demandes</h1>
+          <p className="text-muted-foreground">
+            Gérez toutes les demandes de partenariat et de chauffeurs
+          </p>
         </div>
 
-      {/* Statistiques */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.total || 0}</p>
-                <p className="text-sm text-gray-500">Total demandes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Onglets */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'partners' | 'drivers')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="partners" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Demandes Partenaires
+            </TabsTrigger>
+            <TabsTrigger value="drivers" className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              Demandes Chauffeurs
+            </TabsTrigger>
+          </TabsList>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-yellow-100 p-2 rounded-lg">
-                <Clock className="h-5 w-5 text-yellow-600" />
+          {/* Onglet Demandes Partenaires */}
+          <TabsContent value="partners" className="space-y-6">
+            {/* Statistiques Partenaires */}
+            {!partnerStatsLoading && partnerStats && (
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{partnerStats.total}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">En attente</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{partnerStats.pending}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Approuvées</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{partnerStats.approved}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Rejetées</CardTitle>
+                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{partnerStats.rejected}</div>
+                  </CardContent>
+                </Card>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.pending || 0}</p>
-                <p className="text-sm text-gray-500">En attente</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            )}
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-green-100 p-2 rounded-lg">
-                <Building2 className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.partner_requests || 0}</p>
-                <p className="text-sm text-gray-500">Partenaires</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Filtres Partenaires */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Filtres</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Statut</label>
+                    <Select value={partnerFilters.status || 'all'} onValueChange={(value) => handlePartnerFilterChange('status', value === 'all' ? '' : value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tous les statuts" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes les demandes</SelectItem>
+                        <SelectItem value="pending">En attente</SelectItem>
+                        <SelectItem value="approved">Approuvées</SelectItem>
+                        <SelectItem value="rejected">Rejetées</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Recherche</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Nom, email, téléphone..."
+                        value={partnerFilters.search || ''}
+                        onChange={(e) => handlePartnerFilterChange('search', e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-purple-100 p-2 rounded-lg">
-                <Truck className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats?.driver_requests || 0}</p>
-                <p className="text-sm text-gray-500">Chauffeurs</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtres */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtres
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium">Recherche</label>
-              <Input
-                placeholder="Nom, email, commerce..."
-                value={filters.search || ''}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Type</label>
-              <Select value={filters.type || 'all'} onValueChange={(value) => handleFilterChange('type', value === 'all' ? '' : value)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Tous les types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  <SelectItem value="partner">Partenaires</SelectItem>
-                  <SelectItem value="driver">Chauffeurs</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Statut</label>
-              <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value === 'all' ? '' : value)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Tous les statuts" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="approved">Approuvées</SelectItem>
-                  <SelectItem value="rejected">Rejetées</SelectItem>
-                  <SelectItem value="under_review">En révision</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Date de début</label>
-              <Input
-                type="date"
-                value={filters.date_from || ''}
-                onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                className="mt-1"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Liste des demandes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Demandes ({requests.length})</CardTitle>
-          <CardDescription>
-            Liste de toutes les demandes de partenaires et chauffeurs
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Demandeur</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Détails</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {requests.map((request) => {
-                const TypeIcon = getTypeIcon(request.type);
-                return (
-                  <TableRow key={request.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                          <User className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{request.user_name}</p>
-                          <p className="text-sm text-gray-500">{request.user_email}</p>
+            {/* Tableau des demandes partenaires */}
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {partnerFilters.status === 'approved' ? 'Demandes approuvées' :
+                   partnerFilters.status === 'rejected' ? 'Demandes rejetées' :
+                   partnerFilters.status === 'pending' ? 'Demandes en attente' :
+                   'Toutes les demandes'}
+                </CardTitle>
+                <CardDescription>
+                  {partnerLoading ? 'Chargement...' : `${partnerRequests.length} demande(s) trouvée(s)`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {partnerLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="flex items-center space-x-4">
+                        <div className="h-12 w-12 bg-gray-200 rounded animate-pulse" />
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                          <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <TypeIcon className="h-4 w-4" />
-                        <span className="capitalize">{request.type}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {request.type === 'partner' ? (
-                          <div>
-                            <p className="font-medium">{request.business_name}</p>
-                            <p className="text-gray-500">{request.business_type}</p>
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="font-medium">{request.vehicle_type}</p>
-                            <p className="text-gray-500">{request.vehicle_plate}</p>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(request.status)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <p>{formatDate(request.created_at)}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setIsViewDialogOpen(true);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {request.status === 'pending' && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setActionType('approve');
-                                setIsActionDialogOpen(true);
-                              }}
-                            >
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setActionType('reject');
-                                setIsActionDialogOpen(true);
-                              }}
-                            >
-                              <XCircle className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </>
-                        )}
-                        {request.status === 'approved' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRequest(request);
-                              setIsCreateAccountDialogOpen(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <Key className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(request)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    ))}
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Propriétaire</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Commerce</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {partnerRequests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{request.owner_name}</div>
+                              <div className="text-sm text-muted-foreground">{request.owner_email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4" />
+                              <span className="capitalize">partenaire</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {request.name || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(request.request_status)}
+                          </TableCell>
+                          <TableCell>
+                            {formatDate(request.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedPartnerRequest(request);
+                                  setIsPartnerViewDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {request.request_status === 'pending' && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedPartnerRequest(request);
+                                      setPartnerActionType('approve');
+                                      setIsPartnerActionDialogOpen(true);
+                                    }}
+                                    className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedPartnerRequest(request);
+                                      setPartnerActionType('reject');
+                                      setIsPartnerActionDialogOpen(true);
+                                    }}
+                                    className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePartnerCreateAccount(request)}
+                                    disabled={isPartnerCreateAccountLoading === request.id}
+                                  >
+                                    {isPartnerCreateAccountLoading === request.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <UserPlus className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {requests.length === 0 && (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Aucune demande trouvée</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          {/* Onglet Demandes Chauffeurs */}
+          <TabsContent value="drivers" className="space-y-6">
+            {/* Statistiques Chauffeurs */}
+            {!driverStatsLoading && driverStats && (
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{driverStats.total}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">En attente</CardTitle>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{driverStats.pending}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Approuvées</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{driverStats.approved}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Rejetées</CardTitle>
+                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{driverStats.rejected}</div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
-      {/* Dialog de visualisation */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Détails de la demande</DialogTitle>
-            <DialogDescription>
-              Informations complètes sur la demande
-            </DialogDescription>
-          </DialogHeader>
-          {selectedRequest && (
+            {/* Filtres Chauffeurs */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Filtres</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Statut</label>
+                    <Select value={driverFilters.status || 'all'} onValueChange={(value) => handleDriverFilterChange('status', value === 'all' ? '' : value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tous les statuts" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Toutes les demandes</SelectItem>
+                        <SelectItem value="pending">En attente</SelectItem>
+                        <SelectItem value="approved">Approuvées</SelectItem>
+                        <SelectItem value="rejected">Rejetées</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Recherche</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Nom, email, téléphone..."
+                        value={driverFilters.search || ''}
+                        onChange={(e) => handleDriverFilterChange('search', e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tableau des demandes chauffeurs */}
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {driverFilters.status === 'approved' ? 'Demandes approuvées' :
+                   driverFilters.status === 'rejected' ? 'Demandes rejetées' :
+                   driverFilters.status === 'pending' ? 'Demandes en attente' :
+                   'Toutes les demandes'}
+                </CardTitle>
+                <CardDescription>
+                  {driverLoading ? 'Chargement...' : `${driverRequests.length} demande(s) trouvée(s)`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {driverLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="flex items-center space-x-4">
+                        <div className="h-12 w-12 bg-gray-200 rounded animate-pulse" />
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                          <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Chauffeur</TableHead>
+                        <TableHead>Véhicule</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {driverRequests.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8">
+                            <div className="flex flex-col items-center space-y-2">
+                              <Truck className="h-8 w-8 text-muted-foreground" />
+                              <p className="text-muted-foreground">Aucune demande de chauffeur trouvée</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        driverRequests.map((request) => (
+                          <TableRow key={request.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{request.name}</div>
+                                <div className="text-sm text-muted-foreground">{request.email}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Car className="h-4 w-4" />
+                                <span>{request.vehicle_type}</span>
+                                {request.vehicle_plate && (
+                                  <Badge variant="outline">{request.vehicle_plate}</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {request.driver_type === 'independent' ? (
+                                  <Users className="h-4 w-4" />
+                                ) : (
+                                  <Building2 className="h-4 w-4" />
+                                )}
+                                <span className="capitalize">
+                                  {request.driver_type === 'independent' ? 'Indépendant' : 'Service'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(request.request_status)}
+                            </TableCell>
+                            <TableCell>
+                              {formatDate(request.application_date)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDriverRequest(request);
+                                    setIsDriverViewDialogOpen(true);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {request.request_status === 'pending' && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedDriverRequest(request);
+                                        setDriverActionType('approve');
+                                        setIsDriverActionDialogOpen(true);
+                                      }}
+                                      className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                                                      <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedDriverRequest(request);
+                                      setDriverActionType('reject');
+                                      setIsDriverActionDialogOpen(true);
+                                    }}
+                                    className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDriverCreateAccount(request)}
+                                  >
+                                    <UserPlus className="h-4 w-4" />
+                                  </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Dialogs pour les partenaires */}
+        <Dialog open={isPartnerViewDialogOpen} onOpenChange={setIsPartnerViewDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Détails de la demande de partenaire</DialogTitle>
+            </DialogHeader>
+            {selectedPartnerRequest && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Informations du demandeur</h3>
+                  <p><strong>Nom:</strong> {selectedPartnerRequest.owner_name}</p>
+                  <p><strong>Email:</strong> {selectedPartnerRequest.owner_email}</p>
+                  <p><strong>Téléphone:</strong> {selectedPartnerRequest.owner_phone || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Informations du commerce</h3>
+                  <p><strong>Nom du commerce:</strong> {selectedPartnerRequest.name || '-'}</p>
+                  <p><strong>Type:</strong> {selectedPartnerRequest.business_type || '-'}</p>
+                  <p><strong>Adresse:</strong> {selectedPartnerRequest.address || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Statut de la demande</h3>
+                  <p>{getStatusBadge(selectedPartnerRequest.request_status)}</p>
+                  <p><strong>Notes:</strong> {selectedPartnerRequest.request_notes || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Notes de l'administrateur</h3>
+                  <p><strong>Notes:</strong> {selectedPartnerRequest.admin_notes || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Date de la demande</h3>
+                  <p>{formatDate(selectedPartnerRequest.created_at)}</p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPartnerViewDialogOpen(false)}>
+                Fermer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isPartnerActionDialogOpen} onOpenChange={setIsPartnerActionDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {partnerActionType === 'approve' ? 'Approuver la demande' : 
+                 partnerActionType === 'reject' ? 'Rejeter la demande' :
+                 'Créer le compte utilisateur'}
+              </DialogTitle>
+              <DialogDescription>
+                {partnerActionType === 'approve' ? 
+                  'Cette action approuvera la demande. Le partenaire devra ensuite créer son compte séparément.' :
+                 partnerActionType === 'reject' ? 'Cette action rejettera définitivement la demande.' :
+                 'Cette action créera automatiquement un compte utilisateur avec un mot de passe généré. Les identifiants seront envoyés par email.'}
+              </DialogDescription>
+            </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Demandeur</label>
-                  <p className="text-sm">{selectedRequest.user_name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Email</label>
-                  <p className="text-sm">{selectedRequest.user_email}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Téléphone</label>
-                  <p className="text-sm">{selectedRequest.user_phone}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Type</label>
-                  <p className="text-sm capitalize">{selectedRequest.type}</p>
-                </div>
-              </div>
-
-              {selectedRequest.type === 'partner' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Informations commerce</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Nom du commerce</p>
-                      <p className="text-sm">{selectedRequest.business_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Type de commerce</p>
-                      <p className="text-sm">{selectedRequest.business_type}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-sm font-medium">Adresse</p>
-                      <p className="text-sm">{selectedRequest.business_address}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedRequest.type === 'driver' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Informations véhicule</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Type de véhicule</p>
-                      <p className="text-sm">{selectedRequest.vehicle_type}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Plaque d'immatriculation</p>
-                      <p className="text-sm">{selectedRequest.vehicle_plate}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedRequest.notes && (
-                <div>
-                  <label className="text-sm font-medium">Notes du demandeur</label>
-                  <p className="text-sm bg-gray-50 p-2 rounded">{selectedRequest.notes}</p>
-                </div>
-              )}
-
-              {selectedRequest.admin_notes && (
-                <div>
-                  <label className="text-sm font-medium">Notes admin</label>
-                  <p className="text-sm bg-blue-50 p-2 rounded">{selectedRequest.admin_notes}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Date de création</label>
-                  <p className="text-sm">{formatDate(selectedRequest.created_at)}</p>
-                </div>
-                {selectedRequest.reviewed_at && (
-                  <div>
-                    <label className="text-sm font-medium">Date de révision</label>
-                    <p className="text-sm">{formatDate(selectedRequest.reviewed_at)}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog d'action */}
-      <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {actionType === 'approve' ? 'Approuver' : actionType === 'reject' ? 'Rejeter' : 'Mettre en révision'} la demande
-            </DialogTitle>
-            <DialogDescription>
-              {actionType === 'approve' 
-                ? 'Cette action approuvera la demande et créera le profil correspondant.'
-                : actionType === 'reject'
-                ? 'Cette action rejettera définitivement la demande.'
-                : 'Cette action mettra la demande en révision pour examen ultérieur.'
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Notes admin (optionnel)</label>
-              <Textarea
-                placeholder="Ajoutez des notes sur cette décision..."
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsActionDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button 
-              onClick={handleAction}
-              disabled={isUpdating}
-              variant={actionType === 'approve' ? 'default' : actionType === 'reject' ? 'destructive' : 'outline'}
-            >
-              {isUpdating ? 'Traitement...' : 
-                actionType === 'approve' ? 'Approuver' : 
-                actionType === 'reject' ? 'Rejeter' : 'Mettre en révision'
-              }
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog de création de compte */}
-      <Dialog open={isCreateAccountDialogOpen} onOpenChange={setIsCreateAccountDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Créer le compte de connexion</DialogTitle>
-            <DialogDescription>
-              Générez un mot de passe et créez le compte pour {selectedRequest?.user_name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Email</label>
-              <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                {selectedRequest?.user_email}
-              </p>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium">Mot de passe</label>
-              <div className="flex gap-2">
-                <Input
-                  value={generatedPassword}
-                  onChange={(e) => setGeneratedPassword(e.target.value)}
-                  placeholder="Cliquez sur Générer pour créer un mot de passe"
-                  className="flex-1"
+              <div>
+                <label className="text-sm font-medium">Notes (optionnel)</label>
+                <Textarea
+                  value={partnerAdminNotes}
+                  onChange={(e) => setPartnerAdminNotes(e.target.value)}
+                  placeholder="Ajoutez des notes pour cette action..."
+                  rows={3}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={generatePassword}
-                  className="whitespace-nowrap"
-                >
-                  <Key className="h-4 w-4 mr-1" />
-                  Générer
-                </Button>
-                {generatedPassword && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={copyPassword}
-                    className="whitespace-nowrap"
-                  >
-                    {isPasswordCopied ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                )}
               </div>
-              {generatedPassword && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Mot de passe généré : {generatedPassword}
-                </p>
-              )}
             </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPartnerActionDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={handlePartnerAction}
+                disabled={partnerApproving || partnerRejecting || isPartnerActionLoading === selectedPartnerRequest?.id || isPartnerCreateAccountLoading === selectedPartnerRequest?.id}
+                className={
+                  partnerActionType === 'approve' 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : partnerActionType === 'reject'
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }
+              >
+                {partnerApproving || partnerRejecting || isPartnerActionLoading === selectedPartnerRequest?.id || isPartnerCreateAccountLoading === selectedPartnerRequest?.id ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Traitement...
+                  </>
+                ) : (
+                  partnerActionType === 'approve' ? 'Approuver' :
+                  partnerActionType === 'reject' ? 'Rejeter' :
+                  'Créer le compte'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
-                <div className="text-sm text-blue-700">
-                  <p className="font-medium">Important :</p>
-                  <p>Envoyez ces informations par email à l'utilisateur. Le mot de passe ne sera pas visible après la création.</p>
+        <Dialog open={showPartnerCredentialsModal} onOpenChange={setShowPartnerCredentialsModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Identifiants de connexion créés</DialogTitle>
+              <DialogDescription>
+                Les identifiants ont été envoyés par email. Voici un récapitulatif :
+              </DialogDescription>
+            </DialogHeader>
+            
+            {partnerAccountCredentials && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nom du commerce</label>
+                  <div className="flex items-center space-x-2">
+                    <Input value={partnerAccountCredentials.businessName} readOnly />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(partnerAccountCredentials.businessName, 'Nom du commerce')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email de connexion</label>
+                  <div className="flex items-center space-x-2">
+                    <Input value={partnerAccountCredentials.email} readOnly />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(partnerAccountCredentials.email, 'Email')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mot de passe</label>
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Input 
+                        type={showPartnerPassword ? 'text' : 'password'} 
+                        value={partnerAccountCredentials.password} 
+                        readOnly 
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPartnerPassword(!showPartnerPassword)}
+                      >
+                        {showPartnerPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(partnerAccountCredentials.password, 'Mot de passe')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-3 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note :</strong> Ces identifiants ont été envoyés par email au partenaire. 
+                    Ils peuvent se connecter immédiatement avec ces informations.
+                  </p>
                 </div>
               </div>
+            )}
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowPartnerCredentialsModal(false)}>
+                Fermer
+              </Button>
+              <Button onClick={() => {
+                if (partnerAccountCredentials) {
+                  window.open(partnerAccountCredentials.dashboardUrl, '_blank');
+                }
+                setShowPartnerCredentialsModal(false);
+              }}>
+                Ouvrir le dashboard
+              </Button>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateAccountDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button 
-              onClick={handleCreateAccount}
-              disabled={isCreatingAccount || !generatedPassword}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {isCreatingAccount ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Création...
-                </>
-              ) : (
-                <>
-                  <User className="h-4 w-4 mr-2" />
-                  Créer le compte
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialogs pour les chauffeurs */}
+        <Dialog open={isDriverViewDialogOpen} onOpenChange={setIsDriverViewDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Détails de la demande de chauffeur</DialogTitle>
+            </DialogHeader>
+            {selectedDriverRequest && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Informations du chauffeur</h3>
+                  <p><strong>Nom:</strong> {selectedDriverRequest.name}</p>
+                  <p><strong>Email:</strong> {selectedDriverRequest.email}</p>
+                  <p><strong>Téléphone:</strong> {selectedDriverRequest.phone || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Informations du véhicule</h3>
+                  <p><strong>Type:</strong> {selectedDriverRequest.vehicle_type}</p>
+                  <p><strong>Plaque:</strong> {selectedDriverRequest.vehicle_plate || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Type de chauffeur</h3>
+                  <p><strong>Type:</strong> {selectedDriverRequest.driver_type === 'independent' ? 'Indépendant' : 'Service'}</p>
+                  <p><strong>Expérience:</strong> {selectedDriverRequest.experience_years || 0} année(s)</p>
+                  <p><strong>Disponibilité:</strong> {selectedDriverRequest.availability_hours || '-'}</p>
+                  <p><strong>Zones préférées:</strong> {selectedDriverRequest.preferred_zones?.join(', ') || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Notes</h3>
+                  <p><strong>Notes:</strong> {selectedDriverRequest.notes || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Statut de la demande</h3>
+                  <p>{getStatusBadge(selectedDriverRequest.request_status)}</p>
+                  <p><strong>Notes de l'administrateur:</strong> {selectedDriverRequest.request_notes || '-'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Date de la demande</h3>
+                  <p>{formatDate(selectedDriverRequest.application_date)}</p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDriverViewDialogOpen(false)}>
+                Fermer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isDriverActionDialogOpen} onOpenChange={setIsDriverActionDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {driverActionType === 'approve' ? 'Approuver la demande' : 'Rejeter la demande'}
+              </DialogTitle>
+              <DialogDescription>
+                {driverActionType === 'approve' ? 
+                  'Cette action approuvera la demande. Le chauffeur pourra commencer à travailler.' :
+                 'Cette action rejettera définitivement la demande.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Notes (optionnel)</label>
+                <Textarea
+                  value={driverAdminNotes}
+                  onChange={(e) => setDriverAdminNotes(e.target.value)}
+                  placeholder="Ajoutez des notes pour cette action..."
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDriverActionDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={handleDriverAction}
+                disabled={isDriverActionLoading === selectedDriverRequest?.id}
+                className={
+                  driverActionType === 'approve' 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'bg-red-600 hover:bg-red-700 text-white'
+                }
+              >
+                {isDriverActionLoading === selectedDriverRequest?.id ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Traitement...
+                  </>
+                ) : (
+                  driverActionType === 'approve' ? 'Approuver' : 'Rejeter'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showDriverCredentialsModal} onOpenChange={setShowDriverCredentialsModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Identifiants de connexion créés</DialogTitle>
+              <DialogDescription>
+                Les identifiants ont été envoyés par email. Voici un récapitulatif :
+              </DialogDescription>
+            </DialogHeader>
+            
+            {driverAccountCredentials && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nom du chauffeur</label>
+                  <div className="flex items-center space-x-2">
+                    <Input value={driverAccountCredentials.businessName} readOnly />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(driverAccountCredentials.businessName, 'Nom du chauffeur')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email de connexion</label>
+                  <div className="flex items-center space-x-2">
+                    <Input value={driverAccountCredentials.email} readOnly />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(driverAccountCredentials.email, 'Email')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mot de passe</label>
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Input 
+                        type={showDriverPassword ? 'text' : 'password'} 
+                        value={driverAccountCredentials.password} 
+                        readOnly 
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowDriverPassword(!showDriverPassword)}
+                      >
+                        {showDriverPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(driverAccountCredentials.password, 'Mot de passe')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 p-3 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>Note :</strong> Ces identifiants ont été envoyés par email au chauffeur. 
+                    Ils peuvent se connecter immédiatement avec ces informations.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowDriverCredentialsModal(false)}>
+                Fermer
+              </Button>
+              <Button onClick={() => {
+                if (driverAccountCredentials) {
+                  window.open(driverAccountCredentials.dashboardUrl, '_blank');
+                }
+                setShowDriverCredentialsModal(false);
+              }}>
+                Ouvrir le dashboard
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

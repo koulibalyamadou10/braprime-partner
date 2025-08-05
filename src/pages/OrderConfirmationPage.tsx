@@ -1,22 +1,33 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import { OrderService, type Order } from '@/lib/services/orders';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { 
-  CheckCircle, Home, Clock, MapPin, 
-  Truck, Receipt, ChevronRight, Loader2
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEmailService } from '@/hooks/use-email-service';
 import { useToast } from "@/hooks/use-toast";
+import { OrderService, type Order } from '@/lib/services/orders';
 import { formatCurrency } from '@/lib/utils';
+import {
+    CheckCircle,
+    ChevronRight,
+    Clock,
+    Home,
+    Loader2,
+    MapPin,
+    Receipt,
+    Truck
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 const OrderConfirmationPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const { sendOrderConfirmation } = useEmailService();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [emailSent, setEmailSent] = useState(false);
   
   useEffect(() => {
     const fetchOrder = async () => {
@@ -54,6 +65,17 @@ const OrderConfirmationPage = () => {
         }
 
         setOrder(fetchedOrder);
+
+        // Envoyer automatiquement l'email de confirmation si l'utilisateur est connecté
+        if (currentUser && !emailSent) {
+          try {
+            await sendOrderConfirmation(fetchedOrder, currentUser);
+            setEmailSent(true);
+          } catch (error) {
+            console.error('Erreur lors de l\'envoi de l\'email de confirmation:', error);
+            // Ne pas afficher d'erreur à l'utilisateur car ce n'est pas critique
+          }
+        }
       } catch (error) {
         console.error('Erreur lors de la récupération de la commande:', error);
         toast({
@@ -68,7 +90,7 @@ const OrderConfirmationPage = () => {
     };
 
     fetchOrder();
-  }, [id, navigate, toast]);
+  }, [id, navigate, toast, currentUser, sendOrderConfirmation, emailSent]);
   
   if (loading) {
     return (
@@ -110,6 +132,13 @@ const OrderConfirmationPage = () => {
       year: 'numeric'
     });
   };
+
+  // Format delivery window for scheduled deliveries
+  const formatDeliveryWindow = (startTime: string, endTime: string) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    return `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')} - ${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`;
+  };
   
   return (
     <Layout>
@@ -132,7 +161,7 @@ const OrderConfirmationPage = () => {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="font-bold text-lg">Détails de la commande</h2>
                 <span className="text-sm bg-gray-100 px-3 py-1 rounded">
-                  #{order.id}
+                  #{order.order_number || order.id.slice(0, 8)}
                 </span>
               </div>
               
@@ -223,6 +252,38 @@ const OrderConfirmationPage = () => {
                 <div>
                   <h3 className="font-medium mb-3">Informations de livraison</h3>
                   <div className="space-y-3">
+                    {/* Type de livraison */}
+                    <div className="flex">
+                      <Truck className="h-5 w-5 text-guinea-red mr-2 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Type de livraison</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-600">
+                            {order.delivery_type === 'asap' ? 'Livraison rapide (ASAP)' : 'Livraison programmée'}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            order.delivery_type === 'asap' 
+                              ? 'bg-orange-100 text-orange-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {order.delivery_type === 'asap' ? 'ASAP' : 'Programmée'}
+                          </span>
+                        </div>
+                        {order.delivery_type === 'scheduled' && order.preferred_delivery_time && (
+                          <div className="text-sm text-gray-500 mt-1 space-y-1">
+                            <p>
+                              Livraison prévue le {formatDate(order.preferred_delivery_time)} à {formatTime(order.preferred_delivery_time)}
+                            </p>
+                            {order.scheduled_delivery_window_start && order.scheduled_delivery_window_end && (
+                              <p className="text-blue-600">
+                                Fenêtre de livraison : {formatDeliveryWindow(order.scheduled_delivery_window_start, order.scheduled_delivery_window_end)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
                     <div className="flex">
                       <MapPin className="h-5 w-5 text-guinea-red mr-2 flex-shrink-0 mt-0.5" />
                       <div>

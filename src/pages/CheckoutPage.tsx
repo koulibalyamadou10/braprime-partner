@@ -1,44 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useCart } from '@/hooks/use-cart';
-import { useAuth } from '@/contexts/AuthContext';
-import { OrderService, type CreateOrderData } from '@/lib/services/orders';
+import Layout from '@/components/Layout';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { 
-  ShoppingCart, 
-  MapPin, 
-  Clock, 
-  CreditCard, 
-  Truck,
-  ArrowLeft,
-  AlertCircle,
-  CheckCircle,
-  Store,
-  User,
-  Phone,
-  Mail,
-  MessageSquare,
-  Trash2
-} from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
 import { Label } from '@/components/ui/label';
-import { Loader2, Check } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCartContext } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { OrderService, type CreateOrderData } from '@/lib/services/orders';
+import { PaymentService, type PaymentRequest } from '@/lib/services/payment';
+import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  Clock,
+  CreditCard,
+  Loader2,
+  MapPin,
+  MessageSquare,
+  ShoppingCart,
+  Trash2,
+  Truck
+} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const CheckoutPage = () => {
-  const { cart, loading, error, clearCart } = useCart();
+  const { cart, loading, error, clearCart } = useCartContext();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -46,7 +40,7 @@ const CheckoutPage = () => {
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile_money'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'mobile_money' | 'online'>('cash');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -58,7 +52,9 @@ const CheckoutPage = () => {
     address: '',
     city: '',
     postalCode: '',
-    notes: ''
+    landmark: '', // Point de repère
+    notes: '',
+    email: ''
   });
   const [deliveryTimeMode, setDeliveryTimeMode] = useState<'asap' | 'scheduled'>('asap');
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
@@ -79,6 +75,14 @@ const CheckoutPage = () => {
       setDeliveryMethod((cart.delivery_method as 'delivery' | 'pickup') || 'delivery');
     }
   }, [currentUser, cart]);
+
+  // Réinitialiser l'état du calendrier quand on change de mode de livraison
+  useEffect(() => {
+    if (deliveryTimeMode === 'asap') {
+      setScheduledDate(undefined);
+      setScheduledTime('12:00');
+    }
+  }, [deliveryTimeMode]);
 
   // Calculer les totaux
   const cartTotal = cart?.total || 0;
@@ -227,11 +231,13 @@ const CheckoutPage = () => {
         grand_total: grandTotal,
         delivery_address: `${formData.address}, ${formData.city}`,
         delivery_instructions: formData.notes || undefined,
+        landmark: formData.landmark || undefined, // Point de repère
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
         payment_status: 'pending',
         // Champs spécifiques aux types de livraison
         delivery_type: deliveryType,
+        available_for_drivers: false, // Par défaut, pas disponible pour les chauffeurs
         // Champs pour les livraisons programmées
         ...(deliveryType === 'scheduled' && scheduledDate && scheduledTime && {
           preferred_delivery_time: createScheduledDeliveryTime(scheduledDate, scheduledTime),
@@ -283,10 +289,61 @@ const CheckoutPage = () => {
           description: error,
           variant: "destructive",
         });
+        setIsProcessing(false);
         return;
       }
       
       if (order) {
+        // Si le paiement est en ligne, créer l'URL de paiement
+        if (paymentMethod === 'online') {
+          try {
+            // Préparer les données de paiement
+            const paymentData: PaymentRequest = {
+              order_id: order.id,
+              user_id: currentUser.id,
+              amount: 1000,
+              currency: 'GNF',
+              payment_method: 'lp-om-gn', // Orange Money par défaut
+              phone_number: formData.phone || currentUser.phone || '',
+              order_number: `CMD-${order.id.substring(0, 8)}`,
+              business_name: cart.business_name,
+              customer_name: `${formData.firstName} ${formData.lastName}`,
+              customer_email: currentUser.email || formData.email || '',
+            };
+
+            // Créer l'URL de paiement
+            const paymentResponse = await PaymentService.createPayment(paymentData);
+
+            if (paymentResponse.success && paymentResponse.payment_url) {
+              // Vider le panier après création réussie
+              clearCart();
+              
+              toast({
+                title: "Redirection vers le paiement",
+                description: "Vous allez être redirigé vers la page de paiement sécurisée.",
+              });
+
+              // Rediriger vers Lengo Pay
+              window.location.href = paymentResponse.payment_url;
+              return;
+            } else {
+              // En cas d'échec du paiement en ligne, continuer avec le paiement à la livraison
+              toast({
+                title: "Paiement en ligne indisponible",
+                description: "Le paiement sera effectué à la livraison.",
+                variant: "destructive",
+              });
+            }
+          } catch (paymentError) {
+            console.error('Erreur lors de la création du paiement:', paymentError);
+            toast({
+              title: "Erreur de paiement",
+              description: "Le paiement sera effectué à la livraison.",
+              variant: "destructive",
+            });
+          }
+        }
+
         // Vider le panier après création réussie
         clearCart();
         
@@ -478,6 +535,19 @@ const CheckoutPage = () => {
                     />
                   </div>
                   
+                  <div>
+                    <Label htmlFor="landmark">Point de repère</Label>
+                    <Input
+                      id="landmark"
+                      value={formData.landmark}
+                      onChange={(e) => setFormData(prev => ({ ...prev, landmark: e.target.value }))}
+                      placeholder="Ex: près de la pharmacie, derrière la mosquée, à côté de l'école..."
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Facilitez la livraison en indiquant un point de repère proche
+                    </p>
+                  </div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="city">Ville *</Label>
@@ -543,7 +613,7 @@ const CheckoutPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <RadioGroup value={paymentMethod} onValueChange={(value: 'cash' | 'card' | 'mobile_money') => setPaymentMethod(value)}>
+                  <RadioGroup value={paymentMethod} onValueChange={(value: 'cash' | 'card' | 'mobile_money' | 'online') => setPaymentMethod(value)}>
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="cash" id="cash" />
@@ -564,6 +634,12 @@ const CheckoutPage = () => {
                         <RadioGroupItem value="card" id="card" />
                         <Label htmlFor="card" className="flex-1 cursor-pointer">
                           <span>Carte bancaire</span>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="online" id="online" />
+                        <Label htmlFor="online" className="flex-1 cursor-pointer">
+                          <span>Paiement en ligne (Lengo Pay)</span>
                         </Label>
                       </div>
                     </div>
@@ -647,45 +723,33 @@ const CheckoutPage = () => {
                         <Label className="text-sm font-medium text-blue-900 mb-2 block">
                           Date de livraison *
                         </Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              className="w-full justify-start text-left font-normal border-blue-300 hover:border-blue-400"
-                            >
-                              <Calendar className="mr-2 h-4 w-4 text-blue-600" />
-                              {scheduledDate ? format(scheduledDate, 'EEEE dd MMMM yyyy') : 'Sélectionner une date'}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 bg-white border border-blue-200 shadow-lg rounded-md" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={scheduledDate}
-                              onSelect={setScheduledDate}
-                              initialFocus
-                              disabled={(date) => {
-                                const today = new Date();
-                                today.setHours(0, 0, 0, 0);
-                                
-                                // Désactiver les dates passées
-                                if (date < today) return true;
-                                
-                                // Désactiver les dates trop éloignées (max 30 jours)
-                                const maxDate = new Date();
-                                maxDate.setDate(maxDate.getDate() + 30);
-                                if (date > maxDate) return true;
-                                
-                                return false;
-                              }}
-                              className="bg-white rounded-md"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        {scheduledDate && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            📅 {format(scheduledDate, 'EEEE dd MMMM yyyy')}
-                          </p>
-                        )}
+                        <div className="space-y-2">
+                          <Input
+                            type="date"
+                            value={scheduledDate ? scheduledDate.toISOString().split('T')[0] : ''}
+                            onChange={(e) => {
+                              const date = e.target.value ? new Date(e.target.value) : undefined;
+                              setScheduledDate(date);
+                            }}
+                            min={new Date().toISOString().split('T')[0]}
+                            max={(() => {
+                              const maxDate = new Date();
+                              maxDate.setDate(maxDate.getDate() + 30);
+                              return maxDate.toISOString().split('T')[0];
+                            })()}
+                            className={`w-full ${
+                              scheduledDate 
+                                ? 'border-green-300 bg-green-50 focus:border-green-400' 
+                                : 'border-blue-300 focus:border-blue-400'
+                            }`}
+                            placeholder="Sélectionner une date"
+                          />
+                          {scheduledDate && (
+                            <p className="text-xs text-green-600 font-medium">
+                              ✅ {format(scheduledDate, 'EEEE dd MMMM yyyy')}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Sélection de l'heure */}
@@ -694,8 +758,14 @@ const CheckoutPage = () => {
                           Heure de livraison *
                         </Label>
                         <Select value={scheduledTime} onValueChange={setScheduledTime}>
-                          <SelectTrigger className="w-full border-blue-300 hover:border-blue-400">
-                            <Clock className="mr-2 h-4 w-4 text-blue-600" />
+                          <SelectTrigger className={`w-full ${
+                            scheduledTime && scheduledTime !== '12:00'
+                              ? 'border-green-300 hover:border-green-400 bg-green-50' 
+                              : 'border-blue-300 hover:border-blue-400'
+                          }`}>
+                            <Clock className={`mr-2 h-4 w-4 ${
+                              scheduledTime && scheduledTime !== '12:00' ? 'text-green-600' : 'text-blue-600'
+                            }`} />
                             <SelectValue placeholder="Choisir une heure" />
                           </SelectTrigger>
                           <SelectContent>
@@ -706,8 +776,8 @@ const CheckoutPage = () => {
                             ))}
                           </SelectContent>
                         </Select>
-                        {scheduledTime && (
-                          <p className="text-xs text-blue-600 mt-1">
+                        {scheduledTime && scheduledTime !== '12:00' && (
+                          <p className="text-xs text-green-600 mt-1 font-medium">
                             ⏰ Heure sélectionnée : {scheduledTime}
                           </p>
                         )}
@@ -772,7 +842,7 @@ const CheckoutPage = () => {
                         <div>
                           {scheduledDate && scheduledTime ? (
                             <>
-                              <p>📅 Livraison programmée</p>
+                              <p>🚚 Livraison programmée</p>
                               <p className="text-blue-600 font-medium mt-1">
                                 {format(scheduledDate, 'EEEE dd MMMM yyyy')} à {scheduledTime}
                               </p>
@@ -832,7 +902,7 @@ const CheckoutPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Frais de livraison</span>
-                      <span>{deliveryMethod === 'delivery' ? '2 000 GNF' : 'Gratuit'}</span>
+                      <span>{deliveryMethod === 'delivery' ? '1 000 GNF' : 'Gratuit'}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg">

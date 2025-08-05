@@ -1,46 +1,48 @@
-import React from 'react';
-import { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { AddToCartButton } from '@/components/AddToCartButton';
+import BusinessPageSkeleton from '@/components/BusinessPageSkeleton';
+import { FloatingCart } from '@/components/FloatingCart';
 import Layout from '@/components/Layout';
+import ShareModal from '@/components/ShareModal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/contexts/AuthContext';
-import { AddToCartButton } from '@/components/AddToCartButton';
-import { FloatingCart } from '@/components/FloatingCart';
-import { useBusinessById } from '@/hooks/use-business';
-import { useMenuItems } from '@/hooks/use-menu-items';
-import { useMenuCategories } from '@/hooks/use-menu-categories';
-import BusinessPageSkeleton from '@/components/BusinessPageSkeleton';
-import { 
-  Clock, Star, Phone, MapPin, ChevronLeft, 
-  ChevronRight, Info, Heart, Share, ShoppingBag, Utensils
+import { useCart } from '@/hooks/use-cart';
+import { useFavorites } from '@/hooks/use-favorites';
+import { useRestaurantData } from '@/hooks/use-restaurant-data';
+import { useToast } from "@/hooks/use-toast";
+import { cn } from '@/lib/utils';
+import {
+    Clock,
+    Heart,
+    Info,
+    MapPin,
+    Phone,
+    Share,
+    Star
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 
 const RestaurantPage = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const { addToCart, cart } = useCart();
+  const { isBusinessFavorite, toggleBusinessFavorite, isTogglingBusiness } = useFavorites();
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   
-  // Récupérer les données du commerce
-  const { data, isLoading, error } = useBusinessById(id);
-  
-  // Récupérer les catégories de menu
+  // Récupérer toutes les données du restaurant en une seule requête optimisée
   const { 
-    data: categories, 
-    isLoading: categoriesLoading, 
-    error: categoriesError 
-  } = useMenuCategories(id);
-  
-  // Récupérer tous les articles de menu
-  const { 
-    data: menuItems, 
-    isLoading: menuItemsLoading, 
-    error: menuItemsError 
-  } = useMenuItems(id);
+    data: restaurantData, 
+    isLoading, 
+    error 
+  } = useRestaurantData(id);
+
+  // Extraire les données
+  const business = restaurantData?.business;
+  const categories = restaurantData?.categories || [];
+  const menuItems = restaurantData?.menuItems || [];
   
   // Sélectionner automatiquement la première catégorie si aucune n'est sélectionnée
   useEffect(() => {
@@ -72,19 +74,12 @@ const RestaurantPage = () => {
   }
 
   // Affichage du skeleton pendant le chargement
-  if (isLoading || !data) {
+  if (isLoading || !business) {
     return (
       <Layout>
         <BusinessPageSkeleton />
       </Layout>
     );
-  }
-
-  const { data: business } = data;
-  
-  // Si pas de commerce trouvé
-  if (!business) {
-    return <Navigate to="/" replace />;
   }
   
   // Formater les montants
@@ -117,6 +112,46 @@ const RestaurantPage = () => {
       quantity: 1,
       image: item.image
     }, business.id, business.name);
+  };
+
+  const handleToggleFavorite = () => {
+    if (!currentUser) {
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter pour ajouter aux favoris.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      toggleBusinessFavorite(business.id);
+      const isFavorite = isBusinessFavorite(business.id);
+      toast({
+        title: isFavorite ? "Retiré des favoris" : "Ajouté aux favoris",
+        description: isFavorite 
+          ? `${business.name} a été retiré de vos favoris.`
+          : `${business.name} a été ajouté à vos favoris.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier les favoris. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenShareModal = () => {
+    setShareModalOpen(true);
+    toast({
+      title: "Partage",
+      description: "Ouvrir les options de partage pour ce restaurant.",
+    });
+  };
+
+  const handleCloseShareModal = () => {
+    setShareModalOpen(false);
   };
   
   // Filtrer les articles par catégorie sélectionnée
@@ -183,11 +218,26 @@ const RestaurantPage = () => {
             </div>
           </div>
           <div className="flex mt-6 space-x-4">
-            <Button variant="outline" className="flex items-center">
-              <Heart className="h-4 w-4 mr-2" />
-              Favoris
+            <Button 
+              variant="outline" 
+              className={cn(
+                "flex items-center transition-all duration-200",
+                isBusinessFavorite(business.id) && "bg-red-50 text-red-600 border-red-200"
+              )}
+              onClick={handleToggleFavorite}
+              disabled={isTogglingBusiness}
+            >
+              <Heart className={cn(
+                "h-4 w-4 mr-2",
+                isBusinessFavorite(business.id) && "fill-red-500 text-red-500"
+              )} />
+              {isBusinessFavorite(business.id) ? "Favori" : "Favoris"}
             </Button>
-            <Button variant="outline" className="flex items-center">
+            <Button 
+              variant="outline" 
+              className="flex items-center"
+              onClick={handleOpenShareModal}
+            >
               <Share className="h-4 w-4 mr-2" />
               Partager
             </Button>
@@ -196,23 +246,13 @@ const RestaurantPage = () => {
 
         {/* Menu avec onglets de catégories */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="text-xl font-bold mb-6 flex items-center">
+          {/* <h2 className="text-xl font-bold mb-6 flex items-center">
             <Utensils className="h-5 w-5 mr-2" />
             Menu ({menuItems?.length || 0} articles)
           </h2>
-          
+           */}
           {/* Onglets des catégories */}
-          {categoriesLoading ? (
-            <div className="flex space-x-2 mb-6">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-10 bg-gray-200 rounded-lg animate-pulse w-24"></div>
-              ))}
-            </div>
-          ) : categoriesError ? (
-            <div className="text-center py-4 text-red-500 mb-6">
-              Erreur lors du chargement des catégories: {categoriesError.message}
-            </div>
-          ) : categories && categories.length > 0 ? (
+          {categories.length > 0 ? (
             <div className="flex flex-wrap gap-2 mb-6 border-b">
               {categories.map(category => (
                 <button
@@ -220,7 +260,7 @@ const RestaurantPage = () => {
                   onClick={() => setSelectedCategory(category.id)}
                   className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                     selectedCategory === category.id
-                      ? 'bg-guinea-red text-white shadow-md'
+                      ? 'bg-red-400 text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -235,24 +275,7 @@ const RestaurantPage = () => {
           )}
           
           {/* Liste des articles de la catégorie sélectionnée */}
-          {menuItemsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="border rounded-lg p-4 animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-3"></div>
-                  <div className="flex justify-between">
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    <div className="h-8 bg-gray-200 rounded w-24"></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : menuItemsError ? (
-            <div className="text-center py-8 text-red-500">
-              Erreur lors du chargement du menu: {menuItemsError.message}
-            </div>
-          ) : filteredItems.length > 0 ? (
+          {filteredItems.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {filteredItems.map(item => (
                 <div key={item.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow bg-white">
@@ -307,8 +330,15 @@ const RestaurantPage = () => {
         </div>
       </div>
 
-      {/* Panier flottant */}
-      <FloatingCart variant="bottom" />
+      {/* Panier flottant optimisé mobile */}
+      <FloatingCart variant="mobile" />
+
+      {/* Modal Partage */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={handleCloseShareModal}
+        business={business}
+      />
     </Layout>
   );
 };

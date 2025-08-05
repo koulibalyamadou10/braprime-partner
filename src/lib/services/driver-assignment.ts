@@ -18,6 +18,7 @@ export interface DriverOrderDetails {
   order_id: string
   business_name: string
   delivery_address: string
+  landmark?: string // Point de repère
   estimated_delivery: string
   status: string
   grand_total: number

@@ -12,7 +12,7 @@ export const APP_CONFIG: AppConfig = {
   name: 'BraPrime',
   version: '1.0.0',
   environment: (import.meta.env.MODE as 'development' | 'staging' | 'production') || 'development',
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+  apiUrl: import.meta.env.VITE_API_URL || 'https://braprime-backend.vercel.app',
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL || '',
   supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
   googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,

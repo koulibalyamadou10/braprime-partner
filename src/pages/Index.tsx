@@ -1,27 +1,16 @@
 import Layout from '@/components/Layout';
 import Hero from '@/components/Hero';
-import Categories from '@/components/Categories';
-import PopularItems from '@/components/PopularItems';
-import FeaturedItems from '@/components/FeaturedItems';
-import HowItWorks from '@/components/HowItWorks';
-import { PartnerSection } from '@/components/PartnerSection';
-
+import OptimizedHomepage from '@/components/OptimizedHomepage';
 import { ShieldCheck, Clock, ThumbsUp, Truck, Users, MapPin } from 'lucide-react';
-import { useHomepage } from '@/hooks/use-homepage';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
-  const { isLoading, error } = useHomepage();
   const { isAuthenticated, currentUser } = useAuth();
 
   return (
     <Layout>
-
-      
       <Hero />
-      <Categories />
-      <PopularItems />
-      <FeaturedItems />
+      <OptimizedHomepage />
       
       {/* Features Section */}
       <section className="py-16 bg-white">
@@ -97,17 +86,14 @@ const Index = () => {
         </div>
       </section>
       
-      <HowItWorks />
-      
-      {/* Partner Section */}
-      <PartnerSection />
+
       
       {/* App Download Section (Coming Soon) */}
       <section className="py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
-        {/* Effet de particules en arrière-plan */}
+        {/* Effet de particules en arrière-plan - Optimisé */}
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-guinea-red rounded-full animate-pulse"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-guinea-yellow rounded-full animate-pulse delay-1000"></div>
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-guinea-red rounded-full"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-guinea-yellow rounded-full"></div>
         </div>
 
         <div className="container mx-auto px-4 relative z-10">

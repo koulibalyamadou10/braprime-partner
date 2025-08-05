@@ -216,5 +216,28 @@ export const NotificationService = {
       console.error('Erreur lors du comptage des notifications:', error);
       return { data: 0, error: 'Erreur de connexion' };
     }
+  },
+
+  // Récupérer les notifications d'un utilisateur avec pagination
+  getUserNotificationsPaginated: async (page = 1, pageSize = 10): Promise<{ data: Notification[]; count: number; error: string | null }> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { data: [], count: 0, error: 'Utilisateur non authentifié' };
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error, count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) return { data: [], count: 0, error: error.message };
+      return { data: data || [], count: count || 0, error: null };
+    } catch (error) {
+      return { data: [], count: 0, error: 'Erreur de connexion' };
+    }
   }
 }; 

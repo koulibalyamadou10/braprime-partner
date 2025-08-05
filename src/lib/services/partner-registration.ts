@@ -1,12 +1,29 @@
-import { supabase } from '@/lib/supabase'
-import { BusinessTypeDB } from '@/lib/types'
+import { supabase } from '@/lib/supabase';
+import { BusinessTypeDB } from '@/lib/types';
+
+// Types pour les emails
+interface RequestConfirmationData {
+  request_id: string;
+  request_type: 'partner' | 'driver';
+  user_name: string;
+  user_email: string;
+  user_phone: string;
+  business_name?: string;
+  business_type?: string;
+  business_address?: string;
+  vehicle_type?: string;
+  vehicle_plate?: string;
+  selected_plan_name?: string;
+  selected_plan_price?: number;
+  notes?: string;
+  submitted_at: string;
+}
 
 export interface PartnerRegistrationData {
   // Informations du propriétaire
   owner_name: string
   owner_email: string
   owner_phone: string
-  password: string
   
   // Informations du commerce
   business_name: string
@@ -19,6 +36,13 @@ export interface PartnerRegistrationData {
   delivery_radius: number
   cuisine_type?: string
   specialties?: string[]
+  
+  // Plan sélectionné
+  selectedPlan?: {
+    id: string
+    name: string
+    price: number
+  } | null
 }
 
 export interface PartnerRegistrationResult {
@@ -33,141 +57,191 @@ export interface PartnerRegistrationResult {
     name: string
     type: string
   }
+  request?: {
+    id: string
+    status: string
+    email: string
+  }
+  message?: string
   error?: string
 }
 
 export class PartnerRegistrationService {
-  // Créer un compte partenaire complet
+  // Créer une demande de partenariat avec plan sélectionné
   static async createPartnerAccount(data: PartnerRegistrationData): Promise<PartnerRegistrationResult> {
     try {
-      console.log('Début création compte partenaire:', { ...data, password: '[HIDDEN]' })
-
-      // Étape 1: Créer l'utilisateur dans auth.users
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.owner_email,
-        password: data.password,
-        options: {
-          data: {
-            name: data.owner_name,
-            phone: data.owner_phone,
-            role: 'partner'
-          }
-        }
+      console.log('Début création demande partenaire:', { 
+        ...data, 
+        password: '[HIDDEN]',
+        selectedPlan: data.selectedPlan 
       })
 
-      if (authError) {
-        console.error('Erreur création utilisateur auth:', authError)
-        return { success: false, error: authError.message }
+      // Convertir l'ID du plan en plan_type (format avec underscore)
+      let planType = data.selectedPlan?.id || '1_month'
+      if (planType.includes('-')) {
+        planType = planType.replace(/-/g, '_')
+        console.log('Conversion du type de plan:', data.selectedPlan?.id, '→', planType)
       }
 
-      if (!authData.user) {
-        return { success: false, error: 'Erreur lors de la création de l\'utilisateur' }
-      }
-
-      const userId = authData.user.id
-      console.log('Utilisateur auth créé avec succès:', userId)
-
-      // Étape 2: Créer le profil utilisateur avec le rôle partner
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: userId,
-          name: data.owner_name,
-          email: data.owner_email,
-          role_id: 2, // ID du rôle 'partner' dans user_roles
-          phone_number: data.owner_phone,
-          is_active: true
-        })
-
-      if (profileError) {
-        console.error('Erreur création profil utilisateur:', profileError)
-        // Nettoyer l'utilisateur auth créé
-        await supabase.auth.admin.deleteUser(userId)
-        return { success: false, error: profileError.message }
-      }
-
-      console.log('Profil utilisateur créé avec succès')
-
-      // Étape 3: Créer le business
+      // Étape 1: Créer directement dans la table businesses avec statut de demande
       const { data: businessData, error: businessError } = await supabase
-        .from('businesses')
-        .insert({
-          name: data.business_name,
-          description: data.business_description,
-          business_type_id: await this.getBusinessTypeId(data.business_type),
-          address: data.business_address,
-          phone: data.business_phone,
-          email: data.business_email,
-          opening_hours: data.opening_hours,
-          cuisine_type: data.cuisine_type,
-          owner_id: userId,
-          is_active: true,
-          is_open: true
+        .rpc('create_partner_request', {
+          p_owner_name: data.owner_name,
+          p_owner_email: data.owner_email,
+          p_owner_phone: data.owner_phone,
+          p_business_name: data.business_name,
+          p_business_type: data.business_type,
+          p_business_address: data.business_address,
+          p_business_phone: data.business_phone,
+          p_business_email: data.business_email,
+          p_business_description: data.business_description,
+          p_opening_hours: data.opening_hours,
+          p_delivery_radius: data.delivery_radius,
+          p_cuisine_type: data.cuisine_type || '',
+          p_specialties: data.specialties || [],
+          p_plan_type: planType,
+          p_notes: data.selectedPlan 
+            ? `Plan sélectionné: ${data.selectedPlan.name} - ${data.selectedPlan.price.toLocaleString()} FG`
+            : 'Aucun plan sélectionné'
         })
-        .select()
-        .single()
 
       if (businessError) {
-        console.error('Erreur création business:', businessError)
-        // Nettoyer les données créées
-        await supabase.from('user_profiles').delete().eq('id', userId)
-        await supabase.auth.admin.deleteUser(userId)
+        console.error('Erreur création demande partenaire:', businessError)
         return { success: false, error: businessError.message }
       }
 
-      console.log('Business créé avec succès:', businessData.id)
+      console.log('Demande partenaire créée avec succès, Business ID:', businessData)
 
-      // Étape 4: Créer les catégories de menu par défaut si c'est un restaurant
-      if (data.business_type === 'restaurant') {
-        await this.createDefaultMenuCategories(businessData.id)
+      // Étape 2: Envoyer les emails de notification (optionnel - peut être géré côté frontend)
+      try {
+        // Préparer les données pour l'email de confirmation
+        const emailData: RequestConfirmationData = {
+          request_id: businessData.toString(), // Utiliser l'ID du business comme request_id
+          request_type: 'partner',
+          user_name: data.owner_name,
+          user_email: data.owner_email,
+          user_phone: data.owner_phone,
+          business_name: data.business_name,
+          business_type: data.business_type,
+          business_address: data.business_address,
+          selected_plan_name: data.selectedPlan?.name,
+          selected_plan_price: data.selectedPlan?.price,
+          notes: data.business_description,
+          submitted_at: new Date().toISOString()
+        };
+
+        // L'envoi d'email sera géré par le composant frontend
+        console.log('Données email préparées:', emailData);
+      } catch (emailError) {
+        console.warn('Erreur lors de la préparation des emails:', emailError);
+        // Ne pas faire échouer la création de la demande à cause des emails
       }
+
+      // Étape 3: Ne PAS créer de compte utilisateur immédiatement
+      // Le compte sera créé uniquement après approbation par l'admin
+      console.log('Demande créée avec succès, en attente d\'approbation admin')
 
       return {
         success: true,
-        user: {
-          id: userId,
-          email: data.owner_email,
-          role: 'partner'
-        },
         business: {
-          id: businessData.id,
+          id: businessData,
           name: data.business_name,
           type: data.business_type
-        }
+        },
+        message: 'Demande envoyée avec succès. Vous recevrez une notification après approbation.'
       }
 
     } catch (error) {
-      console.error('Erreur lors de la création du compte partenaire:', error)
-      return { success: false, error: 'Erreur lors de la création du compte partenaire' }
+      console.error('Erreur lors de la création de la demande partenaire:', error)
+      return { success: false, error: 'Erreur lors de la création de la demande partenaire' }
     }
   }
 
   // Obtenir l'ID du type de business
   private static async getBusinessTypeId(businessType: string): Promise<number> {
-    const typeMap: Record<string, number> = {
-      'restaurant': 1,
-      'cafe': 2,
-      'market': 3,
-      'supermarket': 4,
-      'pharmacy': 5,
-      'electronics': 6,
-      'beauty': 7,
-      'other': 8
+    const typeMap: Record<string, string> = {
+      'restaurant': 'Restaurant',
+      'cafe': 'Café',
+      'market': 'Marché',
+      'supermarket': 'Supermarché',
+      'pharmacy': 'Pharmacie',
+      'electronics': 'Électronique',
+      'beauty': 'Beauté',
+      'other': 'Autre'
     }
 
-    return typeMap[businessType] || 8 // Par défaut 'other'
+    const businessTypeName = typeMap[businessType] || 'Autre'
+
+    // Récupérer l'ID depuis la base de données
+    const { data: businessTypeData, error: businessTypeError } = await supabase
+      .from('business_types')
+      .select('id')
+      .eq('name', businessTypeName)
+      .single()
+
+    if (businessTypeError || !businessTypeData) {
+      console.error('Erreur récupération type de business:', businessTypeError)
+      throw new Error(`Type de business '${businessTypeName}' non trouvé dans la base de données`)
+    }
+
+    return businessTypeData.id
   }
 
-  // Créer les catégories de menu par défaut pour un restaurant
-  private static async createDefaultMenuCategories(businessId: number) {
-    const defaultCategories = [
+  // Créer les catégories de menu basées sur le type de business
+  private static async createDefaultMenuCategories(businessId: number, businessTypeId: number) {
+    try {
+      // Récupérer les templates de catégories pour ce type de business
+      const { data: templates, error: templateError } = await supabase
+        .from('business_type_menu_templates')
+        .select('category_name, category_description, sort_order')
+        .eq('business_type_id', businessTypeId)
+        .order('sort_order')
+
+      if (templateError) {
+        console.error('Erreur récupération templates catégories:', templateError)
+        // Fallback vers les catégories par défaut
+        await this.createFallbackCategories(businessId)
+        return
+      }
+
+      if (!templates || templates.length === 0) {
+        console.log('Aucun template trouvé pour le type de business:', businessTypeId)
+        // Fallback vers les catégories par défaut
+        await this.createFallbackCategories(businessId)
+        return
+      }
+
+      // Créer les catégories basées sur les templates
+      for (const template of templates) {
+        await supabase
+          .from('menu_categories')
+          .insert({
+            name: template.category_name,
+            description: template.category_description,
+            business_id: businessId,
+            is_active: true,
+            sort_order: template.sort_order
+          })
+      }
+
+      console.log(`Catégories créées pour le business ${businessId} avec ${templates.length} templates`)
+    } catch (error) {
+      console.error('Erreur création catégories par template:', error)
+      // Fallback vers les catégories par défaut
+      await this.createFallbackCategories(businessId)
+    }
+  }
+
+  // Catégories de fallback en cas d'erreur
+  private static async createFallbackCategories(businessId: number) {
+    const fallbackCategories = [
       { name: 'Entrées', description: 'Entrées et apéritifs', sort_order: 1 },
       { name: 'Plats principaux', description: 'Plats principaux', sort_order: 2 },
       { name: 'Desserts', description: 'Desserts et pâtisseries', sort_order: 3 },
       { name: 'Boissons', description: 'Boissons et rafraîchissements', sort_order: 4 }
     ]
 
-    for (const category of defaultCategories) {
+    for (const category of fallbackCategories) {
       await supabase
         .from('menu_categories')
         .insert({
@@ -247,10 +321,6 @@ export class PartnerRegistrationService {
       errors.push('Format d\'email invalide')
     }
     if (!data.owner_phone?.trim()) errors.push('Le téléphone du propriétaire est requis')
-    if (!data.password?.trim()) errors.push('Le mot de passe est requis')
-    if (data.password && data.password.length < 6) {
-      errors.push('Le mot de passe doit contenir au moins 6 caractères')
-    }
 
     // Validation des informations du business
     if (!data.business_name?.trim()) errors.push('Le nom du commerce est requis')

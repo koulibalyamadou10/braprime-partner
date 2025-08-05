@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout, { userNavItems } from '@/components/dashboard/DashboardLayout';
@@ -27,6 +27,7 @@ import { fr } from 'date-fns/locale';
 import { useCustomerDashboard } from '@/hooks/use-dashboard';
 import { PageSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { useUserRole } from '@/contexts/UserRoleContext';
+import { useDashboardCache } from '@/components/dashboard/DashboardCacheProvider';
 
 // Composant pour afficher les statistiques
 const StatsCard = ({ 
@@ -110,6 +111,7 @@ const UserDashboard = () => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const { isCustomer } = useUserRole();
+  const { prefetchCustomerData } = useDashboardCache();
 
   // Utiliser les hooks pour les données dynamiques
   const { 
@@ -122,6 +124,13 @@ const UserDashboard = () => {
     isAuthenticated,
     currentUser: customerCurrentUser
   } = useCustomerDashboard();
+
+  // Optimisation : Précharger les données quand le composant se monte
+  useEffect(() => {
+    if (isAuthenticated && currentUser?.role === 'customer') {
+      prefetchCustomerData();
+    }
+  }, [isAuthenticated, currentUser?.role, prefetchCustomerData]);
 
   // Formater les montants
   const formatCurrency = (amount: number) => {
@@ -171,7 +180,8 @@ const UserDashboard = () => {
     );
   }
 
-  if (isLoading) {
+  // Optimisation : Affichage progressif des données
+  if (isLoading && !stats.data && !recentOrders.data && !notifications.data) {
     return (
       <DashboardLayout navItems={userNavItems} title="Tableau de bord">
         <PageSkeleton />
@@ -339,12 +349,47 @@ const UserDashboard = () => {
                   Consultez l'aperçu complet de vos commandes
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex justify-center py-10">
-                <Button asChild>
-                  <Link to="/dashboard/orders">
-                    Voir toutes mes commandes
-                  </Link>
-                </Button>
+              <CardContent>
+                {recentOrders.isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-muted rounded animate-pulse" />
+                            <div className="h-3 bg-muted rounded w-1/2 animate-pulse" />
+                            <div className="h-3 bg-muted rounded w-1/3 animate-pulse" />
+                          </div>
+                          <div className="w-8 h-8 bg-muted rounded animate-pulse" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentOrders.data && recentOrders.data.length > 0 ? (
+                  <div className="space-y-4">
+                    <RecentOrdersList orders={recentOrders.data} />
+                    <div className="flex justify-center pt-4">
+                      <Button asChild>
+                        <Link to="/dashboard/orders">
+                          Voir toutes mes commandes
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Aucune commande</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Vous n'avez pas encore passé de commande
+                    </p>
+                    <Button asChild>
+                      <Link to="/restaurants">
+                        Découvrir des restaurants
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -358,19 +403,34 @@ const UserDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {notifications.data && notifications.data.length > 0 ? (
+                {notifications.isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 border rounded-lg">
+                        <div className="w-5 h-5 bg-muted rounded animate-pulse" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted rounded animate-pulse" />
+                          <div className="h-3 bg-muted rounded w-1/3 animate-pulse" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : notifications.data && notifications.data.length > 0 ? (
                   <div className="space-y-4">
                     {notifications.data.map((notification) => (
-                      <div key={notification.id} className="flex items-start gap-3 p-3 border rounded-lg">
+                      <div key={notification.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                         <Bell className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div className="flex-1">
-                          <p className="text-sm">{notification.message}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="text-sm font-medium">{notification.title || notification.message}</p>
+                          {notification.message && notification.title && (
+                            <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-2">
                             {format(new Date(notification.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
                           </p>
                         </div>
                         {!notification.read && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
                         )}
                       </div>
                     ))}

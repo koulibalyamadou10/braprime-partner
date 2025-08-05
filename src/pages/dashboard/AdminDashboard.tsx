@@ -74,7 +74,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useAdminDashboard } from '@/hooks/use-admin-dashboard';
-import RealTimeStats from '@/components/dashboard/RealTimeStats';
+import AdminRealTimeStats from '@/components/dashboard/AdminRealTimeStats';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const AdminDashboard = () => {
   const { currentUser } = useAuth();
@@ -90,7 +91,9 @@ const AdminDashboard = () => {
     analytics,
     loading, 
     error,
-    refreshData
+    refreshData,
+    period,
+    handlePeriodChange
   } = useAdminDashboard();
 
   // Formater les montants
@@ -175,6 +178,17 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-2 mt-4 md:mt-0">
+            <Select value={period} onValueChange={(value: 'today' | 'week' | 'month' | 'year') => handlePeriodChange(value)}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Aujourd'hui</SelectItem>
+                <SelectItem value="week">Cette semaine</SelectItem>
+                <SelectItem value="month">Ce mois</SelectItem>
+                <SelectItem value="year">Cette année</SelectItem>
+              </SelectContent>
+            </Select>
             <Button 
               variant="outline" 
               size="icon"
@@ -193,7 +207,13 @@ const AdminDashboard = () => {
         </div>
 
         {/* Statistiques en temps réel */}
-        <RealTimeStats />
+        <AdminRealTimeStats 
+          stats={stats}
+          period={period}
+          onPeriodChange={handlePeriodChange}
+          onRefresh={refreshData}
+          isLoading={loading}
+        />
 
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-9">

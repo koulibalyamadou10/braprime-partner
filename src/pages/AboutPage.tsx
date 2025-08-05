@@ -1,12 +1,12 @@
 import Layout from '@/components/Layout';
-import { Phone, Mail, Globe } from 'lucide-react';
+import { Globe, Mail, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AboutPage = () => {
   const navigate = useNavigate();
 
   const handleBecomePartner = () => {
-    navigate('/devenir-partenaire');
+    navigate('/pricing');
   };
 
   return (
@@ -96,12 +96,13 @@ const AboutPage = () => {
                 <p className="text-gray-600 mb-4">
                   Augmentez votre visibilité et vos ventes en proposant vos plats sur notre plateforme.
                 </p>
-                <button 
-                  className="bg-guinea-green hover:bg-guinea-green/90 text-white font-medium py-2 px-4 rounded-lg"
-                  onClick={handleBecomePartner}
+                <Button 
+                  onClick={() => navigate('/devenir-partenaire')}
+                  className="bg-guinea-red hover:bg-guinea-red/90 text-white px-8 py-3 text-lg font-semibold"
                 >
                   Devenir partenaire
-                </button>
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
               </div>
             </div>
           </div>

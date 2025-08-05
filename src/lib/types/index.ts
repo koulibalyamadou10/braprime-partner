@@ -175,6 +175,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  orderNumber?: string; // Numéro de commande formaté
   userId: string;
   businessId: number;
   businessName: string;
@@ -187,6 +188,7 @@ export interface Order {
   deliveryMethod: DeliveryMethod;
   deliveryAddress: string;
   deliveryInstructions?: string;
+  landmark?: string; // Point de repère pour la livraison
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   createdAt: string;
@@ -627,6 +629,12 @@ export interface Request {
   updated_at: string;
   reviewed_at?: string;
   reviewed_by?: string;
+  metadata?: {
+    selected_plan_id?: string;
+    selected_plan_name?: string;
+    selected_plan_price?: number;
+    subscription_id?: string;
+  };
 }
 
 export interface RequestDocument {

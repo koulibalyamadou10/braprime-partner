@@ -225,10 +225,19 @@ export class HomepageService {
   // Récupérer les articles en vedette (menu items populaires)
   static async getFeaturedProducts(limit: number = 8): Promise<any[]> {
     try {
-      const { data, error } = await supabase
+      // D'abord, essayer de récupérer les articles populaires
+      let { data, error } = await supabase
         .from('menu_items')
         .select(`
-          *,
+          id,
+          name,
+          description,
+          price,
+          image,
+          business_id,
+          is_popular,
+          is_available,
+          created_at,
           businesses (
             id,
             name,
@@ -245,23 +254,69 @@ export class HomepageService {
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (error) {
+      // Si aucun article populaire n'est trouvé, récupérer tous les articles disponibles
+      if (!data || data.length === 0) {
+        console.log('Aucun article populaire trouvé, récupération de tous les articles disponibles...');
+        const { data: allItems, error: allItemsError } = await supabase
+          .from('menu_items')
+          .select(`
+            id,
+            name,
+            description,
+            price,
+            image,
+            business_id,
+            is_popular,
+            is_available,
+            created_at,
+            businesses (
+              id,
+              name,
+              cuisine_type,
+              address
+            ),
+            menu_categories (
+              id,
+              name
+            )
+          `)
+          .eq('is_available', true)
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (allItemsError) {
+          console.error('Erreur lors de la récupération de tous les articles:', allItemsError);
+          throw allItemsError;
+        }
+
+        data = allItems;
+      } else if (error) {
         console.error('Erreur lors de la récupération des articles en vedette:', error);
         throw error;
       }
 
       // Transformer les données pour correspondre à l'interface
-      const featuredItems = (data || []).map(item => ({
-        id: item.id,
-        name: item.name,
-        description: item.description || '',
-        price: item.price,
-        image: item.image || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-        restaurants: {
-          name: item.businesses?.name || 'Restaurant',
-          cuisine_type: item.businesses?.cuisine_type || 'Restaurant'
-        }
-      }));
+      const featuredItems = (data || []).map(item => {
+        console.log('=== DONNÉES BRUTES DE SUPABASE ===');
+        console.log('Article complet:', item);
+        console.log('business_id:', item.business_id);
+        console.log('businesses:', item.businesses);
+        console.log('================================');
+        
+        return {
+          id: item.id,
+          name: item.name,
+          description: item.description || '',
+          price: item.price,
+          image: item.image || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+          business_id: item.business_id, // Ajouter le business_id
+          businesses: item.businesses, // Garder l'objet businesses complet
+          restaurants: {
+            name: item.businesses?.name || 'Restaurant',
+            cuisine_type: item.businesses?.cuisine_type || 'Restaurant'
+          }
+        };
+      });
 
       return featuredItems;
     } catch (error) {

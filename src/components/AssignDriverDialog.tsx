@@ -24,6 +24,7 @@ interface AssignDriverDialogProps {
   orderNumber: string;
   businessId: number;
   onDriverAssigned: (driverId: string, driverName: string, driverPhone: string) => void;
+  isMultipleAssignment?: boolean;
 }
 
 export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
@@ -32,7 +33,8 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
   orderId,
   orderNumber,
   businessId,
-  onDriverAssigned
+  onDriverAssigned,
+  isMultipleAssignment = false
 }) => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [filteredDrivers, setFilteredDrivers] = useState<Driver[]>([]);
@@ -104,8 +106,9 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
 
     // Vérifier le nombre de commandes actives (maximum 3)
     const activeOrdersCount = selectedDriver.active_orders_count || 0;
-    if (activeOrdersCount >= 3) {
-      toast.error('Ce livreur a déjà 3 commandes en cours');
+    const maxOrders = isMultipleAssignment ? 5 : 3; // Plus de flexibilité pour l'assignation multiple
+    if (activeOrdersCount >= maxOrders) {
+      toast.error(`Ce livreur a déjà ${maxOrders} commandes en cours`);
       return;
     }
 
@@ -117,7 +120,14 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
     try {
       setIsLoading(true);
 
-      // Assigner le livreur à la commande via le service
+      if (isMultipleAssignment) {
+        // Pour l'assignation multiple, on ne fait pas l'assignation ici
+        // Elle sera gérée par le composant parent
+        toast.success(`Livreur ${selectedDriver.name} sélectionné pour l'assignation multiple`);
+        onDriverAssigned(selectedDriver.id, selectedDriver.name, selectedDriver.phone);
+        onClose();
+      } else {
+        // Assignation normale pour une seule commande
       const { error: assignError } = await OrderService.assignDriver(
         orderId, 
         selectedDriver.id, 
@@ -142,6 +152,7 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
       toast.success(`Livreur ${selectedDriver.name} assigné avec succès`);
       onDriverAssigned(selectedDriver.id, selectedDriver.name, selectedDriver.phone);
       onClose();
+      }
     } catch (err) {
       console.error('Erreur assignation livreur:', err);
       toast.error(err instanceof Error ? err.message : 'Erreur lors de l\'assignation du livreur');
@@ -177,7 +188,8 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
 
   const isDriverAvailable = (driver: Driver) => {
     const activeOrdersCount = driver.active_orders_count || 0;
-    return driver.is_active && activeOrdersCount < 3 && driver.is_verified;
+    const maxOrders = isMultipleAssignment ? 5 : 3;
+    return driver.is_active && activeOrdersCount < maxOrders && driver.is_verified;
   };
 
   const getDriverStatusBadge = (driver: Driver) => {
@@ -189,7 +201,9 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
     }
     
     const activeOrdersCount = driver.active_orders_count || 0;
-    if (activeOrdersCount >= 3) {
+    const maxOrders = isMultipleAssignment ? 5 : 3;
+    
+    if (activeOrdersCount >= maxOrders) {
       return <Badge variant="outline" className="text-xs border-red-500 text-red-600">Surchargé</Badge>;
     } else if (activeOrdersCount > 0) {
       return <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
@@ -219,30 +233,33 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="max-w-xl h-[80vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Assigner un livreur</DialogTitle>
           <DialogDescription>
             Recherchez et sélectionnez un livreur pour la commande #{orderNumber}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 min-h-0 flex flex-col">
           {isLoadingDrivers ? (
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
             </div>
           ) : error ? (
-            <div className="text-center py-4">
+            <div className="text-center py-4 flex-1 flex items-center justify-center">
+              <div>
               <p className="text-red-500 mb-2">{error}</p>
               <Button variant="outline" size="sm" onClick={loadDrivers}>
                 Réessayer
               </Button>
+              </div>
             </div>
           ) : drivers.length === 0 ? (
-            <div className="text-center py-4">
+            <div className="text-center py-4 flex-1 flex items-center justify-center">
+              <div>
               <User className="h-12 w-12 text-gray-400 mx-auto mb-2" />
               <p className="text-gray-500 mb-2">Aucun livreur disponible</p>
               <p className="text-sm text-gray-400 mb-4">
@@ -256,11 +273,12 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
                 <p className="text-xs text-gray-400">
                   Business ID: {businessId}
                 </p>
+                </div>
               </div>
             </div>
           ) : (
             <>
-              <div className="space-y-3">
+              <div className="space-y-3 flex-1 min-h-0 flex flex-col">
                 <div>
                   <Label htmlFor="driver-search">Rechercher un livreur</Label>
                   <div className="relative">
@@ -275,7 +293,7 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
                   </div>
                 </div>
 
-                <div className="max-h-60 overflow-y-auto border rounded-lg">
+                <div className="flex-1 overflow-y-auto border rounded-lg min-h-0">
                   {filteredDrivers.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
                       <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
@@ -355,7 +373,7 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
                 </div>
 
                 {filteredDrivers.length > 0 && (
-                  <div className="text-xs text-gray-500 text-center space-y-1">
+                  <div className="text-xs text-gray-500 text-center space-y-1 flex-shrink-0">
                     <p>
                       {filteredDrivers.length} livreur{filteredDrivers.length > 1 ? 's' : ''} trouvé{filteredDrivers.length > 1 ? 's' : ''}
                       {searchTerm && ` pour "${searchTerm}"`}
@@ -383,7 +401,7 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
               </div>
 
               {selectedDriverId && (
-                <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="border rounded-lg p-4 bg-gray-50 flex-shrink-0">
                   <h4 className="font-medium mb-2">Livreur sélectionné</h4>
                   {(() => {
                     const driver = drivers.find(d => d.id === selectedDriverId);
@@ -428,7 +446,7 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Annuler
           </Button>

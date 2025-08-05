@@ -401,33 +401,29 @@ export class DashboardService {
       // Vérifier l'authentification
       await this.checkAuth()
 
-      // Pour l'instant, retourner des notifications simulées
-      // À remplacer par une vraie table de notifications
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'order',
-          message: 'Nouvelle commande reçue: ORD-002',
-          created_at: new Date().toISOString(),
-          read: false
-        },
-        {
-          id: '2',
-          type: 'review',
-          message: 'Un client a donné une note de 5 étoiles',
-          created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: false
-        },
-        {
-          id: '3',
-          type: 'payment',
-          message: 'Paiement reçu: 1,250,000 GNF',
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          read: true
-        }
-      ]
+      // Récupérer les vraies notifications depuis Supabase
+      const { data: notifications, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20)
 
-      return mockNotifications
+      if (error) {
+        console.error('Erreur lors de la récupération des notifications:', error)
+        return []
+      }
+
+      // Transformer les données pour correspondre à l'interface Notification
+      const transformedNotifications: Notification[] = (notifications || []).map(notif => ({
+        id: notif.id,
+        type: notif.type as 'order' | 'review' | 'payment' | 'system',
+        message: notif.title || notif.message,
+        created_at: notif.created_at,
+        read: notif.is_read || false
+      }))
+
+      return transformedNotifications
     } catch (error) {
       console.error('Erreur lors de la récupération des notifications:', error)
       return []

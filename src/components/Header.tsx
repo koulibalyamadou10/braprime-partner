@@ -1,24 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ShoppingCart, Menu, X, User, LogOut, Settings, Package, Calendar, Star, Search, Truck, MapPin } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/hooks/use-cart';
-import { cn } from '@/lib/utils';
-import { RealTimeNotifications } from './RealTimeNotifications';
-import CartHover from './CartHover';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCartContext } from '@/contexts/CartContext';
 import { useUserRole } from '@/contexts/UserRoleContext';
 import { useQuickSearch } from '@/hooks/use-search';
 import { SearchResult } from '@/lib/services/search';
+import { cn } from '@/lib/utils';
+import { Calendar, LogOut, MapPin, Menu, Package, Search, Settings, ShoppingCart, Star, Truck, User, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import CartHover from './CartHover';
+import { RealTimeNotifications } from './RealTimeNotifications';
 
 
 const Header = () => {
@@ -28,7 +28,7 @@ const Header = () => {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
   const { currentUser, logout } = useAuth();
-  const { cart, loading } = useCart();
+  const { cart, loading } = useCartContext();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -67,7 +67,7 @@ const Header = () => {
 
   // Gérer les clics en dehors de l'autocomplétion
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowAutocomplete(false);
         setSelectedIndex(-1);
@@ -75,8 +75,10 @@ const Header = () => {
     };
 
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
 
@@ -173,22 +175,23 @@ const Header = () => {
       <div
         key={`${result.type}-${result.id}`}
         className={cn(
-          "flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors",
-          isSelected && "bg-gray-50"
+          "flex items-center px-4 py-3 cursor-pointer hover:bg-gray-700 transition-colors touch-manipulation",
+          isSelected && "bg-gray-700"
         )}
         onClick={() => handleAutocompleteSelect(result)}
         onMouseEnter={() => setSelectedIndex(index)}
+        onTouchStart={() => setSelectedIndex(index)}
       >
-        <div className="flex-shrink-0 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-          {result.type === 'business' && <Package className="h-4 w-4 text-gray-600" />}
-          {result.type === 'menu_item' && <Star className="h-4 w-4 text-gray-600" />}
-          {result.type === 'category' && <Settings className="h-4 w-4 text-gray-600" />}
+        <div className="flex-shrink-0 w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center mr-3">
+          {result.type === 'business' && <Package className="h-4 w-4 text-gray-300" />}
+          {result.type === 'menu_item' && <Star className="h-4 w-4 text-gray-300" />}
+          {result.type === 'category' && <Settings className="h-4 w-4 text-gray-300" />}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 truncate">
+          <div className="text-sm font-medium text-white truncate">
             {result.name}
           </div>
-          <div className="text-xs text-gray-500 truncate">
+          <div className="text-xs text-gray-400 truncate">
             {result.type === 'business' && result.cuisine_type && `${result.cuisine_type} • ${result.address || 'Conakry'}`}
             {result.type === 'menu_item' && result.business_name && `${result.business_name} • ${result.price ? `${result.price} GNF` : ''}`}
             {result.type === 'category' && result.description}
@@ -199,61 +202,57 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+    <header className="bg-gray-900 text-white shadow-sm border-b border-gray-800 sticky top-0 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2" onClick={closeMobileMenu}>
-            <div className="w-8 h-8 bg-guinea-red rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">B</span>
-            </div>
-            <span className="font-bold text-xl text-gray-900">BraPrime</span>
+            <img src="/logo.png" alt="BraPrime Logo" className="block h-6 sm:h-7 md:h-8 w-auto" />
           </Link>
 
           {/* Barre de recherche - Desktop */}
           <div className="hidden md:flex flex-1 max-w-md mx-8 relative" ref={searchRef}>
-            <form onSubmit={handleSearch} className="w-full">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
-              <Input
-                type="text"
-                  placeholder="Rechercher un service, un commerce, un plat, un quartier..."
-                className="pl-10 pr-4 py-2 w-full"
-                value={searchTerm}
+            <form onSubmit={handleSearch} className="w-full flex">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Rechercher ..."
+                  className="pl-10 pr-4 py-2 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400"
+                  value={searchTerm}
                   onChange={handleSearchChange}
                   onFocus={handleSearchFocus}
                   onKeyDown={handleKeyDown}
-              />
-            </div>
+                />
+              </div>
+              <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90">
+                Rechercher
+              </Button>
             </form>
             
             {/* Autocomplétion */}
             {showAutocomplete && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
                 {autocompleteLoading ? (
-                  <div className="px-4 py-3 text-sm text-gray-500">
+                  <div className="px-4 py-3 text-sm text-gray-400">
                     Recherche en cours...
                   </div>
                 ) : autocompleteResults.length > 0 ? (
                   <>
                     {autocompleteResults.map(renderAutocompleteItem)}
-                    <div className="border-t border-gray-100 px-4 py-2">
-                      <div className="text-xs text-gray-500">
+                    <div className="border-t border-gray-700 px-4 py-2">
+                      <div className="text-xs text-gray-400">
                         Appuyez sur Entrée pour rechercher "{searchTerm}"
                       </div>
                     </div>
                   </>
                 ) : searchTerm.length >= 1 ? (
-                  <div className="px-4 py-3 text-sm text-gray-500">
+                  <div className="px-4 py-3 text-sm text-gray-400">
                     Aucun résultat trouvé
                   </div>
                 ) : null}
               </div>
             )}
-            
-            <Button type="submit" className="ml-2 bg-guinea-red hover:bg-guinea-red/90" onClick={handleSearch}>
-              Rechercher
-            </Button>
           </div>
 
           {/* Desktop Navigation */}
@@ -293,21 +292,15 @@ const Header = () => {
                   {currentUser.role === 'customer' && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link to="/dashboard/orders" className="flex items-center">
+                        <Link to="/cart" className="flex items-center">
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Panier
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/dashboard" className="flex items-center">
                           <Package className="mr-2 h-4 w-4" />
-                          Mes commandes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/dashboard/reservations" className="flex items-center">
-                          <Calendar className="mr-2 h-4 w-4" />
-                          Mes réservations
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/dashboard/favorites" className="flex items-center">
-                          <Star className="mr-2 h-4 w-4" />
-                          Mes favoris
+                          Dashboard
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -435,6 +428,9 @@ const Header = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
+                <Link to="/devenir-partenaire" className="text-gray-400 hover:text-white transition-colors">
+                  Devenir partenaire
+                </Link>
                 <Button variant="ghost" asChild>
                   <Link to="/login">Se connecter</Link>
                 </Button>
@@ -445,11 +441,32 @@ const Header = () => {
             )}
           </nav>
 
+          {/* Mobile Navigation */}
+          <div className="md:hidden flex items-center space-x-2">
+            {/* Mobile Cart Button - Only for authenticated customers */}
+            {isAuthenticated && currentUser?.role === 'customer' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                asChild
+              >
+                <Link to="/cart">
+                  <ShoppingCart className="h-5 w-5" />
+                  {!loading && cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-guinea-red text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {cartCount}
+                    </span>
+                  )}
+                  <span className="sr-only">Panier</span>
+                </Link>
+              </Button>
+            )}
+
           {/* Mobile menu button */}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
             onClick={toggleMobileMenu}
           >
             {isMobileMenuOpen ? (
@@ -459,20 +476,21 @@ const Header = () => {
             )}
             <span className="sr-only">Menu mobile</span>
           </Button>
+          </div>
         </div>
 
         {/* Mobile Search */}
-        <div className="pb-4 md:hidden">
+        <div className="pb-4 md:hidden relative" ref={searchRef}>
           <form 
             onSubmit={handleSearch}
             className="flex"
           >
             <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 type="text"
-                placeholder="Rechercher un service, un commerce, un plat, un quartier..."
-                className="pl-10 pr-4 py-2 w-full"
+                placeholder="Rechercher ..."
+                className="pl-10 pr-4 py-2 w-full bg-gray-800 border-gray-700 text-white placeholder-gray-400"
                 value={searchTerm}
                 onChange={handleSearchChange}
                 onFocus={handleSearchFocus}
@@ -486,22 +504,22 @@ const Header = () => {
           
           {/* Autocomplétion mobile */}
           {showAutocomplete && (
-            <div className="absolute left-4 right-4 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-80 overflow-y-auto z-50">
               {autocompleteLoading ? (
-                <div className="px-4 py-3 text-sm text-gray-500">
+                <div className="px-4 py-3 text-sm text-gray-400">
                   Recherche en cours...
                 </div>
               ) : autocompleteResults.length > 0 ? (
                 <>
                   {autocompleteResults.map(renderAutocompleteItem)}
-                  <div className="border-t border-gray-100 px-4 py-2">
-                    <div className="text-xs text-gray-500">
+                  <div className="border-t border-gray-700 px-4 py-2">
+                    <div className="text-xs text-gray-400">
                       Appuyez sur Entrée pour rechercher "{searchTerm}"
                     </div>
                   </div>
                 </>
               ) : searchTerm.length >= 1 ? (
-                <div className="px-4 py-3 text-sm text-gray-500">
+                <div className="px-4 py-3 text-sm text-gray-400">
                   Aucun résultat trouvé
                 </div>
               ) : null}
@@ -511,52 +529,41 @@ const Header = () => {
 
         {/* Mobile Navigation */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4">
+          <div className="md:hidden border-t border-gray-700 py-4">
             <nav className="flex flex-col space-y-2">
-              {/* Cart for authenticated customers */}
-              {isAuthenticated && currentUser?.role === 'customer' && (
-                <div className="px-4 py-2">
-                  <CartHover isMobile={true} />
-                </div>
-              )}
-
               {/* User menu items */}
               {isAuthenticated ? (
                 <>
                   {currentUser.role === 'customer' && (
                     <>
                       <Link
-                        to="/dashboard/orders"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        to="/cart"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
+                        onClick={closeMobileMenu}
+                      >
+                        <ShoppingCart className="mr-3 h-5 w-5" />
+                        Panier
+                        {!loading && cartCount > 0 && (
+                          <span className="ml-auto bg-guinea-red text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {cartCount}
+                          </span>
+                        )}
+                      </Link>
+                      <Link
+                        to="/dashboard"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Package className="mr-3 h-5 w-5" />
-                        Mes commandes
-                      </Link>
-                      <Link
-                        to="/dashboard/reservations"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                        onClick={closeMobileMenu}
-                      >
-                        <Calendar className="mr-3 h-5 w-5" />
-                        Mes réservations
-                      </Link>
-                      <Link
-                        to="/dashboard/favorites"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                        onClick={closeMobileMenu}
-                      >
-                        <Star className="mr-3 h-5 w-5" />
-                        Mes favoris
+                        Dashboard
                       </Link>
                     </>
                   )}
-                  
                   {currentUser.role === 'partner' && (
                     <>
                       <Link
                         to="/partner-dashboard/orders"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Package className="mr-3 h-5 w-5" />
@@ -564,7 +571,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/partner-dashboard/menu"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Settings className="mr-3 h-5 w-5" />
@@ -572,7 +579,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/partner-dashboard/drivers"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Truck className="mr-3 h-5 w-5" />
@@ -580,12 +587,11 @@ const Header = () => {
                       </Link>
                     </>
                   )}
-                  
                   {currentUser.role === 'admin' && (
                     <>
                       <Link
                         to="/admin-dashboard/orders"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Package className="mr-3 h-5 w-5" />
@@ -593,7 +599,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/admin-dashboard/businesses"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Settings className="mr-3 h-5 w-5" />
@@ -601,7 +607,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/admin-dashboard/users"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <User className="mr-3 h-5 w-5" />
@@ -609,7 +615,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/admin-dashboard/drivers"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Truck className="mr-3 h-5 w-5" />
@@ -617,7 +623,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/admin-dashboard/content"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Settings className="mr-3 h-5 w-5" />
@@ -625,7 +631,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/admin-dashboard/analytics"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Package className="mr-3 h-5 w-5" />
@@ -633,7 +639,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/admin-dashboard/system"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Settings className="mr-3 h-5 w-5" />
@@ -641,12 +647,11 @@ const Header = () => {
                       </Link>
                     </>
                   )}
-                  
                   {currentUser.role === 'driver' && (
                     <>
                       <Link
                         to="/driver-dashboard/orders"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Package className="mr-3 h-5 w-5" />
@@ -654,7 +659,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/driver-dashboard/history"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <Calendar className="mr-3 h-5 w-5" />
@@ -662,7 +667,7 @@ const Header = () => {
                       </Link>
                       <Link
                         to="/driver-dashboard/location"
-                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                        className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                         onClick={closeMobileMenu}
                       >
                         <MapPin className="mr-3 h-5 w-5" />
@@ -670,42 +675,30 @@ const Header = () => {
                       </Link>
                     </>
                   )}
-                  
-                  <Link
-                    to={currentUser.role === 'admin' ? "/admin-dashboard/profile" : "/dashboard/profile"}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                    onClick={closeMobileMenu}
-                  >
-                    <User className="mr-3 h-5 w-5" />
-                    Mon profil
-                  </Link>
-                  
-                  {/* Afficher Dashboard pour admin, Profile pour les autres */}
-                  {shouldShowDashboard && (
+                  {/* Afficher Dashboard et Mon profil UNIQUEMENT pour les autres rôles */}
+                  {currentUser.role !== 'customer' && shouldShowDashboard && (
                     <Link
                       to={getDashboardLink()}
-                      className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                      className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                       onClick={closeMobileMenu}
                     >
                       <Package className="mr-3 h-5 w-5" />
                       {isAdmin ? 'Tableau de bord' : 'Mon tableau de bord'}
                     </Link>
                   )}
-                  
-                  {shouldShowProfile && (
+                  {currentUser.role !== 'customer' && shouldShowProfile && (
                     <Link
                       to={getProfileLink()}
-                      className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                      className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 rounded-md"
                       onClick={closeMobileMenu}
                     >
                       <User className="mr-3 h-5 w-5" />
                       Mon profil
                     </Link>
                   )}
-                  
                   <button
                     onClick={handleSignOut}
-                    className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md w-full text-left"
+                    className="flex items-center px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-900/20 rounded-md w-full text-left"
                   >
                     <LogOut className="mr-3 h-5 w-5" />
                     Se déconnecter

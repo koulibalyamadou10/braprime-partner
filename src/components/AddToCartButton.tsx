@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, Check, ShoppingCart } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useCart } from '@/hooks/use-cart';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCartContext } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { Check, Minus, Plus, ShoppingCart } from 'lucide-react';
+import React, { useState } from 'react';
 
 export interface AddToCartButtonProps {
   item: {
@@ -26,7 +27,8 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   className
 }) => {
   const { currentUser } = useAuth();
-  const { cart, addToCart, updateQuantity, removeFromCart, loading } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCart, loading } = useCartContext();
+  const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -38,7 +40,12 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 
   const handleAddToCart = async () => {
     if (!currentUser) {
-      return; // La gestion de l'erreur est faite dans le hook useCart
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter pour ajouter des articles au panier.",
+        variant: "destructive",
+      });
+      return;
     }
 
     setIsAdding(true);
@@ -55,8 +62,18 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       // Animation de succès
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 1000);
+      
+      toast({
+        title: "Article ajouté",
+        description: `${item.name} a été ajouté à votre panier.`,
+      });
     } catch (error) {
       console.error('Erreur lors de l\'ajout au panier:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter l'article au panier. Veuillez réessayer.",
+        variant: "destructive",
+      });
     } finally {
       setIsAdding(false);
     }
@@ -64,16 +81,44 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 
   const handleIncreaseQuantity = async () => {
     if (cartItem) {
+      try {
       await updateQuantity(cartItem.id, quantity + 1);
+        toast({
+          title: "Quantité mise à jour",
+          description: `Quantité de ${item.name} augmentée.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de modifier la quantité. Veuillez réessayer.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
   const handleDecreaseQuantity = async () => {
     if (cartItem) {
+      try {
       if (quantity === 1) {
         await removeFromCart(cartItem.id);
+          toast({
+            title: "Article retiré",
+            description: `${item.name} a été retiré du panier.`,
+          });
       } else {
         await updateQuantity(cartItem.id, quantity - 1);
+          toast({
+            title: "Quantité mise à jour",
+            description: `Quantité de ${item.name} diminuée.`,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de modifier la quantité. Veuillez réessayer.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -132,7 +177,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
             disabled={isAdding || loading}
             size="sm"
             className={cn(
-              "h-8 px-3 text-xs",
+              "h-8 px-3 text-xs bg-rose-500 hover:bg-rose-600 text-white",
               showSuccess && "bg-green-600 hover:bg-green-700",
               className
             )}
@@ -179,7 +224,7 @@ export const AddToCartButton: React.FC<AddToCartButtonProps> = ({
           onClick={handleAddToCart}
           disabled={isAdding || loading}
           className={cn(
-            "bg-guinea-green hover:bg-guinea-green/90 text-white transition-all duration-200",
+            "bg-emerald-500 hover:bg-emerald-600 text-white transition-all duration-200",
             showSuccess && "bg-green-600",
             className
           )}

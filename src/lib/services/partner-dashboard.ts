@@ -42,6 +42,7 @@ export interface PartnerStats {
 
 export interface PartnerOrder {
   id: string
+  order_number?: string // Numéro de commande lisible
   user_id: string
   customer_name: string
   customer_phone: string
@@ -52,6 +53,7 @@ export interface PartnerOrder {
   grand_total: number
   delivery_address: string
   delivery_instructions?: string
+  landmark?: string // Point de repère
   payment_method: string
   payment_status: string
   created_at: string
@@ -320,6 +322,7 @@ export class PartnerDashboardService {
         .from('orders')
         .select(`
           id,
+          order_number,
           user_id,
           items,
           status,
@@ -383,6 +386,7 @@ export class PartnerDashboardService {
         const profile = profilesMap.get(order.user_id)
         return {
           id: order.id,
+          order_number: order.order_number,
           user_id: order.user_id,
           customer_name: profile?.name || 'Client',
           customer_phone: profile?.phone_number || '',
@@ -393,6 +397,7 @@ export class PartnerDashboardService {
           grand_total: order.grand_total,
           delivery_address: order.delivery_address,
           delivery_instructions: order.delivery_instructions,
+          landmark: order.landmark, // Point de repère
           payment_method: order.payment_method,
           payment_status: order.payment_status,
           created_at: order.created_at,

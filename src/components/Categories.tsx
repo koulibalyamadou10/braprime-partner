@@ -1,8 +1,8 @@
-import { Coffee, Utensils, ShoppingBasket, ShoppingCart, Package, Gift, Pill, Tv, Briefcase, Apple, FileText, Shirt, BookOpen, Flower, Dog, Sparkles, Hammer, Dumbbell, Gamepad2, Home, Bike, Baby, Wine, Scissors, Car, Wrench, ChevronRight, Store, Heart, Zap, Camera, Music, Palette, Globe, Shield, Truck, MapPin, Calendar, Users, Settings, Star, Award, Target, TrendingUp, Cake, Eye, Smartphone, Monitor, Headphones, Key } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useCategoriesWithCounts } from "@/hooks/use-homepage";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCategoriesWithCounts } from "@/hooks/use-homepage";
+import { Apple, Award, Baby, Bike, BookOpen, Briefcase, Cake, Calendar, Camera, Car, ChevronRight, Coffee, Dog, Dumbbell, Eye, FileText, Flower, Gamepad2, Gift, Globe, Hammer, Headphones, Heart, Home, Key, MapPin, Monitor, Music, Package, Palette, Pill, Scissors, Settings, Shield, Shirt, ShoppingBasket, ShoppingCart, Smartphone, Sparkles, Star, Store, Target, TrendingUp, Truck, Tv, Users, Utensils, Wine, Wrench, Zap } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // Composant de chargement pour les catégories
 const CategoriesSkeleton = ({ showAll = false }: { showAll?: boolean }) => {
@@ -18,7 +18,7 @@ const CategoriesSkeleton = ({ showAll = false }: { showAll?: boolean }) => {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-4">
           {Array.from({ length: itemCount }).map((_, index) => (
             <div key={index} className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm">
-              <Skeleton className="w-12 h-12 rounded-full mb-3" />
+              <Skeleton className="w-16 h-16 rounded-full mb-3" />
               <Skeleton className="h-4 w-20" />
             </div>
           ))}
@@ -30,10 +30,298 @@ const CategoriesSkeleton = ({ showAll = false }: { showAll?: boolean }) => {
 
 interface CategoriesProps {
   showAll?: boolean;
+  customCategories?: any[];
+  title?: string;
+  showViewAllButton?: boolean;
+  className?: string;
 }
 
-const Categories = ({ showAll = false }: CategoriesProps) => {
+// Mapping des icônes Lucide
+const iconMapping: { [key: string]: any } = {
+  'beauty': Flower,
+  'books': BookOpen,
+  'cafe': Coffee,
+  'clothing': Shirt,
+  'documents': FileText,
+  'electronics': Monitor,
+  'gifts': Gift,
+  'hardware': Wrench,
+  'market': Store,
+  'packages': Package,
+  // fallback pour les autres catégories
+  'coffee': Coffee,
+  'utensils': Utensils,
+  'shoppingbasket': ShoppingBasket,
+  'shoppingcart': ShoppingCart,
+  'gift': Gift,
+  'pill': Pill,
+  'tv': Tv,
+  'briefcase': Briefcase,
+  'apple': Apple,
+  'filetext': FileText,
+  'shirt': Shirt,
+  'bookopen': BookOpen,
+  'flower': Flower,
+  'dog': Dog,
+  'sparkles': Sparkles,
+  'hammer': Hammer,
+  'dumbbell': Dumbbell,
+  'gamepad2': Gamepad2,
+  'home': Home,
+  'bike': Bike,
+  'baby': Baby,
+  'wine': Wine,
+  'scissors': Scissors,
+  'car': Car,
+  'wrench': Wrench,
+  'store': Store,
+  'heart': Heart,
+  'zap': Zap,
+  'camera': Camera,
+  'music': Music,
+  'palette': Palette,
+  'globe': Globe,
+  'shield': Shield,
+  'truck': Truck,
+  'mappin': MapPin,
+  'calendar': Calendar,
+  'users': Users,
+  'settings': Settings,
+  'star': Star,
+  'award': Award,
+  'target': Target,
+  'trendingup': TrendingUp,
+  'cake': Cake,
+  'eye': Eye,
+  'smartphone': Smartphone,
+  'monitor': Monitor,
+  'headphones': Headphones,
+  'key': Key,
+};
+
+// Fonction pour traduire et capitaliser les noms de catégories
+const translateAndCapitalize = (name: string) => {
+  const translations: { [key: string]: string } = {
+    'restaurants': 'Restaurants',
+    'cafes': 'Cafés',
+    'markets': 'Marchés',
+    'pharmacies': 'Pharmacies',
+    'beauty': 'Beauté',
+    'books': 'Livres',
+    'clothing': 'Vêtements',
+    'documents': 'Documents',
+    'electronics': 'Électronique',
+    'gifts': 'Cadeaux',
+    'hardware': 'Quincaillerie',
+    'packages': 'Colis',
+    'coffee': 'Café',
+    'utensils': 'Ustensiles',
+    'shoppingbasket': 'Courses',
+    'shoppingcart': 'Panier',
+    'gift': 'Cadeau',
+    'pill': 'Médicaments',
+    'tv': 'Télévision',
+    'briefcase': 'Bureau',
+    'apple': 'Fruits',
+    'filetext': 'Documents',
+    'shirt': 'Vêtements',
+    'bookopen': 'Livres',
+    'flower': 'Fleurs',
+    'dog': 'Animaux',
+    'sparkles': 'Beauté',
+    'hammer': 'Outils',
+    'dumbbell': 'Sport',
+    'gamepad2': 'Jeux',
+    'home': 'Maison',
+    'bike': 'Vélo',
+    'baby': 'Bébé',
+    'wine': 'Vins',
+    'scissors': 'Coiffure',
+    'car': 'Automobile',
+    'wrench': 'Réparation',
+    'store': 'Magasin',
+    'heart': 'Santé',
+    'zap': 'Électricité',
+    'camera': 'Photo',
+    'music': 'Musique',
+    'palette': 'Art',
+    'globe': 'International',
+    'shield': 'Sécurité',
+    'truck': 'Transport',
+    'mappin': 'Localisation',
+    'calendar': 'Événements',
+    'users': 'Services',
+    'settings': 'Configuration',
+    'star': 'Premium',
+    'award': 'Récompenses',
+    'target': 'Objectifs',
+    'trendingup': 'Tendances',
+    'cake': 'Pâtisserie',
+    'eye': 'Optique',
+    'smartphone': 'Téléphonie',
+    'monitor': 'Informatique',
+    'headphones': 'Audio',
+    'key': 'Clés',
+  };
+  
+  const lowerName = name.toLowerCase();
+  return translations[lowerName] || name.charAt(0).toUpperCase() + name.slice(1);
+};
+
+// Fonction pour obtenir l'icône Lucide
+const getIconComponent = (iconName: string) => {
+  if (!iconName) return Utensils;
+  // Normaliser le nom de l'icône (minuscule, sans espace)
+  const normalizedIcon = iconName.trim().toLowerCase();
+  return iconMapping[normalizedIcon] || Utensils;
+};
+
+const Categories = ({ 
+  showAll = false, 
+  customCategories, 
+  title = "Catégories de Services",
+  showViewAllButton = true,
+  className = ""
+}: CategoriesProps) => {
   const { data: categories, isLoading, error } = useCategoriesWithCounts();
+
+  // Fonction pour normaliser les noms de catégories
+  const normalizeCategoryName = (name: string) => {
+    const lowerName = name.toLowerCase().trim();
+    
+    // Mapping des variations de noms vers un nom standard
+    const nameMapping: { [key: string]: string } = {
+      'market': 'Marché',
+      'marché': 'Marché',
+      'pharmacy': 'Pharmacie',
+      'pharmacie': 'Pharmacie',
+      'supermarket': 'Supermarché',
+      'supermarché': 'Supermarché',
+      'cafe': 'Café',
+      'café': 'Café',
+      'restaurant': 'Restaurant',
+      'restaurants': 'Restaurants',
+      'beauty': 'Beauté',
+      'beauté': 'Beauté',
+      'electronics': 'Électronique',
+      'électronique': 'Électronique',
+      'electronic': 'Électronique',
+      'clothing': 'Vêtements',
+      'vêtements': 'Vêtements',
+      'books': 'Livres',
+      'livres': 'Livres',
+      'documents': 'Documents',
+      'gifts': 'Cadeaux',
+      'cadeaux': 'Cadeaux',
+      'gift': 'Cadeau',
+      'cadeau': 'Cadeau',
+      'hardware': 'Quincaillerie',
+      'quincaillerie': 'Quincaillerie',
+      'packages': 'Colis',
+      'colis': 'Colis',
+      'package': 'Colis',
+      'sports': 'Sport',
+      'sport': 'Sport',
+      'other': 'Autre',
+      'autre': 'Autre',
+    };
+    
+    return nameMapping[lowerName] || name.charAt(0).toUpperCase() + name.slice(1);
+  };
+
+  // Fonction pour assigner une icône spécifique à chaque catégorie
+  const getCategoryIcon = (categoryName: string) => {
+    const lowerName = categoryName.toLowerCase();
+    
+    // Mapping spécifique des catégories vers leurs icônes
+    const categoryIconMap: { [key: string]: any } = {
+      // Catégories principales avec noms normalisés
+      'restaurant': Utensils,
+      'restaurants': Utensils,
+      'café': Coffee,
+      'cafe': Coffee,
+      'marché': Store,
+      'market': Store,
+      'pharmacie': Pill,
+      'pharmacy': Pill,
+      'supermarché': Store,
+      'supermarket': Store,
+      'beauté': Flower,
+      'beauty': Flower,
+      'électronique': Monitor,
+      'electronics': Monitor,
+      'electronic': Monitor,
+      'vêtements': ShoppingBasket,
+      'clothing': ShoppingBasket,
+      'livres': BookOpen,
+      'books': BookOpen,
+      'documents': FileText,
+      'cadeaux': Gift,
+      'gifts': Gift,
+      'cadeau': Gift,
+      'gift': Gift,
+      'quincaillerie': Hammer,
+      'hardware': Hammer,
+      'colis': Package,
+      'packages': Package,
+      'package': Package,
+      'sport': Dumbbell,
+      'sports': Dumbbell,
+      'autre': Briefcase,
+      'other': Briefcase,
+      
+      // Autres catégories
+      'coffee': Coffee,
+      'utensils': Utensils,
+      'shoppingbasket': ShoppingBasket,
+      'shoppingcart': ShoppingCart,
+      'pill': Pill,
+      'tv': Tv,
+      'briefcase': Briefcase,
+      'apple': Apple,
+      'filetext': FileText,
+      'shirt': ShoppingBasket,
+      'bookopen': BookOpen,
+      'flower': Flower,
+      'dog': Dog,
+      'sparkles': Sparkles,
+      'hammer': Hammer,
+      'dumbbell': Dumbbell,
+      'gamepad2': Gamepad2,
+      'home': Home,
+      'bike': Bike,
+      'baby': Baby,
+      'wine': Wine,
+      'scissors': Scissors,
+      'car': Car,
+      'wrench': Wrench,
+      'store': Store,
+      'heart': Heart,
+      'zap': Zap,
+      'camera': Camera,
+      'music': Music,
+      'palette': Palette,
+      'globe': Globe,
+      'shield': Shield,
+      'truck': Truck,
+      'mappin': MapPin,
+      'calendar': Calendar,
+      'users': Users,
+      'settings': Settings,
+      'star': Star,
+      'award': Award,
+      'target': Target,
+      'trendingup': TrendingUp,
+      'cake': Cake,
+      'eye': Eye,
+      'smartphone': Smartphone,
+      'monitor': Monitor,
+      'headphones': Headphones,
+      'key': Key,
+    };
+    
+    return categoryIconMap[lowerName] || Utensils;
+  };
 
   if (isLoading) {
     return <CategoriesSkeleton showAll={showAll} />;
@@ -43,19 +331,42 @@ const Categories = ({ showAll = false }: CategoriesProps) => {
     console.error('Erreur lors du chargement des catégories:', error);
   }
 
-  // Utiliser uniquement les données de la base de données et filtrer les doublons
-  const displayCategories = categories || [];
-  const uniqueCategories = displayCategories.filter((category, index, self) => 
-    index === self.findIndex(c => c.id === category.id && c.name === category.name)
-  );
+  // Utiliser les catégories personnalisées si fournies, sinon utiliser les données de la base
+  const displayCategories = customCategories || categories || [];
+  
+  // Dédupliquer les catégories et normaliser les noms
+  const uniqueCategories = displayCategories.reduce((acc, category) => {
+    const normalizedName = normalizeCategoryName(category.name);
+    
+    // Vérifier si une catégorie avec ce nom normalisé existe déjà
+    const existingIndex = acc.findIndex(cat => normalizeCategoryName(cat.name) === normalizedName);
+    
+    if (existingIndex === -1) {
+      // Ajouter la nouvelle catégorie avec le nom normalisé
+      acc.push({
+        ...category,
+        name: normalizedName
+      });
+    } else {
+      // Fusionner les compteurs si nécessaire
+      const existing = acc[existingIndex];
+      acc[existingIndex] = {
+        ...existing,
+        restaurant_count: (existing.restaurant_count || 0) + (category.restaurant_count || 0)
+      };
+    }
+    
+    return acc;
+  }, [] as any[]);
+
   const limitedCategories = showAll ? uniqueCategories : uniqueCategories.slice(0, 10);
 
   return (
-    <section className="py-12 bg-gray-50">
+    <section className={`py-12 bg-gray-50 ${className}`}>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-bold">Catégories de Services</h2>
-          {!showAll && (
+          <h2 className="text-2xl md:text-3xl font-bold">{title}</h2>
+          {!showAll && showViewAllButton && (
             <Link to="/categories">
               <Button variant="ghost" className="text-guinea-red hover:text-guinea-red/90 flex items-center">
                 Voir toutes les catégories
@@ -68,27 +379,107 @@ const Categories = ({ showAll = false }: CategoriesProps) => {
           {limitedCategories.length === 0 ? (
             <div className="col-span-full text-center text-gray-500">Aucune catégorie trouvée.</div>
           ) : (
-            limitedCategories.map((category) => (
-              <Link 
-                key={category.id} 
-                to={category.link}
-                className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group"
-              >
-                <div className={`${category.color} p-3 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center`}>
-                  <span className="text-2xl" role="img" aria-label={category.name}>
-                    {category.icon}
+            limitedCategories.map((category) => {
+              // Générer une couleur de fond basée sur la couleur de l'icône
+              const getCardBgColor = (iconColor: string) => {
+                const colorMap: { [key: string]: string } = {
+                  'bg-red-500': 'bg-red-50 hover:bg-red-100',
+                  'bg-blue-500': 'bg-blue-50 hover:bg-blue-100',
+                  'bg-green-500': 'bg-green-50 hover:bg-green-100',
+                  'bg-yellow-500': 'bg-yellow-50 hover:bg-yellow-100',
+                  'bg-purple-500': 'bg-purple-50 hover:bg-purple-100',
+                  'bg-pink-500': 'bg-pink-50 hover:bg-pink-100',
+                  'bg-indigo-500': 'bg-indigo-50 hover:bg-indigo-100',
+                  'bg-orange-500': 'bg-orange-50 hover:bg-orange-100',
+                  'bg-teal-500': 'bg-teal-50 hover:bg-teal-100',
+                  'bg-cyan-500': 'bg-cyan-50 hover:bg-cyan-100',
+                  'bg-lime-500': 'bg-lime-50 hover:bg-lime-100',
+                  'bg-emerald-500': 'bg-emerald-50 hover:bg-emerald-100',
+                  'bg-rose-500': 'bg-rose-50 hover:bg-rose-100',
+                  'bg-violet-500': 'bg-violet-50 hover:bg-violet-100',
+                  'bg-fuchsia-500': 'bg-fuchsia-50 hover:bg-fuchsia-100',
+                  'bg-sky-500': 'bg-sky-50 hover:bg-sky-100',
+                  'bg-amber-500': 'bg-amber-50 hover:bg-amber-100',
+                  'bg-stone-500': 'bg-stone-50 hover:bg-stone-100',
+                  'bg-neutral-500': 'bg-neutral-50 hover:bg-neutral-100',
+                  'bg-zinc-500': 'bg-zinc-50 hover:bg-zinc-100',
+                  'bg-gray-500': 'bg-gray-50 hover:bg-gray-100',
+                  'bg-slate-500': 'bg-slate-50 hover:bg-slate-100',
+                  'bg-guinea-red': 'bg-red-50 hover:bg-red-100',
+                  'bg-guinea-yellow': 'bg-yellow-50 hover:bg-yellow-100',
+                  'bg-guinea-green': 'bg-green-50 hover:bg-green-100',
+                };
+                return colorMap[iconColor] || 'bg-white hover:bg-gray-50';
+              };
+
+              const cardBgColor = getCardBgColor(category.color);
+              
+              // Générer une couleur aléatoire basée sur l'ID de la catégorie pour avoir des couleurs cohérentes
+              const getRandomColor = (id: number) => {
+                const colors = [
+                  '#ef4444', // red
+                  '#3b82f6', // blue
+                  '#10b981', // green
+                  '#f59e0b', // yellow
+                  '#8b5cf6', // purple
+                  '#ec4899', // pink
+                  '#6366f1', // indigo
+                  '#f97316', // orange
+                  '#14b8a6', // teal
+                  '#06b6d4', // cyan
+                  '#84cc16', // lime
+                  '#059669', // emerald
+                  '#f43f5e', // rose
+                  '#7c3aed', // violet
+                  '#d946ef', // fuchsia
+                  '#0ea5e9', // sky
+                  '#dc2626', // guinea-red
+                  '#fbbf24', // guinea-yellow
+                  '#059669', // guinea-green
+                ];
+                return colors[id % colors.length];
+              };
+              
+              const iconBgColor = getRandomColor(category.id);
+              
+              // Debug: Afficher les informations de couleur
+              console.log('Category colors:', {
+                name: category.name,
+                id: category.id,
+                iconBgColor: iconBgColor,
+                cardBgColor: cardBgColor
+              });
+              
+              // Récupérer l'icône spécifique à la catégorie
+              const IconComponent = getCategoryIcon(category.name);
+              
+              return (
+                <Link 
+                  key={category.id} 
+                  to={category.link}
+                  className={`flex flex-col items-center p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 group ${cardBgColor}`}
+                >
+                  <div className="p-4 rounded-full mb-3 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center" style={{ backgroundColor: iconBgColor }}>
+                    <IconComponent 
+                      className="h-6 w-6" 
+                      strokeWidth={2}
+                      fill="none"
+                      style={{ 
+                        minWidth: '24px', 
+                        minHeight: '24px',
+                        display: 'block',
+                        flexShrink: 0,
+                        color: 'white',
+                        stroke: 'white'
+                      }} 
+                    />
+                  </div>
+                  <span className="font-medium text-gray-900 text-sm text-center group-hover:text-guinea-red transition-colors">
+                    {translateAndCapitalize(category.name)}
                   </span>
-                </div>
-                <span className="font-medium text-gray-900 text-sm text-center mb-1 group-hover:text-guinea-red transition-colors">
-                  {category.name}
-                </span>
-                {category.restaurant_count > 0 && (
-                  <span className="text-xs text-gray-500">
-                    {category.restaurant_count} service{category.restaurant_count > 1 ? 's' : ''}
-                  </span>
-                )}
-              </Link>
-            ))
+                </Link>
+              );
+            })
           )}
         </div>
       </div>
