@@ -75,7 +75,7 @@ const PartnerDrivers = () => {
   const { 
     business,
     drivers,
-    driversLoading,
+    isDriversLoading,
     driversError,
     addDriver,
     updateDriver,
