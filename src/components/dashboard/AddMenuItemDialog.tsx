@@ -204,6 +204,7 @@ const businessTypeConfig = {
       garantie: { label: 'Garantie', required: false },
       couleur: { label: 'Couleur', required: false },
     },
+    allergens: [],
   },
   beauty: {
     icon: Heart,
@@ -214,6 +215,7 @@ const businessTypeConfig = {
       taille: { label: 'Taille', required: false },
       matiere: { label: 'Matériau', required: false },
     },
+    allergens: [],
   },
   hairdressing: {
     icon: Scissors,
@@ -222,6 +224,7 @@ const businessTypeConfig = {
       duree: { label: 'Durée (min)', required: false },
       difficulte: { label: 'Difficulté', required: false },
     },
+    allergens: [],
   },
   hardware: {
     icon: Hammer,
@@ -232,6 +235,7 @@ const businessTypeConfig = {
       garantie: { label: 'Garantie', required: false },
       matiere: { label: 'Matériau', required: false },
     },
+    allergens: [],
   },
   bookstore: {
     icon: BookOpen,
@@ -242,6 +246,7 @@ const businessTypeConfig = {
       isbn: { label: 'ISBN', required: false },
       langue: { label: 'Langue', required: false },
     },
+    allergens: [],
   },
   document_service: {
     icon: FileText,
@@ -250,6 +255,7 @@ const businessTypeConfig = {
       duree: { label: 'Durée (min)', required: false },
       format: { label: 'Format', required: false },
     },
+    allergens: [],
   },
 };
 
@@ -369,8 +375,12 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
   const handleImageUpload = async (file: File): Promise<string> => {
     setIsUploadingImage(true);
     try {
-      const url = await UploadService.uploadImage(file, 'menu-items');
-      return url;
+      const result = await UploadService.uploadImage(file, 'menu-items');
+      if (result.error) {
+        console.error('Erreur lors de l\'upload de l\'image:', result.error);
+        throw new Error(result.error);
+      }
+      return result.url;
     } catch (error) {
       toast({
         title: "Erreur",
@@ -727,7 +737,7 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold border-b pb-2">Allergènes</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {config.allergens?.map((allergen) => (
+                  {(config.allergens || []).map((allergen) => (
                     <div key={allergen} className="flex items-center space-x-2">
                       <input
                         type="checkbox"

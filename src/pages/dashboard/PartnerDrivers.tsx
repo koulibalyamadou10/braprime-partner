@@ -118,6 +118,8 @@ const PartnerDrivers = () => {
 
   // Gestionnaires d'événements
   const handleAddDriver = async () => {
+    console.log('handleAddDriver appelé');
+    
     if (!addForm.name || !addForm.phone) {
       toast.error('Le nom et le téléphone sont obligatoires');
       return;
@@ -137,25 +139,46 @@ const PartnerDrivers = () => {
       vehicle_plate: addForm.vehicle_plate
     };
 
-    const result = await addDriver(driverData);
+    console.log('Données du driver:', driverData);
+    console.log('Appel de addDriver...');
+    let result;
+    try {
+      result = await addDriver(driverData);
+      console.log('Résultat de addDriver:', result);
+    } catch (error) {
+      console.error('Erreur dans addDriver:', error);
+      toast.error('Erreur lors de l\'ajout du livreur');
+      return;
+    }
     
     if (result.success) {
       // Si on doit créer un compte auth, le faire maintenant
       if (addForm.createAuthAccount && addForm.email && addForm.password) {
         try {
-          const { DriverAuthPartnerService } = await import('@/lib/services/driver-auth-partner');
-          const authResult = await DriverAuthPartnerService.createDriverAuthAccount({
-            driver_id: result.driver_id || result.driver?.id,
-            email: addForm.email,
-            phone: addForm.phone,
-            password: addForm.password
-          });
+          // Récupérer le driver qui vient d'être ajouté pour obtenir son ID
+          const { PartnerDashboardService } = await import('@/lib/services/partner-dashboard');
+          const driversResult = await PartnerDashboardService.getPartnerDrivers(business?.id || 0, 1, 0);
+          
+          if (driversResult.drivers && driversResult.drivers.length > 0) {
+            // Prendre le premier driver (le plus récent)
+            const newDriver = driversResult.drivers[0];
+            
+            const { DriverAuthPartnerService } = await import('@/lib/services/driver-auth-partner');
+            const authResult = await DriverAuthPartnerService.createDriverAuthAccount({
+              driver_id: newDriver.id,
+              email: addForm.email,
+              phone: addForm.phone,
+              password: addForm.password
+            });
 
-          if (authResult.success) {
-            toast.success('Livreur ajouté avec compte de connexion créé');
+            if (authResult.success) {
+              toast.success('Livreur ajouté avec compte de connexion créé');
+            } else {
+              toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
+              console.error('Erreur création compte auth:', authResult.error);
+            }
           } else {
-            toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
-            console.error('Erreur création compte auth:', authResult.error);
+            toast.success('Livreur ajouté mais impossible de récupérer son ID pour créer le compte de connexion');
           }
         } catch (error) {
           toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
@@ -267,7 +290,7 @@ const PartnerDrivers = () => {
     );
   };
 
-  if (driversLoading) {
+  if (isDriversLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
         <div className="space-y-6">
@@ -332,7 +355,7 @@ const PartnerDrivers = () => {
                   Ajoutez un nouveau livreur à votre équipe de livraison.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-2">
+                            <div className="grid gap-4 py-2">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="name" className="text-sm">Nom complet *</Label>
@@ -451,9 +474,15 @@ const PartnerDrivers = () => {
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} size="sm">
                   Annuler
                 </Button>
-                <Button onClick={handleAddDriver} size="sm">
+                <button 
+                  onClick={() => {
+                    console.log('Bouton cliqué !');
+                    handleAddDriver();
+                  }}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3"
+                >
                   Ajouter le livreur
-                </Button>
+                </button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
