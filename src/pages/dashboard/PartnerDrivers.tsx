@@ -75,7 +75,7 @@ const PartnerDrivers = () => {
   const { 
     business,
     drivers,
-    driversLoading,
+    isDriversLoading,
     driversError,
     addDriver,
     updateDriver,
@@ -145,7 +145,7 @@ const PartnerDrivers = () => {
         try {
           const { DriverAuthPartnerService } = await import('@/lib/services/driver-auth-partner');
           const authResult = await DriverAuthPartnerService.createDriverAuthAccount({
-            driver_id: result.driver_id || result.driver?.id,
+            driver_id: (result as any).driver?.id,
             email: addForm.email,
             phone: addForm.phone,
             password: addForm.password
@@ -267,7 +267,7 @@ const PartnerDrivers = () => {
     );
   };
 
-  if (driversLoading) {
+  if (isDriversLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
         <div className="space-y-6">
