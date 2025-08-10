@@ -127,10 +127,15 @@ export const usePartnerDashboard = () => {
       email?: string
       vehicle_type?: string
       vehicle_plate?: string
-    }) => PartnerDashboardService.addDriver({
-      ...driverData,
-      business_id: business!.id
-    }),
+    }) => {
+      if (!business?.id) {
+        throw new Error('Business non trouvé. Veuillez réessayer.')
+      }
+      return PartnerDashboardService.addDriver({
+        ...driverData,
+        business_id: business.id
+      })
+    },
     onSuccess: () => {
       // Invalider les requêtes liées aux livreurs
       queryClient.invalidateQueries({ queryKey: ['partner-drivers'] })
@@ -220,11 +225,16 @@ export const usePartnerDashboard = () => {
     vehicle_plate?: string
   }) => {
     try {
+      // Vérifier que le business est chargé
+      if (!business?.id) {
+        return { success: false, error: 'Business non trouvé. Veuillez réessayer.' }
+      }
+      
       const result = await addDriverMutation.mutateAsync(driverData)
       return { success: !!result.driver, error: result.error }
     } catch (error) {
       console.error('Erreur lors de l\'ajout du livreur:', error)
-      return { success: false, error: 'Erreur lors de l\'ajout du livreur' }
+      return { success: false, error: error instanceof Error ? error.message : 'Erreur lors de l\'ajout du livreur' }
     }
   }
 

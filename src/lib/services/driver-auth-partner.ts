@@ -21,17 +21,11 @@ export class DriverAuthPartnerService {
     request: CreateDriverAuthRequest
   ): Promise<DriverAuthResult> {
     try {
-      // 1. Créer l'utilisateur via l'API Supabase Auth (signup)
+      // 1. Créer l'utilisateur via la fonction rpc create_user_account(p_email, p_password)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: request.email,
         phone: request.phone,
         password: request.password,
-        options: {
-          data: {
-            role: 'driver',
-            driver_id: request.driver_id
-          }
-        }
       });
 
       if (authError) {

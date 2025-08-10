@@ -43,6 +43,7 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
 
   // Charger les livreurs disponibles
   useEffect(() => {
@@ -51,25 +52,33 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
     }
   }, [isOpen, businessId]);
 
-  // Filtrer les livreurs basé sur la recherche
+  // Filtrer les livreurs basé sur la recherche et la disponibilité
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredDrivers(drivers);
-    } else {
-      const filtered = drivers.filter(driver =>
+    let filtered = drivers;
+    
+    // Filtrer par disponibilité si activé
+    if (showOnlyAvailable) {
+      filtered = filtered.filter(driver => isDriverAvailable(driver));
+    }
+    
+    // Filtrer par recherche
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(driver =>
         driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         driver.phone.includes(searchTerm) ||
         (driver.vehicle_plate && driver.vehicle_plate.toLowerCase().includes(searchTerm.toLowerCase()))
       );
-      setFilteredDrivers(filtered);
     }
-  }, [searchTerm, drivers]);
+    
+    setFilteredDrivers(filtered);
+  }, [searchTerm, drivers, showOnlyAvailable]);
 
   const loadDrivers = async () => {
     try {
       setIsLoadingDrivers(true);
       setError(null);
 
+      // Récupérer tous les drivers pour afficher leur statut complet
       const { drivers: allDrivers, error: driversError } = await DriverService.getBusinessDrivers(businessId);
 
       if (driversError) {
@@ -189,7 +198,9 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
   const isDriverAvailable = (driver: Driver) => {
     const activeOrdersCount = driver.active_orders_count || 0;
     const maxOrders = isMultipleAssignment ? 5 : 3;
-    return driver.is_active && activeOrdersCount < maxOrders && driver.is_verified;
+    
+    // Un driver est disponible s'il est actif ET vérifié ET n'a pas trop de commandes
+    return driver.is_active && driver.is_verified && activeOrdersCount < maxOrders;
   };
 
   const getDriverStatusBadge = (driver: Driver) => {
@@ -211,6 +222,29 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
       </Badge>;
     }
     return <Badge variant="default" className="text-xs bg-green-500">Disponible</Badge>;
+  };
+
+  // Fonction pour obtenir l'indicateur de disponibilité
+  const getAvailabilityIndicator = (driver: Driver) => {
+    const isAvailable = isDriverAvailable(driver);
+    
+    if (!driver.is_active) {
+      return <div className="w-2 h-2 bg-gray-400 rounded-full" title="Inactif"></div>;
+    }
+    if (!driver.is_verified) {
+      return <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Non vérifié"></div>;
+    }
+    
+    const activeOrdersCount = driver.active_orders_count || 0;
+    const maxOrders = isMultipleAssignment ? 5 : 3;
+    
+    if (activeOrdersCount >= maxOrders) {
+      return <div className="w-2 h-2 bg-red-500 rounded-full" title="Surchargé"></div>;
+    } else if (activeOrdersCount > 0) {
+      return <div className="w-2 h-2 bg-orange-500 rounded-full" title={`En livraison (${activeOrdersCount} commande${activeOrdersCount > 1 ? 's' : ''})`}></div>;
+    }
+    
+    return <div className="w-2 h-2 bg-green-500 rounded-full" title="Disponible"></div>;
   };
 
   const getVehicleIcon = (vehicleType?: string) => {
@@ -261,9 +295,9 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
             <div className="text-center py-4 flex-1 flex items-center justify-center">
               <div>
               <User className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-500 mb-2">Aucun livreur disponible</p>
+              <p className="text-gray-500 mb-2">Aucun livreur trouvé</p>
               <p className="text-sm text-gray-400 mb-4">
-                Tous les livreurs sont actuellement occupés ou inactifs
+                Aucun livreur n'est enregistré pour ce business
               </p>
               <div className="space-y-2">
                 <Button variant="outline" size="sm" onClick={loadDrivers}>
@@ -279,17 +313,29 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
           ) : (
             <>
               <div className="space-y-3 flex-1 min-h-0 flex flex-col">
-                <div>
-                  <Label htmlFor="driver-search">Rechercher un livreur</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="driver-search"
-                      placeholder="Rechercher par nom, téléphone ou plaque..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="driver-search">Rechercher un livreur</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="driver-search"
+                        placeholder="Rechercher par nom, téléphone ou plaque..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={showOnlyAvailable ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowOnlyAvailable(!showOnlyAvailable)}
+                      className="text-xs"
+                    >
+                      {showOnlyAvailable ? "Disponibles" : "Tous"}
+                    </Button>
                   </div>
                 </div>
 
@@ -297,8 +343,28 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
                   {filteredDrivers.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
                       <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                      <p>Aucun livreur trouvé</p>
-                      <p className="text-sm">Essayez avec d'autres termes de recherche</p>
+                      <p>
+                        {showOnlyAvailable 
+                          ? "Aucun livreur disponible" 
+                          : "Aucun livreur trouvé"
+                        }
+                      </p>
+                      <p className="text-sm">
+                        {showOnlyAvailable 
+                          ? "Tous les livreurs sont inactifs, non vérifiés ou surchargés" 
+                          : "Essayez avec d'autres termes de recherche"
+                        }
+                      </p>
+                      {showOnlyAvailable && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowOnlyAvailable(false)}
+                          className="mt-2"
+                        >
+                          Voir tous les livreurs
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="divide-y">
@@ -318,7 +384,8 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className="flex-shrink-0">
+                                <div className="flex-shrink-0 flex items-center gap-2">
+                                  {getAvailabilityIndicator(driver)}
                                   <User className={`h-5 w-5 ${isAvailable ? 'text-gray-600' : 'text-gray-400'}`} />
                                 </div>
                                 <div className="flex-1 min-w-0">

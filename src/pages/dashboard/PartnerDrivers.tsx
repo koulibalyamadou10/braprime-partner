@@ -41,6 +41,12 @@ import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PartnerDriverAuthManager } from '@/components/dashboard/PartnerDriverAuthManager';
+import { supabase } from '@/lib/supabase';
+import { KCreateDriverAuthRequest, KDriverAuthPartnerService } from '@/lib/kservices/k-driver-auth-partner';
+import { KBusinessService } from '@/lib/kservices/k-business';
+import { DRIVER_TYPE_INDEPENDENT } from '@/lib/kservices/k-constant';
+
+
 
 const PartnerDrivers = () => {
   const { currentUser } = useAuth();
@@ -50,6 +56,9 @@ const PartnerDrivers = () => {
   const [editingDriver, setEditingDriver] = useState<any>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingDriver, setDeletingDriver] = useState<any>(null);
+  const [drivers, setDrivers] = useState<KCreateDriverAuthRequest[]>([]);
+  const [business, setBusiness] = useState<any>(null);
+  const driverAuthService = new KDriverAuthPartnerService();
 
   // Formulaires
   const [addForm, setAddForm] = useState({
@@ -72,134 +81,111 @@ const PartnerDrivers = () => {
   });
 
   // Utiliser le hook pour les données
-  const { 
-    business,
-    drivers,
-    isDriversLoading,
-    driversError,
-    addDriver,
-    updateDriver,
-    deleteDriver,
-    isAuthenticated,
-    currentUser: partnerCurrentUser
-  } = usePartnerDashboard();
+  // const { 
+    // business,
+    // isDriversLoading,
+    // driversError,
+    // isBusinessLoading,
+    // addDriver,
+    // updateDriver,
+    // deleteDriver,
+    // isAuthenticated,
+    // currentUser: partnerCurrentUser
+  // } = usePartnerDashboard();
 
-  // Vérifier l'authentification
-  if (!isAuthenticated) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Authentification Requise</h3>
-            <p className="text-muted-foreground mb-4">
-              Vous devez être connecté pour accéder à cette page
-            </p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  useEffect(() => {
+    async function getUser() {
+      const { data: user, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+      } else {
+        console.log('Utilisateur connecté:', user);
+      }
+    }
 
-  // Vérifier le rôle
-  if (partnerCurrentUser?.role !== 'partner') {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Accès Restreint</h3>
-            <p className="text-muted-foreground mb-4">
-              Cette page est réservée aux partenaires.
-            </p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+    async function getDrivers() {
+      const business = await getBusiness();
+      setBusiness(business);
+      console.log('business pro getdrivers', business);
+      if (business === null) {
+        toast.error('Business non trouvé. Veuillez réessayer.');
+        return;
+      }
+
+      const drivers = await driverAuthService.getDrivers(business.id);
+      if ( drivers.length > 0 ) {
+        return drivers;
+      }
+      else {
+        return [];
+      }
+    }
+
+    async function getBusiness() {
+      const business = await KBusinessService.getBusiness(currentUser!.id);
+      return business;
+    }
+
+    async function loadDrivers() {
+      const drivers = await getDrivers();
+      setDrivers(drivers);
+    }
+
+    getUser() // appeler la fonction getUser
+    loadDrivers() // appeler la fonction getDrivers
+  }, []);
+
 
   // Gestionnaires d'événements
   const handleAddDriver = async () => {
-    console.log('handleAddDriver appelé');
-    
-    if (!addForm.name || !addForm.phone) {
-      toast.error('Le nom et le téléphone sont obligatoires');
-      return;
-    }
-
-    if (addForm.createAuthAccount && !addForm.password) {
-      toast.error('Le mot de passe est requis pour créer un compte de connexion');
-      return;
-    }
-
-    // Préparer les données du driver (sans les champs auth)
-    const driverData = {
-      name: addForm.name,
-      phone: addForm.phone,
-      email: addForm.email,
-      vehicle_type: addForm.vehicle_type,
-      vehicle_plate: addForm.vehicle_plate
-    };
-
-    console.log('Données du driver:', driverData);
-    console.log('Appel de addDriver...');
-    let result;
     try {
-      result = await addDriver(driverData);
-      console.log('Résultat de addDriver:', result);
-    } catch (error) {
-      console.error('Erreur dans addDriver:', error);
-      toast.error('Erreur lors de l\'ajout du livreur');
-      return;
-    }
-    
-    if (result.success) {
-      // Si on doit créer un compte auth, le faire maintenant
-      if (addForm.createAuthAccount && addForm.email && addForm.password) {
-        try {
-          // Récupérer le driver qui vient d'être ajouté pour obtenir son ID
-          const { PartnerDashboardService } = await import('@/lib/services/partner-dashboard');
-          const driversResult = await PartnerDashboardService.getPartnerDrivers(business?.id || 0, 1, 0);
-          
-          if (driversResult.drivers && driversResult.drivers.length > 0) {
-            // Prendre le premier driver (le plus récent)
-            const newDriver = driversResult.drivers[0];
-            
-            const { DriverAuthPartnerService } = await import('@/lib/services/driver-auth-partner');
-            const authResult = await DriverAuthPartnerService.createDriverAuthAccount({
-              driver_id: newDriver.id,
-              email: addForm.email,
-              phone: addForm.phone,
-              password: addForm.password
-            });
-
-            if (authResult.success) {
-              toast.success('Livreur ajouté avec compte de connexion créé');
-            } else {
-              toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
-              console.error('Erreur création compte auth:', authResult.error);
-            }
-          } else {
-            toast.success('Livreur ajouté mais impossible de récupérer son ID pour créer le compte de connexion');
-          }
-        } catch (error) {
-          toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
-          console.error('Erreur création compte auth:', error);
-        }
-      } else {
-        toast.success('Livreur ajouté avec succès');
+      if (!addForm.name || !addForm.phone) {
+        toast.error('Le nom et le téléphone sont obligatoires');
+        console.log('Le nom et le téléphone sont obligatoires');
+        return;
       }
 
-      setIsAddDialogOpen(false);
-      setAddForm({
-        name: '',
-        phone: '',
-        email: '',
-        vehicle_type: '',
-        vehicle_plate: '',
-        createAuthAccount: false,
-        password: ''
+      
+      if (addForm.createAuthAccount && !addForm.password) {
+        toast.error('Le mot de passe est requis pour créer un compte de connexion');
+        console.log('Le mot de passe est requis pour créer un compte de connexion');
+        return;
+      }
+
+      console.log('business pro handleAddDriver', business);
+      const driverAuthResult = await driverAuthService.createDriverAuthAccount({
+        email: addForm.email,
+        password: addForm.password,
+        business_id: business.id,
+        name: addForm.name,
+        phone_number: addForm.phone,
+        type: DRIVER_TYPE_INDEPENDENT,
+        vehicle_type: addForm.vehicle_type,
+        vehicle_plate: addForm.vehicle_plate
       });
-    } else {
-      toast.error(result.error || 'Erreur lors de l\'ajout du livreur');
+      console.log('driverAuthResult', driverAuthResult);
+
+      if (driverAuthResult) {
+        toast.success('Livreur créé avec succès');
+        setIsAddDialogOpen(false);
+        setAddForm({
+          name: '',
+          phone: '',
+          email: '',
+          vehicle_type: '',
+          vehicle_plate: '',
+          createAuthAccount: false,
+          password: ''
+        });
+      }
+      else {
+        toast.error('Erreur lors de la création du livreur');
+      }
+    
+      
+    } catch (error) {
+      console.log(error);
+      toast.error(error.message);
     }
   };
 
@@ -209,9 +195,9 @@ const PartnerDrivers = () => {
       return;
     }
 
-    const result = await updateDriver(editingDriver.id, editForm);
+    const result = await driverAuthService.updateDriver(editingDriver.id, editForm);
     
-    if (result.success) {
+    if (result) {
       toast.success('Livreur mis à jour avec succès');
       setIsEditDialogOpen(false);
       setEditingDriver(null);
@@ -224,21 +210,21 @@ const PartnerDrivers = () => {
         is_active: true
       });
     } else {
-      toast.error(result.error || 'Erreur lors de la mise à jour du livreur');
+      toast.error('Erreur lors de la mise à jour du livreur');
     }
   };
 
   const handleDeleteDriver = async () => {
     if (!deletingDriver) return;
 
-    const result = await deleteDriver(deletingDriver.id);
+    const result = await driverAuthService.deleteDriver(deletingDriver.id);
     
-    if (result.success) {
+    if (result) {
       toast.success('Livreur supprimé avec succès');
       setIsDeleteDialogOpen(false);
       setDeletingDriver(null);
     } else {
-      toast.error(result.error || 'Erreur lors de la suppression du livreur');
+      toast.error('Erreur lors de la suppression du livreur');
     }
   };
 
@@ -290,47 +276,6 @@ const PartnerDrivers = () => {
     );
   };
 
-  if (isDriversLoading) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Gestion des Livreurs</h2>
-              <p className="text-gray-500">Chargement...</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-              <Skeleton key={i} className="h-20 w-full" />
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (driversError) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Gestion des Livreurs</h2>
-              <p className="text-gray-500">Erreur lors du chargement</p>
-            </div>
-          </div>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-              <p className="text-red-500 mb-4">{driversError}</p>
-            </CardContent>
-          </Card>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
       <div className="space-y-6">
@@ -343,7 +288,10 @@ const PartnerDrivers = () => {
           </div>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
+              <Button 
+                className="flex items-center gap-2"
+                disabled={business === null}
+              >
                 <Plus className="h-4 w-4" />
                 Ajouter un Livreur
               </Button>
@@ -475,10 +423,7 @@ const PartnerDrivers = () => {
                   Annuler
                 </Button>
                 <button 
-                  onClick={() => {
-                    console.log('Bouton cliqué !');
-                    handleAddDriver();
-                  }}
+                  onClick={handleAddDriver}
                   className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3"
                 >
                   Ajouter le livreur
@@ -519,7 +464,7 @@ const PartnerDrivers = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Livraisons Totales</p>
                   <p className="text-2xl font-bold">
-                    {drivers.reduce((sum, d) => sum + (d.total_deliveries || 0), 0)}
+                    0
                   </p>
                 </div>
               </div>
@@ -532,10 +477,7 @@ const PartnerDrivers = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Note Moyenne</p>
                   <p className="text-2xl font-bold">
-                    {drivers.length > 0 
-                      ? (drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / drivers.length).toFixed(1)
-                      : '0.0'
-                    }
+                    0
                   </p>
                 </div>
               </div>
@@ -598,7 +540,7 @@ const PartnerDrivers = () => {
                             <div className="space-y-1">
                               <div className="flex items-center space-x-2">
                                 <Phone className="h-3 w-3 text-gray-500" />
-                                <span className="text-sm">{driver.phone}</span>
+                                <span className="text-sm">{driver.phone_number}</span>
                               </div>
                               {driver.email && (
                                 <div className="flex items-center space-x-2">
@@ -627,11 +569,11 @@ const PartnerDrivers = () => {
                             <div className="space-y-1">
                               <div className="flex items-center space-x-2">
                                 <Package className="h-3 w-3 text-gray-500" />
-                                <span className="text-sm">{driver.total_deliveries || 0} livraisons</span>
+                                <span className="text-sm">0 livraisons</span>
                               </div>
                               <div className="flex items-center space-x-2">
                                 <Star className="h-3 w-3 text-gray-500" />
-                                <span className="text-sm">{driver.rating || 0} étoiles</span>
+                                <span className="text-sm">0 étoiles</span>
                               </div>
                             </div>
                           </TableCell>
