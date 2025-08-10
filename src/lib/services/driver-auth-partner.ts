@@ -21,16 +21,14 @@ export class DriverAuthPartnerService {
     request: CreateDriverAuthRequest
   ): Promise<DriverAuthResult> {
     try {
-      // 1. Créer l'utilisateur via l'API Supabase Auth (signup)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Créer l'utilisateur via l'API Supabase avec createUser
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: request.email,
         phone: request.phone,
         password: request.password,
-        options: {
-          data: {
-            role: 'driver',
-            driver_id: request.driver_id
-          }
+        user_metadata: {
+          role: 'driver',
+          driver_id: request.driver_id
         }
       });
 
@@ -41,6 +39,7 @@ export class DriverAuthPartnerService {
           error: authError.message
         };
       }
+
 
       if (!authData.user) {
         return {

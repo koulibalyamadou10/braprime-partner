@@ -41,34 +41,49 @@ export interface PartnerStats {
 }
 
 export interface PartnerOrder {
-  id: string
-  order_number?: string // Numéro de commande lisible
-  user_id: string
-  customer_name: string
-  customer_phone: string
-  items: any[]
-  status: string
-  total: number
-  delivery_fee: number
-  grand_total: number
-  delivery_address: string
-  delivery_instructions?: string
-  landmark?: string // Point de repère
-  payment_method: string
-  payment_status: string
-  created_at: string
-  updated_at: string
-  estimated_delivery?: string
-  driver_name?: string
-  driver_phone?: string
-  // Nouveaux champs pour la gestion des livraisons ASAP/Scheduled
-  delivery_type: 'asap' | 'scheduled'
-  preferred_delivery_time?: string
-  scheduled_delivery_window_start?: string
-  scheduled_delivery_window_end?: string
-  available_for_drivers: boolean
-  estimated_delivery_time?: string
-  actual_delivery_time?: string
+  id: string;
+  order_number: string;
+  status: string;
+  total: number;
+  delivery_fee: number;
+  grand_total: number;
+  delivery_method: string;
+  delivery_address: string;
+  delivery_instructions: string;
+  payment_method: string;
+  payment_status: string;
+  estimated_delivery: string | null;
+  actual_delivery: string | null;
+  customer_rating: number | null;
+  customer_review: string | null;
+  created_at: string;
+  updated_at: string;
+  preferred_delivery_time: string | null;
+  delivery_type: string;
+  available_for_drivers: boolean;
+  scheduled_delivery_window_start: string | null;
+  scheduled_delivery_window_end: string | null;
+  landmark: string | null;
+  service_fee: number;
+  verification_code: string | null;
+  // Informations client
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+  // Informations chauffeur
+  driver_name: string | null;
+  driver_phone: string | null;
+  driver_email: string | null;
+  // Éléments de commande
+  items: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    image: string | null;
+    special_instructions: string | null;
+    menu_item_id: number | null;
+  }>;
 }
 
 export interface PartnerMenuItem {
@@ -114,7 +129,7 @@ export class PartnerDashboardService {
         return { business: null, error: 'Utilisateur non authentifié' }
       }
 
-      // Requête optimisée avec jointure et sélection ciblée
+      // Requête simplifiée sans jointure complexe
       const { data: businesses, error } = await supabase
         .from('businesses')
         .select(`
@@ -135,8 +150,7 @@ export class PartnerDashboardService {
           is_open,
           owner_id,
           created_at,
-          updated_at,
-          business_types(name)
+          updated_at
         `)
         .eq('owner_id', user.id)
         .eq('is_active', true)
@@ -154,12 +168,30 @@ export class PartnerDashboardService {
       // Prendre le business le plus récent
       const business = businesses[0]
 
+      // Récupérer le type de business séparément si nécessaire
+      let businessTypeName = 'Autre'
+      if (business.business_type_id) {
+        try {
+          const { data: businessType } = await supabase
+            .from('business_types')
+            .select('name')
+            .eq('id', business.business_type_id)
+            .single()
+          
+          if (businessType) {
+            businessTypeName = businessType.name
+          }
+        } catch (typeError) {
+          console.warn('Impossible de récupérer le type de business:', typeError)
+        }
+      }
+
       const partnerBusiness: PartnerBusiness = {
         id: business.id,
         name: business.name,
         description: business.description,
         business_type_id: business.business_type_id,
-        business_type: business.business_types?.name || 'Autre',
+        business_type: businessTypeName,
         address: business.address,
         phone: business.phone,
         email: business.email,
@@ -186,39 +218,8 @@ export class PartnerDashboardService {
   // Récupérer les statistiques du partenaire (optimisé avec requêtes agrégées)
   static async getPartnerStats(businessId: number): Promise<{ stats: PartnerStats | null; error: string | null }> {
     try {
-      // Requête agrégée pour toutes les statistiques en une fois
-      const { data: statsData, error: statsError } = await supabase
-        .rpc('get_partner_stats', { business_id: businessId })
-
-      if (statsError) {
-        console.error('Erreur récupération stats:', statsError)
-        // Fallback vers requête simple si la fonction RPC n'existe pas
-        return await this.getPartnerStatsFallback(businessId)
-      }
-
-      if (!statsData) {
-        return { stats: null, error: 'Aucune donnée statistique trouvée' }
-      }
-
-      const stats: PartnerStats = {
-        totalOrders: statsData.total_orders || 0,
-        totalRevenue: statsData.total_revenue || 0,
-        averageOrderValue: statsData.average_order_value || 0,
-        completedOrders: statsData.completed_orders || 0,
-        pendingOrders: statsData.pending_orders || 0,
-        cancelledOrders: statsData.cancelled_orders || 0,
-        totalCustomers: statsData.total_customers || 0,
-        rating: statsData.rating || 0,
-        reviewCount: statsData.review_count || 0,
-        todayOrders: statsData.today_orders || 0,
-        todayRevenue: statsData.today_revenue || 0,
-        weekOrders: statsData.week_orders || 0,
-        weekRevenue: statsData.week_revenue || 0,
-        monthOrders: statsData.month_orders || 0,
-        monthRevenue: statsData.month_revenue || 0
-      }
-
-      return { stats, error: null }
+      // Utiliser directement le fallback car la fonction RPC n'existe probablement pas
+      return await this.getPartnerStatsFallback(businessId)
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error)
       return { stats: null, error: 'Erreur lors de la récupération des statistiques' }
@@ -317,18 +318,19 @@ export class PartnerDashboardService {
     status?: string
   ): Promise<{ orders: PartnerOrder[] | null; error: string | null; total: number }> {
     try {
+      console.log('🔍 Récupération des commandes pour le business:', businessId);
+      
       // Construire la requête avec filtres optionnels
       let query = supabase
         .from('orders')
         .select(`
           id,
           order_number,
-          user_id,
-          items,
           status,
           total,
           delivery_fee,
           grand_total,
+          delivery_method,
           delivery_address,
           delivery_instructions,
           payment_method,
@@ -336,15 +338,19 @@ export class PartnerDashboardService {
           created_at,
           updated_at,
           estimated_delivery,
-          driver_name,
-          driver_phone,
-          delivery_type,
+          actual_delivery,
+          customer_rating,
+          customer_review,
           preferred_delivery_time,
+          delivery_type,
+          available_for_drivers,
           scheduled_delivery_window_start,
           scheduled_delivery_window_end,
-          available_for_drivers,
-          estimated_delivery_time,
-          actual_delivery_time
+          landmark,
+          service_fee,
+          verification_code,
+          user_id,
+          driver_id
         `)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
@@ -358,72 +364,125 @@ export class PartnerDashboardService {
       const { data: orders, error, count } = await query
 
       if (error) {
-        console.error('Erreur récupération commandes:', error)
+        console.error('❌ Erreur récupération commandes:', error)
         return { orders: null, error: error.message, total: 0 }
       }
 
-      // Récupérer les profils utilisateur séparément
-      const userIds = orders?.map(order => order.user_id).filter(Boolean) || []
-      let userProfiles: any[] = []
-
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('user_profiles')
-          .select('id, name, phone_number')
-          .in('id', userIds)
-
-        if (profilesError) {
-          console.error('Erreur récupération profils:', profilesError)
-        } else {
-          userProfiles = profiles || []
-        }
+      if (!orders || orders.length === 0) {
+        console.log('ℹ️ Aucune commande trouvée pour ce business');
+        return { orders: [], error: null, total: 0 };
       }
 
-      // Créer un map pour accéder rapidement aux profils
-      const profilesMap = new Map(userProfiles.map(profile => [profile.id, profile]))
+      console.log('📦 Commandes récupérées:', orders.length);
 
-      const partnerOrders: PartnerOrder[] = (orders || []).map(order => {
-        const profile = profilesMap.get(order.user_id)
-        return {
-          id: order.id,
-          order_number: order.order_number,
-          user_id: order.user_id,
-          customer_name: profile?.name || 'Client',
-          customer_phone: profile?.phone_number || '',
-          items: order.items || [],
-          status: order.status,
-          total: order.total,
-          delivery_fee: order.delivery_fee,
-          grand_total: order.grand_total,
-          delivery_address: order.delivery_address,
-          delivery_instructions: order.delivery_instructions,
-          landmark: order.landmark, // Point de repère
-          payment_method: order.payment_method,
-          payment_status: order.payment_status,
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-          estimated_delivery: order.estimated_delivery,
-          driver_name: order.driver_name,
-          driver_phone: order.driver_phone,
-          // Nouveaux champs de livraison
-          delivery_type: order.delivery_type || 'asap',
-          preferred_delivery_time: order.preferred_delivery_time,
-          scheduled_delivery_window_start: order.scheduled_delivery_window_start,
-          scheduled_delivery_window_end: order.scheduled_delivery_window_end,
-          available_for_drivers: order.available_for_drivers || false,
-          estimated_delivery_time: order.estimated_delivery_time,
-          actual_delivery_time: order.actual_delivery_time
-        }
-      })
+      // Récupérer les éléments de commande et informations client/chauffeur pour chaque commande
+      const ordersWithDetails = await Promise.all(
+        orders.map(async (order) => {
+          try {
+            // Récupérer les éléments de commande
+            const { data: orderItems, error: itemsError } = await supabase
+              .from('order_items')
+              .select('*')
+              .eq('order_id', order.id);
+
+            if (itemsError) {
+              console.error('❌ Erreur lors de la récupération des éléments de commande:', itemsError);
+              return null;
+            }
+
+            // Récupérer les informations client
+            let customerName = null;
+            let customerPhone = null;
+            let customerEmail = null;
+
+            if (order.user_id) {
+              const { data: userProfile, error: userError } = await supabase
+                .from('user_profiles')
+                .select('name, phone_number, email')
+                .eq('id', order.user_id)
+                .single();
+
+              if (!userError && userProfile) {
+                customerName = userProfile.name;
+                customerPhone = userProfile.phone_number;
+                customerEmail = userProfile.email;
+              }
+            }
+
+            // Récupérer les informations chauffeur
+            let driverName = null;
+            let driverPhone = null;
+            let driverEmail = null;
+
+            if (order.driver_id) {
+              const { data: driverProfile, error: driverError } = await supabase
+                .from('driver_profiles')
+                .select('name, phone_number, email')
+                .eq('user_id', order.driver_id)
+                .single();
+
+              if (!driverError && driverProfile) {
+                driverName = driverProfile.name;
+                driverPhone = driverProfile.phone_number;
+                driverEmail = driverProfile.email;
+              }
+            }
+
+            // Construire l'objet PartnerOrder
+            const partnerOrder: PartnerOrder = {
+              id: order.id,
+              order_number: order.order_number || '',
+              status: order.status,
+              total: order.total,
+              delivery_fee: order.delivery_fee,
+              grand_total: order.grand_total,
+              delivery_method: order.delivery_method || 'delivery',
+              delivery_address: order.delivery_address || '',
+              delivery_instructions: order.delivery_instructions || '',
+              payment_method: order.payment_method || 'cash',
+              payment_status: order.payment_status || 'pending',
+              estimated_delivery: order.estimated_delivery,
+              actual_delivery: order.actual_delivery,
+              customer_rating: order.customer_rating,
+              customer_review: order.customer_review,
+              created_at: order.created_at,
+              updated_at: order.updated_at,
+              preferred_delivery_time: order.preferred_delivery_time,
+              delivery_type: order.delivery_type || 'asap',
+              available_for_drivers: order.available_for_drivers || false,
+              scheduled_delivery_window_start: order.scheduled_delivery_window_start,
+              scheduled_delivery_window_end: order.scheduled_delivery_window_end,
+              landmark: order.landmark,
+              service_fee: order.service_fee || 0,
+              verification_code: order.verification_code,
+              customer_name: customerName,
+              customer_phone: customerPhone,
+              customer_email: customerEmail,
+              driver_name: driverName,
+              driver_phone: driverPhone,
+              driver_email: driverEmail,
+              items: orderItems || []
+            };
+
+            return partnerOrder;
+          } catch (itemError) {
+            console.error('❌ Erreur lors du traitement de la commande:', order.id, itemError);
+            return null;
+          }
+        })
+      );
+
+      const validOrders = ordersWithDetails.filter(order => order !== null) as PartnerOrder[];
+      console.log('✅ Commandes avec détails récupérées:', validOrders.length);
 
       return { 
-        orders: partnerOrders, 
+        orders: validOrders, 
         error: null, 
-        total: count || partnerOrders.length 
+        total: count || validOrders.length 
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des commandes:', error)
-      return { orders: null, error: 'Erreur lors de la récupération des commandes', total: 0 }
+      console.error('❌ Erreur inattendue lors de la récupération des commandes:', error)
+      return { orders: null, error: error instanceof Error ? error.message : 'Erreur inattendue', total: 0 }
     }
   }
 
@@ -435,7 +494,7 @@ export class PartnerDashboardService {
     categoryId?: number
   ): Promise<{ menu: PartnerMenuItem[] | null; error: string | null; total: number }> {
     try {
-      // Construire la requête avec filtres optionnels
+      // Construire la requête avec jointure correcte
       let query = supabase
         .from('menu_items')
         .select(`
@@ -451,7 +510,11 @@ export class PartnerDashboardService {
           allergens,
           nutritional_info,
           sort_order,
-          menu_categories!inner(name)
+          menu_categories!inner(
+            id,
+            name,
+            description
+          )
         `)
         .eq('business_id', businessId)
         .order('sort_order', { ascending: true })
@@ -477,7 +540,7 @@ export class PartnerDashboardService {
         price: item.price,
         image: item.image,
         category_id: item.category_id,
-        category_name: item.menu_categories?.name || 'Sans catégorie',
+        category_name: item.menu_categories?.[0]?.name || 'Sans catégorie',
         is_available: item.is_available,
         is_popular: item.is_popular,
         preparation_time: item.preparation_time || 15,

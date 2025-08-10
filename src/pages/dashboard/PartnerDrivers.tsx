@@ -35,12 +35,18 @@ import {
   CheckCircle,
   XCircle,
   Eye,
-  Key
+  Key,
+  KeyRound,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
-import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PartnerDriverAuthManager } from '@/components/dashboard/PartnerDriverAuthManager';
+import { client } from '@/lib/wontant';
+import { DriverAuthPartnerService } from '@/lib/services/driver-auth-partner';
+import { DriverManagementService } from '@/lib/services/driver-management';
+import { supabase } from '@/lib/supabase';
 
 const PartnerDrivers = () => {
   const { currentUser } = useAuth();
@@ -50,6 +56,16 @@ const PartnerDrivers = () => {
   const [editingDriver, setEditingDriver] = useState<any>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingDriver, setDeletingDriver] = useState<any>(null);
+  const [isAddingDriver, setIsAddingDriver] = useState(false);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [resetPasswordDriver, setResetPasswordDriver] = useState<any>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  
+  // States locaux pour les données
+  const [business, setBusiness] = useState<any>(null);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Formulaires
   const [addForm, setAddForm] = useState({
@@ -71,21 +87,220 @@ const PartnerDrivers = () => {
     is_active: true
   });
 
-  // Utiliser le hook pour les données
-  const { 
-    business,
-    drivers,
-    isDriversLoading,
-    driversError,
-    addDriver,
-    updateDriver,
-    deleteDriver,
-    isAuthenticated,
-    currentUser: partnerCurrentUser
-  } = usePartnerDashboard();
+  // Fonctions directes pour gérer les données
+  const loadBusinessData = async () => {
+    try {
+      if (!currentUser?.id) return;
+      
+      setIsLoading(true);
+      
+      // Récupérer le business du partenaire
+      const { data: businessData, error: businessError } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', currentUser.id)
+        .single();
+        
+      if (businessError) {
+        console.error('Erreur business:', businessError);
+        setError('Erreur lors du chargement du business');
+        return;
+      }
+      
+      setBusiness(businessData);
+      
+      // Récupérer les drivers
+      if (businessData?.id) {
+        const { data: driversData, error: driversError } = await supabase
+          .from('drivers')
+          .select('*')
+          .eq('business_id', businessData.id)
+          .order('created_at', { ascending: false });
+          
+        if (driversError) {
+          console.error('Erreur drivers:', driversError);
+          setError('Erreur lors du chargement des livreurs');
+        } else {
+          setDrivers(driversData || []);
+        }
+      }
+    } catch (err) {
+      console.error('Erreur générale:', err);
+      setError('Erreur lors du chargement des données');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Charger les données au montage
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadBusinessData();
+    }
+  }, [currentUser?.id]);
+
+  // Fonction pour envoyer l'email de bienvenue avec timeout
+  const sendWelcomeEmail = async (driverName: string, email: string, password: string, businessName: string) => {
+    try {
+      // Créer une promesse avec timeout de 10 secondes
+      const emailPromise = client.sendMail({
+        recipients: [email],
+        template_name: 'send_mail_with_driver_credentials',
+        server_name: 'default',
+        params: {
+          name: driverName,
+          email: email,
+          password: password,
+        }
+      });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Email envoi trop long')), 10000)
+      );
+
+      const response = await Promise.race([emailPromise, timeoutPromise]);
+      
+      console.log('✅ Email de bienvenue envoyé avec succès !', response);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'envoi de l\'email :', error.message);
+      return false;
+    }
+  };
+
+  // Fonction pour générer un mot de passe aléatoire
+  const generateRandomPassword = () => {
+    const length = 8;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  };
+
+  // Fonction pour envoyer le nouveau mot de passe par email
+  const sendPasswordResetEmail = async (driverName: string, email: string, newPassword: string, businessName: string) => {
+    try {
+      const emailPromise = client.sendMail({
+        recipients: [email],
+        template_name: 'driver_password_reset',
+        server_name: 'default',
+        params: {
+          name: driverName,
+          company: businessName || 'BraPrime',
+          new_password: newPassword,
+          email: email
+        }
+      });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: Email envoi trop long')), 10000)
+      );
+
+      const response = await Promise.race([emailPromise, timeoutPromise]);
+      
+      console.log('✅ Email de réinitialisation envoyé avec succès !', response);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'envoi de l\'email :', error.message);
+      return false;
+    }
+  };
+
+  // Fonction pour réinitialiser le mot de passe d'un livreur
+  const handleResetPassword = async () => {
+    if (!resetPasswordDriver?.email) {
+      toast.error('Le livreur n\'a pas d\'email configuré');
+      return;
+    }
+
+    setIsResettingPassword(true);
+
+    try {
+      // Générer un nouveau mot de passe
+      const newPassword = generateRandomPassword();
+      
+      // Si le driver a déjà un user_id, réinitialiser le mot de passe
+      if (resetPasswordDriver.user_id) {
+        const resetResult = await DriverManagementService.resetDriverPassword(
+          resetPasswordDriver.user_id,
+          newPassword
+        );
+
+        if (!resetResult.error) {
+          // Envoyer l'email avec le nouveau mot de passe
+          const emailSent = await sendPasswordResetEmail(
+            resetPasswordDriver.name,
+            resetPasswordDriver.email,
+            newPassword,
+            business?.name || 'BraPrime'
+          );
+
+          if (emailSent) {
+            toast.success('Mot de passe réinitialisé et envoyé par email avec succès');
+          } else {
+            toast.success('Mot de passe réinitialisé mais erreur lors de l\'envoi de l\'email');
+          }
+        } else {
+          toast.error('Erreur lors de la réinitialisation du mot de passe');
+          console.error('Erreur reset password:', resetResult.error);
+        }
+      } else {
+        // Si le driver n'a pas de user_id, créer d'abord un compte d'authentification
+        try {
+          const authResult = await DriverAuthPartnerService.createDriverAuthAccount({
+            driver_id: resetPasswordDriver.id,
+            email: resetPasswordDriver.email,
+            phone: resetPasswordDriver.phone,
+            password: newPassword
+          });
+
+          if (authResult.success) {
+            // Envoyer l'email avec le nouveau mot de passe
+            const emailSent = await sendPasswordResetEmail(
+              resetPasswordDriver.name,
+              resetPasswordDriver.email,
+              newPassword,
+              business?.name || 'BraPrime'
+            );
+
+            if (emailSent) {
+              toast.success('Compte créé et mot de passe envoyé par email avec succès');
+            } else {
+              toast.success('Compte créé mais erreur lors de l\'envoi de l\'email');
+            }
+          } else {
+            toast.error('Erreur lors de la création du compte d\'authentification');
+            console.error('Erreur création compte:', authResult.error);
+          }
+        } catch (error) {
+          toast.error('Erreur lors de la création du compte d\'authentification');
+          console.error('Erreur création compte:', error);
+        }
+      }
+      
+      setIsResetPasswordDialogOpen(false);
+      setResetPasswordDriver(null);
+    } catch (error) {
+      console.error('Erreur générale:', error);
+      toast.error('Erreur lors de la réinitialisation du mot de passe');
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const openResetPasswordDialog = (driver: any) => {
+    if (!driver.email) {
+      toast.error('Ce livreur n\'a pas d\'email configuré');
+      return;
+    }
+    setResetPasswordDriver(driver);
+    setIsResetPasswordDialogOpen(true);
+  };
 
   // Vérifier l'authentification
-  if (!isAuthenticated) {
+  if (!currentUser) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
         <div className="flex flex-col items-center justify-center py-12">
@@ -101,7 +316,7 @@ const PartnerDrivers = () => {
   }
 
   // Vérifier le rôle
-  if (partnerCurrentUser?.role !== 'partner') {
+  if (currentUser?.role !== 'partner') {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
         <div className="flex flex-col items-center justify-center py-12">
@@ -128,43 +343,101 @@ const PartnerDrivers = () => {
       return;
     }
 
-    // Préparer les données du driver (sans les champs auth)
-    const driverData = {
-      name: addForm.name,
-      phone: addForm.phone,
-      email: addForm.email,
-      vehicle_type: addForm.vehicle_type,
-      vehicle_plate: addForm.vehicle_plate
-    };
+    if (!business?.id) {
+      toast.error('Business non trouvé');
+      return;
+    }
 
-    const result = await addDriver(driverData);
-    
-    if (result.success) {
+    setIsAddingDriver(true);
+
+    try {
+      // Préparer les données du driver
+      const driverData = {
+        id: crypto.randomUUID(),
+        name: addForm.name,
+        phone: addForm.phone,
+        email: addForm.email,
+        vehicle_type: addForm.vehicle_type,
+        vehicle_plate: addForm.vehicle_plate,
+        business_id: business.id,
+        is_active: true,
+        rating: 0,
+        total_deliveries: 0,
+        total_earnings: 0,
+        created_at: new Date().toISOString()
+      };
+
+      console.log('Données driver:', driverData);
+
+      // Ajouter le driver directement avec Supabase
+      const { data: newDriver, error: driverError } = await supabase
+        .from('drivers')
+        .insert([driverData])
+        .select()
+        .single();
+        
+      if (driverError) {
+        console.error('Erreur ajout driver:', driverError);
+        toast.error('Erreur lors de l\'ajout du livreur: ' + driverError.message);
+        setIsAddingDriver(false);
+        return;
+      }
+      
+      console.log('Driver créé:', newDriver);
+      
+      // Mettre à jour la liste locale
+      setDrivers(prev => [newDriver, ...prev]);
+      
+      console.log('Driver créé:', newDriver);
+      
       // Si on doit créer un compte auth, le faire maintenant
       if (addForm.createAuthAccount && addForm.email && addForm.password) {
         try {
-          const { DriverAuthPartnerService } = await import('@/lib/services/driver-auth-partner');
           const authResult = await DriverAuthPartnerService.createDriverAuthAccount({
-            driver_id: (result as any).driver?.id,
+            driver_id: newDriver.id,
             email: addForm.email,
             phone: addForm.phone,
             password: addForm.password
           });
 
           if (authResult.success) {
-            toast.success('Livreur ajouté avec compte de connexion créé');
+            toast.success('Livreur ajouté avec compte créé');
+            
+            // Envoyer l'email en arrière-plan (non-bloquant)
+            const emailPromise = await client.sendMail({
+              recipients: [addForm.email],
+              template_name: 'send_mail_with_driver_credentials',
+              server_name: 'default',
+              params: {
+                name: addForm.name,
+                email: addForm.email,
+                password: addForm.password,
+              }
+            });
+           
+              if (emailPromise.success) {
+                toast.success('Email de bienvenue envoyé avec succès');
+              } else {
+                toast.error('Erreur lors de l\'envoi de l\'email de bienvenue');
+              }
+           
           } else {
-            toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
+            toast.error('Erreur lors de la création du compte de connexion');
             console.error('Erreur création compte auth:', authResult.error);
           }
         } catch (error) {
-          toast.success('Livreur ajouté mais erreur lors de la création du compte de connexion');
+          toast.error('Erreur lors de la création du compte de connexion');
           console.error('Erreur création compte auth:', error);
         }
       } else {
         toast.success('Livreur ajouté avec succès');
       }
 
+      // Afficher l'utilisateur connecté ici pour debuguer en recuperant depuis supabase
+      const { data: user, error: userError } = await supabase.auth.getUser();
+      console.log('Utilisateur connecté:', user);
+
+      // Fermer la dialog et réinitialiser le formulaire immédiatement
       setIsAddDialogOpen(false);
       setAddForm({
         name: '',
@@ -175,8 +448,12 @@ const PartnerDrivers = () => {
         createAuthAccount: false,
         password: ''
       });
-    } else {
-      toast.error(result.error || 'Erreur lors de l\'ajout du livreur');
+      
+    } catch (error) {
+      console.error('Erreur générale:', error);
+      toast.error('Erreur lors de l\'ajout du livreur');
+    } finally {
+      setIsAddingDriver(false);
     }
   };
 
@@ -186,9 +463,30 @@ const PartnerDrivers = () => {
       return;
     }
 
-    const result = await updateDriver(editingDriver.id, editForm);
-    
-    if (result.success) {
+    try {
+      const { data: updatedDriver, error } = await supabase
+        .from('drivers')
+        .update({
+          name: editForm.name,
+          phone: editForm.phone,
+          email: editForm.email,
+          vehicle_type: editForm.vehicle_type,
+          vehicle_plate: editForm.vehicle_plate,
+          is_active: editForm.is_active
+        })
+        .eq('id', editingDriver.id)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Erreur mise à jour driver:', error);
+        toast.error('Erreur lors de la mise à jour du livreur');
+        return;
+      }
+      
+      // Mettre à jour la liste locale
+      setDrivers(prev => prev.map(d => d.id === editingDriver.id ? updatedDriver : d));
+      
       toast.success('Livreur mis à jour avec succès');
       setIsEditDialogOpen(false);
       setEditingDriver(null);
@@ -200,22 +498,36 @@ const PartnerDrivers = () => {
         vehicle_plate: '',
         is_active: true
       });
-    } else {
-      toast.error(result.error || 'Erreur lors de la mise à jour du livreur');
+    } catch (error) {
+      console.error('Erreur générale:', error);
+      toast.error('Erreur lors de la mise à jour du livreur');
     }
   };
 
   const handleDeleteDriver = async () => {
     if (!deletingDriver) return;
 
-    const result = await deleteDriver(deletingDriver.id);
-    
-    if (result.success) {
+    try {
+      const { error } = await supabase
+        .from('drivers')
+        .delete()
+        .eq('id', deletingDriver.id);
+        
+      if (error) {
+        console.error('Erreur suppression driver:', error);
+        toast.error('Erreur lors de la suppression du livreur');
+        return;
+      }
+      
+      // Mettre à jour la liste locale
+      setDrivers(prev => prev.filter(d => d.id !== deletingDriver.id));
+      
       toast.success('Livreur supprimé avec succès');
       setIsDeleteDialogOpen(false);
       setDeletingDriver(null);
-    } else {
-      toast.error(result.error || 'Erreur lors de la suppression du livreur');
+    } catch (error) {
+      console.error('Erreur générale:', error);
+      toast.error('Erreur lors de la suppression du livreur');
     }
   };
 
@@ -267,7 +579,7 @@ const PartnerDrivers = () => {
     );
   };
 
-  if (isDriversLoading) {
+  if (isLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
         <div className="space-y-6">
@@ -287,7 +599,7 @@ const PartnerDrivers = () => {
     );
   }
 
-  if (driversError) {
+  if (error) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Livreurs">
         <div className="space-y-6">
@@ -300,7 +612,7 @@ const PartnerDrivers = () => {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-              <p className="text-red-500 mb-4">{driversError}</p>
+              <p className="text-red-500 mb-4">{error}</p>
             </CardContent>
           </Card>
         </div>
@@ -318,7 +630,7 @@ const PartnerDrivers = () => {
               Gérez votre équipe de livreurs pour assurer la livraison de vos commandes.
             </p>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => !isAddingDriver && setIsAddDialogOpen(open)}>
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
@@ -430,17 +742,32 @@ const PartnerDrivers = () => {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="auth-password" className="text-sm">Mot de passe *</Label>
-                        <Input
-                          id="auth-password"
-                          type="password"
-                          value={addForm.password}
-                          onChange={(e) => setAddForm(prev => ({ ...prev, password: e.target.value }))}
-                          placeholder="Mot de passe sécurisé"
-                          required={addForm.createAuthAccount}
-                          className="text-sm"
-                        />
+                        <div className="flex space-x-2">
+                          <Input
+                            id="auth-password"
+                            type="password"
+                            value={addForm.password}
+                            onChange={(e) => setAddForm(prev => ({ ...prev, password: e.target.value }))}
+                            placeholder="Mot de passe sécurisé"
+                            required={addForm.createAuthAccount}
+                            className="text-sm flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newPassword = generateRandomPassword();
+                              setAddForm(prev => ({ ...prev, password: newPassword }));
+                            }}
+                            title="Générer un mot de passe sécurisé"
+                            className="px-3"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                         <p className="text-xs text-gray-500">
-                          Communiquez ce mot de passe de manière sécurisée au livreur
+                          Un email de bienvenue avec ces informations sera automatiquement envoyé au livreur
                         </p>
                       </div>
                     </div>
@@ -448,11 +775,30 @@ const PartnerDrivers = () => {
                 </div>
               </div>
               <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} size="sm">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsAddDialogOpen(false)} 
+                  size="sm"
+                  disabled={isAddingDriver}
+                >
                   Annuler
                 </Button>
-                <Button onClick={handleAddDriver} size="sm">
-                  Ajouter le livreur
+                <Button 
+                  onClick={handleAddDriver} 
+                  size="sm"
+                  disabled={isAddingDriver}
+                >
+                  {isAddingDriver ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Ajout en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Ajouter le livreur
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -620,6 +966,7 @@ const PartnerDrivers = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleViewDetails(driver)}
+                                title="Voir les détails"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -627,13 +974,26 @@ const PartnerDrivers = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => openEditDialog(driver)}
+                                title="Modifier"
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
+                              {driver.email && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openResetPasswordDialog(driver)}
+                                  title="Réinitialiser le mot de passe"
+                                  className="text-blue-600 hover:text-blue-700"
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => openDeleteDialog(driver)}
+                                title="Supprimer"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -771,6 +1131,77 @@ const PartnerDrivers = () => {
               </Button>
               <Button variant="destructive" onClick={handleDeleteDriver}>
                 Supprimer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de réinitialisation de mot de passe */}
+        <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {resetPasswordDriver?.user_id ? 'Réinitialiser le Mot de Passe' : 'Créer un Compte de Connexion'}
+              </DialogTitle>
+              <DialogDescription>
+                {resetPasswordDriver?.user_id 
+                  ? 'Êtes-vous sûr de vouloir réinitialiser le mot de passe de ce livreur ? Un nouveau mot de passe sera généré automatiquement et envoyé par email.'
+                  : 'Ce livreur n\'a pas encore de compte de connexion. Voulez-vous créer un compte avec un mot de passe automatique ?'
+                }
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  <strong>Livreur:</strong> {resetPasswordDriver?.name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Email:</strong> {resetPasswordDriver?.email}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Statut:</strong> {resetPasswordDriver?.user_id ? 'Compte existant' : 'Aucun compte'}
+                </p>
+                <div className={`p-3 rounded-lg ${resetPasswordDriver?.user_id ? 'bg-blue-50' : 'bg-green-50'}`}>
+                  <div className="flex items-start space-x-2">
+                    <Mail className={`h-4 w-4 mt-0.5 ${resetPasswordDriver?.user_id ? 'text-blue-600' : 'text-green-600'}`} />
+                    <div className={`text-xs ${resetPasswordDriver?.user_id ? 'text-blue-700' : 'text-green-700'}`}>
+                      <p className="font-medium">Ce qui va se passer :</p>
+                      <ul className="mt-1 space-y-1">
+                        <li>• Un nouveau mot de passe sera généré automatiquement</li>
+                        {resetPasswordDriver?.user_id && <li>• L'ancien mot de passe sera invalidé</li>}
+                        {!resetPasswordDriver?.user_id && <li>• Un compte de connexion sera créé</li>}
+                        <li>• Le mot de passe sera envoyé par email au livreur</li>
+                        <li>• Le livreur pourra se connecter avec ces identifiants</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsResetPasswordDialogOpen(false)}
+                disabled={isResettingPassword}
+              >
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleResetPassword}
+                disabled={isResettingPassword}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isResettingPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {resetPasswordDriver?.user_id ? 'Réinitialisation...' : 'Création...'}
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="h-4 w-4 mr-2" />
+                    {resetPasswordDriver?.user_id ? 'Réinitialiser et Envoyer' : 'Créer et Envoyer'}
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
