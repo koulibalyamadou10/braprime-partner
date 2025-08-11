@@ -61,10 +61,10 @@ export class DriverManagementService {
   ): Promise<{ drivers: DriverManagementData[]; total: number; error?: string }> {
     try {
       let query = supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           *,
-          businesses!drivers_business_id_fkey (
+          businesses!driver_profiles_business_id_fkey (
             name
           )
         `, { count: 'exact' });
@@ -134,10 +134,10 @@ export class DriverManagementService {
   static async getDriverById(driverId: string): Promise<{ driver?: DriverManagementData; error?: string }> {
     try {
       const { data: driver, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           *,
-          businesses!drivers_business_id_fkey (
+          businesses!driver_profiles_business_id_fkey (
             name
           )
         `)
@@ -284,7 +284,7 @@ export class DriverManagementService {
       // ÉTAPE 3: Créer le profil livreur
       const driverId = crypto.randomUUID(); // UUID séparé pour le driver
       const { data: driverProfile, error: driverProfileError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .insert({
           id: driverId,
           name: driverData.name,
@@ -302,7 +302,7 @@ export class DriverManagementService {
         })
         .select(`
           *,
-          businesses!drivers_business_id_fkey (
+          businesses!driver_profiles_business_id_fkey (
             name
           )
         `)
@@ -337,7 +337,7 @@ export class DriverManagementService {
         try {
           await supabase.auth.admin.deleteUser(authData.user.id);
           await supabase.from('user_profiles').delete().eq('id', authData.user.id);
-          await supabase.from('drivers').delete().eq('id', driverId);
+          await supabase.from('driver_profiles').delete().eq('id', driverId);
         } catch (deleteError) {
           console.warn('Erreur lors de la suppression des profils:', deleteError);
         }
@@ -381,7 +381,7 @@ export class DriverManagementService {
   ): Promise<{ driver?: DriverManagementData; error?: string }> {
     try {
       const { data, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update(updateData)
         .eq('id', driverId)
         .select()
@@ -404,7 +404,7 @@ export class DriverManagementService {
     try {
       // 1. Supprimer le profil livreur
       const { error: profileError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .delete()
         .eq('id', driverId);
 
@@ -432,7 +432,7 @@ export class DriverManagementService {
   static async toggleDriverStatus(driverId: string, isActive: boolean): Promise<{ error?: string }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update({ is_active: isActive })
         .eq('id', driverId);
 
@@ -452,7 +452,7 @@ export class DriverManagementService {
   static async verifyDriver(driverId: string): Promise<{ error?: string }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update({ is_verified: true })
         .eq('id', driverId);
 
@@ -473,26 +473,26 @@ export class DriverManagementService {
     try {
       // Statistiques globales
       const { data: totalDrivers, error: totalError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('id', { count: 'exact' });
 
       const { data: activeDrivers, error: activeError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('id', { count: 'exact' })
         .eq('is_active', true);
 
       const { data: verifiedDrivers, error: verifiedError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('id', { count: 'exact' })
         .eq('is_verified', true);
 
       const { data: independentDrivers, error: independentError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('id', { count: 'exact' })
         .eq('driver_type', 'independent');
 
       const { data: serviceDrivers, error: serviceError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('id', { count: 'exact' })
         .eq('driver_type', 'service');
 
@@ -524,10 +524,10 @@ export class DriverManagementService {
   static async getServiceDrivers(businessId: number): Promise<{ drivers: DriverManagementData[]; error?: string }> {
     try {
       const { data: drivers, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           *,
-          businesses!drivers_business_id_fkey (
+          businesses!driver_profiles_business_id_fkey (
             name
           )
         `)

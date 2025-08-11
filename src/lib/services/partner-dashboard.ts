@@ -46,7 +46,7 @@ export interface PartnerOrder {
   user_id: string
   customer_name: string
   customer_phone: string
-  items: any[]
+  items: any[] // Tableau vide car les items sont dans order_items
   status: string
   total: number
   delivery_fee: number
@@ -90,16 +90,11 @@ export interface PartnerMenuItem {
 export interface PartnerDriver {
   id: string
   name: string
-  phone: string
+  phone_number: string
   email?: string
   vehicle_type?: string
   vehicle_plate?: string
   is_active: boolean
-  rating: number
-  total_deliveries: number
-  total_earnings: number
-  current_location?: any
-  last_active?: string
   created_at: string
   updated_at: string
 }
@@ -159,7 +154,7 @@ export class PartnerDashboardService {
         name: business.name,
         description: business.description,
         business_type_id: business.business_type_id,
-        business_type: business.business_types?.name || 'Autre',
+        business_type: business.business_types?.[0]?.name || 'Autre',
         address: business.address,
         phone: business.phone,
         email: business.email,
@@ -324,27 +319,32 @@ export class PartnerDashboardService {
           id,
           order_number,
           user_id,
-          items,
           status,
           total,
           delivery_fee,
           grand_total,
+          delivery_method,
           delivery_address,
           delivery_instructions,
           payment_method,
           payment_status,
+          estimated_delivery,
+          actual_delivery,
+          driver_id,
+          customer_rating,
+          customer_review,
+          pickup_coordinates,
+          delivery_coordinates,
           created_at,
           updated_at,
-          estimated_delivery,
-          driver_name,
-          driver_phone,
-          delivery_type,
           preferred_delivery_time,
+          delivery_type,
+          available_for_drivers,
           scheduled_delivery_window_start,
           scheduled_delivery_window_end,
-          available_for_drivers,
-          estimated_delivery_time,
-          actual_delivery_time
+          landmark,
+          service_fee,
+          verification_code
         `)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
@@ -390,7 +390,7 @@ export class PartnerDashboardService {
           user_id: order.user_id,
           customer_name: profile?.name || 'Client',
           customer_phone: profile?.phone_number || '',
-          items: order.items || [],
+          items: [], // Les items sont dans la table order_items séparée
           status: order.status,
           total: order.total,
           delivery_fee: order.delivery_fee,
@@ -403,16 +403,16 @@ export class PartnerDashboardService {
           created_at: order.created_at,
           updated_at: order.updated_at,
           estimated_delivery: order.estimated_delivery,
-          driver_name: order.driver_name,
-          driver_phone: order.driver_phone,
+          driver_name: '', // À récupérer depuis driver_profiles si nécessaire
+          driver_phone: '', // À récupérer depuis driver_profiles si nécessaire
           // Nouveaux champs de livraison
           delivery_type: order.delivery_type || 'asap',
           preferred_delivery_time: order.preferred_delivery_time,
           scheduled_delivery_window_start: order.scheduled_delivery_window_start,
           scheduled_delivery_window_end: order.scheduled_delivery_window_end,
           available_for_drivers: order.available_for_drivers || false,
-          estimated_delivery_time: order.estimated_delivery_time,
-          actual_delivery_time: order.actual_delivery_time
+          estimated_delivery_time: order.estimated_delivery, // Utiliser estimated_delivery
+          actual_delivery_time: order.actual_delivery // Utiliser actual_delivery
         }
       })
 
@@ -477,7 +477,7 @@ export class PartnerDashboardService {
         price: item.price,
         image: item.image,
         category_id: item.category_id,
-        category_name: item.menu_categories?.name || 'Sans catégorie',
+        category_name: item.menu_categories?.[0]?.name || 'Sans catégorie',
         is_available: item.is_available,
         is_popular: item.is_popular,
         preparation_time: item.preparation_time || 15,
@@ -617,20 +617,15 @@ export class PartnerDashboardService {
   ): Promise<{ drivers: PartnerDriver[] | null; error: string | null; total: number }> {
     try {
       let query = supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           id,
           name,
-          phone,
+          phone_number,
           email,
           vehicle_type,
           vehicle_plate,
           is_active,
-          rating,
-          total_deliveries,
-          total_earnings,
-          current_location,
-          last_active,
           created_at,
           updated_at
         `)
@@ -653,16 +648,11 @@ export class PartnerDashboardService {
       const partnerDrivers: PartnerDriver[] = (drivers || []).map(driver => ({
         id: driver.id,
         name: driver.name,
-        phone: driver.phone,
+        phone_number: driver.phone_number,
         email: driver.email,
         vehicle_type: driver.vehicle_type,
         vehicle_plate: driver.vehicle_plate,
         is_active: driver.is_active,
-        rating: driver.rating || 0,
-        total_deliveries: driver.total_deliveries || 0,
-        total_earnings: driver.total_earnings || 0,
-        current_location: driver.current_location,
-        last_active: driver.last_active,
         created_at: driver.created_at,
         updated_at: driver.updated_at
       }))
@@ -689,14 +679,11 @@ export class PartnerDashboardService {
   }): Promise<{ driver: PartnerDriver | null; error: string | null }> {
     try {
       const { data: driver, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .insert([{
           id: crypto.randomUUID(),
           ...driverData,
           is_active: true,
-          rating: 0,
-          total_deliveries: 0,
-          total_earnings: 0
         }])
         .select()
         .single()
@@ -709,16 +696,11 @@ export class PartnerDashboardService {
       const partnerDriver: PartnerDriver = {
         id: driver.id,
         name: driver.name,
-        phone: driver.phone,
+        phone_number: driver.phone,
         email: driver.email,
         vehicle_type: driver.vehicle_type,
         vehicle_plate: driver.vehicle_plate,
         is_active: driver.is_active,
-        rating: driver.rating || 0,
-        total_deliveries: driver.total_deliveries || 0,
-        total_earnings: driver.total_earnings || 0,
-        current_location: driver.current_location,
-        last_active: driver.last_active,
         created_at: driver.created_at,
         updated_at: driver.updated_at
       }
@@ -741,7 +723,7 @@ export class PartnerDashboardService {
   }): Promise<{ driver: PartnerDriver | null; error: string | null }> {
     try {
       const { data: driver, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update(updates)
         .eq('id', driverId)
         .select()
@@ -755,16 +737,11 @@ export class PartnerDashboardService {
       const partnerDriver: PartnerDriver = {
         id: driver.id,
         name: driver.name,
-        phone: driver.phone,
+        phone_number: driver.phone_number,
         email: driver.email,
         vehicle_type: driver.vehicle_type,
         vehicle_plate: driver.vehicle_plate,
         is_active: driver.is_active,
-        rating: driver.rating || 0,
-        total_deliveries: driver.total_deliveries || 0,
-        total_earnings: driver.total_earnings || 0,
-        current_location: driver.current_location,
-        last_active: driver.last_active,
         created_at: driver.created_at,
         updated_at: driver.updated_at
       }
@@ -780,7 +757,7 @@ export class PartnerDashboardService {
   static async deleteDriver(driverId: string): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .delete()
         .eq('id', driverId)
 

@@ -22,7 +22,7 @@ export class KDriverAuthPartnerService {
     // 1- Fonction pour creer un compte livreur
     async createDriverAuthAccount(request: KCreateDriverAuthRequest) {
         // inscrire dans la table auth.users de supabase avec une rpc
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.admin.createUser({
             email: request.email,
             password: request.password
         });
@@ -35,7 +35,7 @@ export class KDriverAuthPartnerService {
         const { data: driverProfileData, error: driverProfileError } = await supabase
             .from('driver_profiles')
             .insert({
-                user_id: data.user.id,
+                id: data.user.id,
                 business_id: request.business_id,
                 name: request.name,
                 phone_number: request.phone_number,
@@ -44,11 +44,12 @@ export class KDriverAuthPartnerService {
                 vehicle_type: request.vehicle_type,
                 vehicle_plate: request.vehicle_plate
             })
-            .select();
 
         if (driverProfileError) {
             throw driverProfileError;
         }
+
+        console.log('driverProfileData', driverProfileData);
 
         return driverProfileData;
     }

@@ -562,7 +562,7 @@ const PartnerDashboard = () => {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-medium">{formatCurrency(order.grand_total)}</p>
-                        <p className="text-sm text-gray-500">{order.items.length} articles</p>
+                        <p className="text-sm text-gray-500">Articles de commande</p>
                       </div>
                       <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1`}>
                         {getStatusIcon(order.status)}

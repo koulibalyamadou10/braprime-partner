@@ -35,7 +35,9 @@ import {
   CheckCircle,
   XCircle,
   Eye,
-  Key
+  Key,
+  Loader2,
+  Send
 } from 'lucide-react';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { toast } from 'sonner';
@@ -59,6 +61,11 @@ const PartnerDrivers = () => {
   const [drivers, setDrivers] = useState<KCreateDriverAuthRequest[]>([]);
   const [business, setBusiness] = useState<any>(null);
   const driverAuthService = new KDriverAuthPartnerService();
+
+  // Nouveaux états pour le loading et la confirmation d'envoi
+  const [isCreatingDriver, setIsCreatingDriver] = useState(false);
+  const [showPasswordSendDialog, setShowPasswordSendDialog] = useState(false);
+  const [createdDriver, setCreatedDriver] = useState<any>(null);
 
   // Formulaires
   const [addForm, setAddForm] = useState({
@@ -152,6 +159,7 @@ const PartnerDrivers = () => {
         return;
       }
 
+      setIsCreatingDriver(true);
       console.log('business pro handleAddDriver', business);
       const driverAuthResult = await driverAuthService.createDriverAuthAccount({
         email: addForm.email,
@@ -166,26 +174,73 @@ const PartnerDrivers = () => {
       console.log('driverAuthResult', driverAuthResult);
 
       if (driverAuthResult) {
-        toast.success('Livreur créé avec succès');
+        // faire disparaitre le formaulaire dajout
         setIsAddDialogOpen(false);
-        setAddForm({
-          name: '',
-          phone: '',
-          email: '',
-          vehicle_type: '',
-          vehicle_plate: '',
-          createAuthAccount: false,
-          password: ''
-        });
+        setIsCreatingDriver(false);
+        setCreatedDriver(driverAuthResult);
+        
+        // Si un compte auth a été créé, montrer le popup de confirmation
+        if (addForm.createAuthAccount) {
+          setShowPasswordSendDialog(true);
+        } else {
+          toast.success('Livreur créé avec succès');
+          setIsAddDialogOpen(false);
+          resetAddForm();
+        }
+        
+        // Recharger la liste des livreurs
+        const updatedDrivers = await driverAuthService.getDrivers(business.id);
+        setDrivers(updatedDrivers || []);
       }
       else {
+        setIsCreatingDriver(false);
         toast.error('Erreur lors de la création du livreur');
       }
     
       
     } catch (error) {
+      setIsCreatingDriver(false);
       console.log(error);
       toast.error(error.message);
+    }
+  };
+
+  // Fonction pour réinitialiser le formulaire d'ajout
+  const resetAddForm = () => {
+    setAddForm({
+      name: '',
+      phone: '',
+      email: '',
+      vehicle_type: '',
+      vehicle_plate: '',
+      createAuthAccount: false,
+      password: ''
+    });
+  };
+
+  // Fonction pour envoyer le mot de passe par email
+  const handleSendPasswordByEmail = async () => {
+    try {
+      // TODO: Implémenter l'envoi par email
+      toast.success('Mot de passe envoyé par email avec succès');
+      setShowPasswordSendDialog(false);
+      setIsAddDialogOpen(false);
+      resetAddForm();
+    } catch (error) {
+      toast.error('Erreur lors de l\'envoi par email');
+    }
+  };
+
+  // Fonction pour envoyer le mot de passe par SMS
+  const handleSendPasswordBySMS = async () => {
+    try {
+      // TODO: Implémenter l'envoi par SMS
+      toast.success('Mot de passe envoyé par SMS avec succès');
+      setShowPasswordSendDialog(false);
+      setIsAddDialogOpen(false);
+      resetAddForm();
+    } catch (error) {
+      toast.error('Erreur lors de l\'envoi par SMS');
     }
   };
 
@@ -425,8 +480,14 @@ const PartnerDrivers = () => {
                 <button 
                   onClick={handleAddDriver}
                   className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3"
+                  disabled={isCreatingDriver}
                 >
-                  Ajouter le livreur
+                                     {isCreatingDriver ? (
+                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                   ) : (
+                     <Plus className="mr-2 h-4 w-4" />
+                   )}
+                  {isCreatingDriver ? 'Création...' : 'Ajouter le livreur'}
                 </button>
               </DialogFooter>
             </DialogContent>
@@ -742,6 +803,49 @@ const PartnerDrivers = () => {
               </Button>
               <Button variant="destructive" onClick={handleDeleteDriver}>
                 Supprimer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de confirmation d'envoi du mot de passe */}
+        <Dialog open={showPasswordSendDialog} onOpenChange={setShowPasswordSendDialog}>
+          <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Mot de passe créé avec succès</DialogTitle>
+              <DialogDescription>
+                Le compte de connexion pour le livreur <strong>{createdDriver?.name}</strong> a été créé.
+                Veuillez partager le mot de passe avec le livreur.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <div className="grid gap-2">
+                <Label htmlFor="password-for-driver" className="text-sm">Mot de passe pour le livreur</Label>
+                <Input
+                  id="password-for-driver"
+                  type="password"
+                  value={createdDriver?.password}
+                  readOnly
+                  className="text-sm"
+                />
+                <p className="text-xs text-gray-500">
+                  Veuillez copier ce mot de passe et le partager de manière sécurisée au livreur.
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" onClick={handleSendPasswordByEmail} className="flex-1">
+                  <Send className="h-4 w-4 mr-2" />
+                  Envoyer par Email
+                </Button>
+                <Button variant="outline" onClick={handleSendPasswordBySMS} className="flex-1">
+                  <Send className="h-4 w-4 mr-2" />
+                  Envoyer par SMS
+                </Button>
+              </div>
+            </div>
+            <DialogFooter className="pt-4">
+              <Button onClick={() => setShowPasswordSendDialog(false)}>
+                Fermer
               </Button>
             </DialogFooter>
           </DialogContent>

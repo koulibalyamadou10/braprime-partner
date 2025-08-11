@@ -73,7 +73,7 @@ export class DriverAuthService {
 
       // 2. Créer le profil livreur dans la table drivers
       const { data: driverProfile, error: profileError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .insert({
           id: authData.user.id,
           name: driverData.name,
@@ -237,7 +237,7 @@ export class DriverAuthService {
 
       // Récupérer le driver directement par email
       const { data: driver, error: driverError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           id,
           name,
@@ -256,7 +256,7 @@ export class DriverAuthService {
           active_sessions,
           avatar_url,
           created_at,
-          businesses!drivers_business_id_fkey (
+          businesses!driver_profiles_business_id_fkey (
             name
           )
         `)
@@ -336,7 +336,7 @@ export class DriverAuthService {
   static async updateDriverProfile(driverId: string, updateData: DriverUpdateData): Promise<{ driver?: DriverAuthData; error?: string }> {
     try {
       const { data, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update(updateData)
         .eq('id', driverId)
         .select()
@@ -413,7 +413,7 @@ export class DriverAuthService {
   static async checkEmailExists(email: string): Promise<{ exists: boolean; error?: string }> {
     try {
       const { data, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('id')
         .eq('email', email)
         .single();
@@ -433,10 +433,10 @@ export class DriverAuthService {
   static async getServiceDrivers(businessId: number): Promise<{ drivers?: DriverAuthData[]; error?: string }> {
     try {
       const { data: drivers, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           *,
-          businesses!drivers_business_id_fkey (
+          businesses!driver_profiles_business_id_fkey (
             name
           )
         `)
@@ -479,10 +479,10 @@ export class DriverAuthService {
   static async getAllDrivers(): Promise<{ drivers?: DriverAuthData[]; error?: string }> {
     try {
       const { data: drivers, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           *,
-          businesses!drivers_business_id_fkey (
+          businesses!driver_profiles_business_id_fkey (
             name
           )
         `)
@@ -524,7 +524,7 @@ export class DriverAuthService {
   static async toggleDriverStatus(driverId: string, isActive: boolean): Promise<{ error?: string }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update({ is_active: isActive })
         .eq('id', driverId);
       
@@ -544,7 +544,7 @@ export class DriverAuthService {
   static async verifyDriver(driverId: string): Promise<{ error?: string }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update({ is_verified: true })
         .eq('id', driverId);
 

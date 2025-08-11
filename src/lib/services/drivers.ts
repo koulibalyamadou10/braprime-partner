@@ -28,7 +28,7 @@ export class DriverService {
 
       // Récupérer tous les drivers du business ou indépendants
       const { data: drivers, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('*')
         .or(`business_id.eq.${businessId},business_id.is.null`)
         .order('is_active', { ascending: false })
@@ -87,7 +87,7 @@ export class DriverService {
 
       // Récupérer les drivers actifs et vérifiés
       const { data: drivers, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('*')
         .or(`business_id.eq.${businessId},business_id.is.null`)
         .eq('is_active', true)
@@ -148,7 +148,7 @@ export class DriverService {
     try {
       // Vérifier que le livreur est actif et vérifié
       const { data: driver, error: driverError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('*')
         .eq('id', driverId)
         .eq('is_active', true)
@@ -190,7 +190,7 @@ export class DriverService {
   static async releaseDriver(driverId: string): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update({ 
           updated_at: new Date().toISOString()
         })
@@ -215,7 +215,7 @@ export class DriverService {
   ): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update({ 
           current_location: location,
           updated_at: new Date().toISOString()
@@ -245,7 +245,7 @@ export class DriverService {
   }): Promise<{ driver: Driver | null; error: string | null }> {
     try {
       const { data: driver, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .insert([{
           ...driverData,
           is_active: true,
@@ -276,7 +276,7 @@ export class DriverService {
   ): Promise<{ driver: Driver | null; error: string | null }> {
     try {
       const { data: driver, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
@@ -301,7 +301,7 @@ export class DriverService {
   static async deleteDriver(driverId: string): Promise<{ success: boolean; error: string | null }> {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .delete()
         .eq('id', driverId);
 
