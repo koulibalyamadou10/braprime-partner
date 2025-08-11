@@ -158,17 +158,29 @@ export class PartnerRevenueService {
           break
       }
 
-      // Récupérer les commandes avec les items
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('items, grand_total, created_at')
-        .eq('business_id', businessId)
-        .in('status', ['delivered', 'completed'])
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', now.toISOString())
+      // Récupérer les commandes avec les items via une jointure
+      const { data: orderItems, error } = await supabase
+        .from('order_items')
+        .select(`
+          id,
+          name,
+          price,
+          quantity,
+          order_id,
+          orders!order_items_order_id_fkey (
+            id,
+            business_id,
+            status,
+            created_at
+          )
+        `)
+        .eq('orders.business_id', businessId)
+        .in('orders.status', ['delivered', 'completed'])
+        .gte('orders.created_at', startDate.toISOString())
+        .lte('orders.created_at', now.toISOString())
 
       if (error) {
-        console.error('Erreur lors de la récupération des commandes:', error)
+        console.error('Erreur lors de la récupération des articles de commande:', error)
         return { data: null, error: error.message }
       }
 
@@ -176,18 +188,16 @@ export class PartnerRevenueService {
       const itemStats: Record<string, { count: number; revenue: number; name: string }> = {}
       let totalOrders = 0
 
-      orders?.forEach(order => {
-        totalOrders++
-        const items = order.items || []
-        
-        items.forEach((item: any) => {
-          const itemKey = item.id || item.name
+      orderItems?.forEach((orderItem) => {
+        if (orderItem.orders) {
+          totalOrders++
+          const itemKey = orderItem.id || orderItem.name
           if (!itemStats[itemKey]) {
-            itemStats[itemKey] = { count: 0, revenue: 0, name: item.name }
+            itemStats[itemKey] = { count: 0, revenue: 0, name: orderItem.name }
           }
-          itemStats[itemKey].count += item.quantity || 1
-          itemStats[itemKey].revenue += (item.price || 0) * (item.quantity || 1)
-        })
+          itemStats[itemKey].count += orderItem.quantity || 1
+          itemStats[itemKey].revenue += (orderItem.price || 0) * (orderItem.quantity || 1)
+        }
       })
 
       // Convertir en tableau et calculer les pourcentages

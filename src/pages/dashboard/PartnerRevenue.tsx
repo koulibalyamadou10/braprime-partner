@@ -129,7 +129,7 @@ const PartnerRevenue = () => {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 text-red-600">
                 <span className="text-sm font-medium">Erreur de chargement des données:</span>
-                <span className="text-sm">{error.message}</span>
+                <span className="text-sm">{error?.message || 'Erreur inconnue'}</span>
               </div>
               <Button 
                 variant="outline" 
