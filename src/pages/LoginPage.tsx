@@ -59,6 +59,7 @@ const LoginPage = () => {
             >
               Créer un compte
             </Button> */}
+            
           </div>
           
           <div className="mt-12 p-6 bg-gray-50 rounded-lg">
