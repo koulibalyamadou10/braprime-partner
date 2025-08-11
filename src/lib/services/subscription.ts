@@ -190,8 +190,7 @@ export const subscriptionService = {
         .from('partner_subscriptions')
         .select(`
           *,
-          plan:subscription_plans(*),
-          business:businesses(id, name)
+          plan:subscription_plans(*)
         `)
         .eq('partner_id', partnerId)
         .eq('status', 'active')

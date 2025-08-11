@@ -94,31 +94,31 @@ const App = () => (
                     <ScrollToTop />
                     <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/restaurants" element={<RestaurantsPage />} />
-                <Route path="/services/:id" element={<RestaurantPage />} />
-                <Route path="/categories" element={<Categories />} />
-                <Route path="/categories/:categoryId" element={<CategoryDetail />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/reservations" element={<ReservationPage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/articles" element={<AllItemsPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} />
-                <Route path="/devenir-conducteur" element={<DriverRegistrationPage />} />
-                <Route path="/devenir-chauffeur" element={<DriverRegistrationPage />} />
-                <Route path="/request-confirmation" element={<RequestConfirmationPage />} />
+                {/* <Route path="/" element={<Index />} /> */}
+                {/* <Route path="/restaurants" element={<RestaurantsPage />} /> */}
+                {/* <Route path="/services/:id" element={<RestaurantPage />} /> */}
+                {/* <Route path="/categories" element={<Categories />} /> */}
+                {/* <Route path="/categories/:categoryId" element={<CategoryDetail />} /> */}
+                <Route path="/" element={<LoginPage />} />
+                {/* <Route path="/reservations" element={<ReservationPage />} /> */}
+                {/* <Route path="/about" element={<AboutPage />} /> */}
+                {/* <Route path="/search" element={<SearchPage />} /> */}
+                {/* <Route path="/articles" element={<AllItemsPage />} /> */}
+                {/* <Route path="/cart" element={<CartPage />} /> */}
+                {/* <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} /> */}
+                {/* <Route path="/devenir-conducteur" element={<DriverRegistrationPage />} /> */}
+                {/* <Route path="/devenir-chauffeur" element={<DriverRegistrationPage />} /> */}
+                {/* <Route path="/request-confirmation" element={<RequestConfirmationPage />} /> */}
 
-                <Route path="/requests" element={<RequestsPage />} />
-                <Route path="/checkout" element={<CheckoutPage />} />
-                <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
-                <Route path="/order-tracking/:id" element={<OrderTrackingPage />} />
-                <Route path="/payment-status" element={<PaymentStatusPage />} />
-                <Route path="/subscription-payment-status" element={<SubscriptionPaymentStatusPage />} />
+                {/* <Route path="/requests" element={<RequestsPage />} /> */}
+                {/* <Route path="/checkout" element={<CheckoutPage />} /> */}
+                {/* <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} /> */}
+                {/* <Route path="/order-tracking/:id" element={<OrderTrackingPage />} /> */}
+                {/* <Route path="/payment-status" element={<PaymentStatusPage />} /> */}
+                {/* <Route path="/subscription-payment-status" element={<SubscriptionPaymentStatusPage />} /> */}
 
-                <Route path="/orders" element={<OrdersHistoryPage />} />
-                <Route path="/driver/login" element={<DriverLoginPage />} />
+                {/* <Route path="/orders" element={<OrdersHistoryPage />} /> */}
+                {/* <Route path="/driver/login" element={<DriverLoginPage />} /> */}
 
                 
                 {/* Routes Partner Dashboard */}

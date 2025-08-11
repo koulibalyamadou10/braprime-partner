@@ -428,7 +428,7 @@ const Header = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
-                <Link to="/devenir-partenaire" className="text-gray-400 hover:text-white transition-colors">
+                {/* <Link to="/devenir-partenaire" className="text-gray-400 hover:text-white transition-colors">
                   Devenir partenaire
                 </Link>
                 <Button variant="ghost" asChild>
@@ -436,7 +436,7 @@ const Header = () => {
                 </Button>
                 <Button asChild>
                   <Link to="/login?action=signup">S'inscrire</Link>
-                </Button>
+                </Button> */}
               </div>
             )}
           </nav>

@@ -49,7 +49,7 @@ const LoginPage = () => {
             >
               Se connecter
             </Button>
-            <Button 
+            {/* <Button 
               onClick={() => {
                 setIsSignupOpen(true);
                 setIsLoginOpen(false);
@@ -58,7 +58,7 @@ const LoginPage = () => {
               className="border-guinea-green text-guinea-green hover:bg-guinea-green/10"
             >
               Créer un compte
-            </Button>
+            </Button> */}
           </div>
           
           <div className="mt-12 p-6 bg-gray-50 rounded-lg">
