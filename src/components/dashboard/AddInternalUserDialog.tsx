@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { InternalUsersService } from '@/lib/services/internal-users';
 
 interface AddInternalUserDialogProps {
   isOpen: boolean;
@@ -52,12 +53,18 @@ export const AddInternalUserDialog = ({
     confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+    
+    // Réinitialiser l'erreur d'email si l'utilisateur modifie l'email
+    if (field === 'email') {
+      setEmailError('');
+    }
   };
 
   const validateForm = () => {
@@ -98,15 +105,36 @@ export const AddInternalUserDialog = ({
     setIsLoading(true);
     
     try {
-      // Simulation d'ajout d'utilisateur (à remplacer par l'appel API réel)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success('Utilisateur interne ajouté avec succès !');
+      // Vérifier si l'email existe déjà
+      const emailExists = await InternalUsersService.checkEmailExists(formData.email, businessId);
+      if (emailExists.exists) {
+        setEmailError('Cet email est déjà utilisé dans votre business');
+        setIsLoading(false);
+        return;
+      }
+
+      // Créer l'utilisateur interne
+      const result = await InternalUsersService.createInternalUser({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        role: formData.role as any,
+        password: formData.password,
+        business_id: businessId,
+        created_by: 'current_user_id' // À remplacer par l'ID de l'utilisateur connecté
+      });
+
+      if (result.error) {
+        toast.error(`Erreur lors de la création : ${result.error}`);
+        return;
+      }
+
+      toast.success('Utilisateur interne créé avec succès !');
       onUserAdded();
       handleClose();
     } catch (error) {
+      console.error('Error creating internal user:', error);
       toast.error('Erreur lors de l\'ajout de l\'utilisateur');
-      console.error('Error adding internal user:', error);
     } finally {
       setIsLoading(false);
     }
@@ -121,6 +149,7 @@ export const AddInternalUserDialog = ({
       password: '',
       confirmPassword: ''
     });
+    setEmailError('');
     onClose();
   };
 
@@ -171,7 +200,11 @@ export const AddInternalUserDialog = ({
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="email@exemple.com"
               required
+              className={emailError ? 'border-red-500' : ''}
             />
+            {emailError && (
+              <p className="text-sm text-red-500">{emailError}</p>
+            )}
           </div>
 
           <div className="space-y-2">

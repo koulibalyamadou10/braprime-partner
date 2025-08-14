@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/contexts/UserRoleContext';
+import { useInternalUsers } from '@/hooks/use-internal-users';
+import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import {
   Search,
   Plus,
@@ -41,7 +43,7 @@ import {
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 
-// Données statiques pour les utilisateurs clients
+// Données statiques pour les utilisateurs clients (à remplacer plus tard par un vrai service)
 const mockCustomers = [
   {
     id: '1',
@@ -87,46 +89,6 @@ const mockCustomers = [
   }
 ];
 
-// Données statiques pour les utilisateurs internes
-const mockInternalUsers = [
-  {
-    id: '1',
-    name: 'Aissatou Barry',
-    email: 'aissatou.barry@business.com',
-    phone: '+224 777 888 999',
-    role: 'admin',
-    status: 'active',
-    joinDate: '2024-01-10',
-    lastLogin: '2024-03-22',
-    createdBy: 'Propriétaire',
-    permissions: ['full_access']
-  },
-  {
-    id: '2',
-    name: 'Ousmane Keita',
-    email: 'ousmane.keita@business.com',
-    phone: '+224 333 444 555',
-    role: 'commandes',
-    status: 'active',
-    joinDate: '2024-02-15',
-    lastLogin: '2024-03-21',
-    createdBy: 'Aissatou Barry',
-    permissions: ['orders_management', 'order_tracking']
-  },
-  {
-    id: '3',
-    name: 'Mariama Diallo',
-    email: 'mariama.diallo@business.com',
-    phone: '+224 111 222 333',
-    role: 'menu',
-    status: 'active',
-    joinDate: '2024-02-20',
-    lastLogin: '2024-03-20',
-    createdBy: 'Aissatou Barry',
-    permissions: ['menu_management', 'item_editing']
-  }
-];
-
 const PartnerUsers = () => {
   const { currentUser } = useAuth();
   const { isPartner } = useUserRole();
@@ -135,6 +97,19 @@ const PartnerUsers = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [activeTab, setActiveTab] = useState<'customers' | 'internal'>('customers');
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+
+  // Récupérer les données du business
+  const { business } = usePartnerDashboard();
+  
+  // Récupérer les utilisateurs internes
+  const {
+    internalUsers,
+    isLoading: internalUsersLoading,
+    error: internalUsersError,
+    deleteUser,
+    isDeleting,
+    refetch: refetchInternalUsers
+  } = useInternalUsers(business?.id || 0);
 
   // Filtrer les utilisateurs clients
   const filteredCustomers = mockCustomers.filter(user => {
@@ -148,11 +123,11 @@ const PartnerUsers = () => {
   });
 
   // Filtrer les utilisateurs internes
-  const filteredInternalUsers = mockInternalUsers.filter(user => {
+  const filteredInternalUsers = internalUsers.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+                         (user.phone && user.phone.includes(searchTerm));
+    const matchesStatus = statusFilter === 'all' || (user.is_active ? 'active' : 'inactive') === statusFilter;
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     
     return matchesSearch && matchesStatus && matchesRole;
@@ -265,9 +240,19 @@ const PartnerUsers = () => {
     toast.info(`Supprimer l'utilisateur ${userId}`);
   };
 
+  // Actions sur les utilisateurs internes
+  const handleDeleteInternalUser = async (userId: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur interne ? Cette action est irréversible.')) {
+      deleteUser(userId);
+    }
+  };
+
   const handleUserAdded = () => {
-    toast.success('Utilisateur interne ajouté avec succès !');
-    // Ici vous pourriez rafraîchir la liste des utilisateurs internes
+    refetchInternalUsers();
+  };
+
+  const handleRefetchClick = () => {
+    refetchInternalUsers();
   };
 
   // Vérifier si l'utilisateur est authentifié
@@ -295,6 +280,22 @@ const PartnerUsers = () => {
             <h3 className="text-lg font-semibold mb-2">Accès Restreint</h3>
             <p className="text-muted-foreground mb-4">
               Cette page est réservée aux partenaires.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Afficher un message d'erreur si pas de business
+  if (!business?.id) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Gestion des Utilisateurs">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Business Non Trouvé</h3>
+            <p className="text-muted-foreground mb-4">
+              Impossible de charger les informations de votre business.
             </p>
           </div>
         </div>
@@ -342,7 +343,7 @@ const PartnerUsers = () => {
                     {activeTab === 'customers' ? 'Total Clients' : 'Total Équipe'}
                   </p>
                   <p className="text-3xl font-bold text-blue-900">
-                    {activeTab === 'customers' ? mockCustomers.length : mockInternalUsers.length}
+                    {activeTab === 'customers' ? mockCustomers.length : internalUsers.length}
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
@@ -358,7 +359,7 @@ const PartnerUsers = () => {
                   <p className="text-3xl font-bold text-green-900">
                     {activeTab === 'customers' 
                       ? mockCustomers.filter(u => u.status === 'active').length
-                      : mockInternalUsers.filter(u => u.status === 'active').length
+                      : internalUsers.filter(u => u.is_active).length
                     }
                   </p>
                 </div>
@@ -377,7 +378,7 @@ const PartnerUsers = () => {
                   <p className="text-3xl font-bold text-purple-900">
                     {activeTab === 'customers' 
                       ? mockCustomers.reduce((sum, user) => sum + user.totalOrders, 0)
-                      : new Set(mockInternalUsers.map(u => u.role)).size
+                      : new Set(internalUsers.map(u => u.role)).size
                     }
                   </p>
                 </div>
@@ -400,7 +401,7 @@ const PartnerUsers = () => {
                   <p className="text-3xl font-bold text-amber-900">
                     {activeTab === 'customers' 
                       ? formatCurrency(mockCustomers.reduce((sum, user) => sum + user.totalSpent, 0))
-                      : 'Aujourd\'hui'
+                      : internalUsers.length > 0 ? 'Aujourd\'hui' : 'Aucune'
                     }
                   </p>
                 </div>
@@ -488,194 +489,213 @@ const PartnerUsers = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Utilisateur</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Statut</TableHead>
+            {activeTab === 'internal' && internalUsersLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-2">Chargement des utilisateurs internes...</p>
+              </div>
+            ) : activeTab === 'internal' && internalUsersError ? (
+              <div className="text-center py-12">
+                <p className="text-red-500">Erreur lors du chargement : {internalUsersError.message}</p>
+                <Button onClick={handleRefetchClick} className="mt-2">
+                  Réessayer
+                </Button>
+              </div>
+            ) : (
+              <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Utilisateur</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Statut</TableHead>
+                      {activeTab === 'customers' ? (
+                        <>
+                          <TableHead>Activité</TableHead>
+                          <TableHead>Localisation</TableHead>
+                        </>
+                      ) : (
+                        <>
+                          <TableHead>Rôle</TableHead>
+                          <TableHead>Dernière Connexion</TableHead>
+                          <TableHead>Créé par</TableHead>
+                        </>
+                      )}
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {activeTab === 'customers' ? (
-                      <>
-                        <TableHead>Activité</TableHead>
-                        <TableHead>Localisation</TableHead>
-                      </>
+                      // Affichage des clients
+                      filteredCustomers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                                <User className="h-5 w-5 text-gray-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{user.name}</p>
+                                <p className="text-sm text-gray-500">ID: {user.id}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Mail className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">{user.email}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">{user.phone}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${getStatusColor(user.status)} flex w-fit items-center gap-1`}>
+                              {getStatusIcon(user.status)}
+                              <span>{getStatusLabel(user.status)}</span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">Inscrit le {formatDate(user.joinDate)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <ShoppingBag className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">{user.totalOrders} commandes</span>
+                              </div>
+                              <div className="text-sm font-medium text-green-600">
+                                {formatCurrency(user.totalSpent)}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm">{user.location}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleViewUser(user.id)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditUser(user.id)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     ) : (
-                      <>
-                        <TableHead>Rôle</TableHead>
-                        <TableHead>Dernière Connexion</TableHead>
-                        <TableHead>Créé par</TableHead>
-                      </>
+                      // Affichage des utilisateurs internes
+                      filteredInternalUsers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <User className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{user.name}</p>
+                                <p className="text-sm text-gray-500">ID: {user.id}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Mail className="h-4 w-4 text-gray-400" />
+                                <span className="text-sm">{user.email}</span>
+                              </div>
+                              {user.phone && (
+                                <div className="flex items-center gap-2">
+                                  <Phone className="h-4 w-4 text-gray-400" />
+                                  <span className="text-sm">{user.phone}</span>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${getStatusColor(user.is_active ? 'active' : 'inactive')} flex w-fit items-center gap-1`}>
+                              {getStatusIcon(user.is_active ? 'active' : 'inactive')}
+                              <span>{getStatusLabel(user.is_active ? 'active' : 'inactive')}</span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${getInternalRoleColor(user.role)} flex w-fit items-center gap-1`}>
+                              {getInternalRoleIcon(user.role)}
+                              <span>{getInternalRoleLabel(user.role)}</span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm">
+                                {user.last_login ? formatDate(user.last_login) : 'Jamais connecté'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm">{user.created_by}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleViewUser(user.id)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditUser(user.id)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteInternalUser(user.id)}
+                                disabled={isDeleting}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activeTab === 'customers' ? (
-                    // Affichage des clients
-                    filteredCustomers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                              <User className="h-5 w-5 text-gray-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{user.name}</p>
-                              <p className="text-sm text-gray-500">ID: {user.id}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.email}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.phone}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${getStatusColor(user.status)} flex w-fit items-center gap-1`}>
-                            {getStatusIcon(user.status)}
-                            <span>{getStatusLabel(user.status)}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">Inscrit le {formatDate(user.joinDate)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <ShoppingBag className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.totalOrders} commandes</span>
-                            </div>
-                            <div className="text-sm font-medium text-green-600">
-                              {formatCurrency(user.totalSpent)}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{user.location}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleViewUser(user.id)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditUser(user.id)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    // Affichage des utilisateurs internes
-                    filteredInternalUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{user.name}</p>
-                              <p className="text-sm text-gray-500">ID: {user.id}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.email}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.phone}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${getStatusColor(user.status)} flex w-fit items-center gap-1`}>
-                            {getStatusIcon(user.status)}
-                            <span>{getStatusLabel(user.status)}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${getInternalRoleColor(user.role)} flex w-fit items-center gap-1`}>
-                            {getInternalRoleIcon(user.role)}
-                            <span>{getInternalRoleLabel(user.role)}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{formatDate(user.lastLogin)}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{user.createdBy}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleViewUser(user.id)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditUser(user.id)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -684,7 +704,7 @@ const PartnerUsers = () => {
       <AddInternalUserDialog
         isOpen={isAddUserDialogOpen}
         onClose={() => setIsAddUserDialogOpen(false)}
-        businessId={1} // À remplacer par l'ID réel du business
+        businessId={business.id}
         onUserAdded={handleUserAdded}
       />
     </DashboardLayout>
