@@ -228,6 +228,11 @@ export const partnerNavItems = [
     icon: <DollarSign className="h-5 w-5" />,
   },
   {
+    href: '/partner-dashboard/users',
+    label: 'Utilisateurs',
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
     href: '/partner-dashboard/billing',
     label: 'Facturation',
     icon: <CreditCard className="h-5 w-5" />,
