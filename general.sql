@@ -556,3 +556,30 @@ CREATE TABLE public.user_roles (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_roles_pkey PRIMARY KEY (id)
 );
+
+-- Table pour gérer les utilisateurs internes des partenaires
+CREATE TABLE public.profil_internal_user (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  business_id integer NOT NULL,
+  name character varying NOT NULL,
+  email character varying NOT NULL,
+  phone character varying,
+  role character varying NOT NULL CHECK (role IN ('commandes', 'menu', 'reservations', 'livreurs', 'revenu', 'user', 'facturation', 'admin')),
+  is_active boolean DEFAULT true,
+  permissions jsonb DEFAULT '{}'::jsonb,
+  last_login timestamp with time zone,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT profil_internal_user_pkey PRIMARY KEY (id),
+  CONSTRAINT profil_internal_user_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  CONSTRAINT profil_internal_user_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id) ON DELETE CASCADE,
+  CONSTRAINT profil_internal_user_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.user_profiles(id),
+  CONSTRAINT profil_internal_user_business_email_unique UNIQUE (business_id, email)
+);
+
+-- Index pour améliorer les performances
+CREATE INDEX idx_profil_internal_user_business_id ON public.profil_internal_user(business_id);
+CREATE INDEX idx_profil_internal_user_role ON public.profil_internal_user(role);
+CREATE INDEX idx_profil_internal_user_created_by ON public.profil_internal_user(created_by);
