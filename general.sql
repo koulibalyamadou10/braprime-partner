@@ -96,8 +96,8 @@ CREATE TABLE public.businesses (
   owner_phone character varying,
   has_own_drivers boolean DEFAULT false,
   CONSTRAINT businesses_pkey PRIMARY KEY (id),
-  CONSTRAINT businesses_current_subscription_id_fkey FOREIGN KEY (current_subscription_id) REFERENCES public.partner_subscriptions(id),
   CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id),
+  CONSTRAINT businesses_current_subscription_id_fkey FOREIGN KEY (current_subscription_id) REFERENCES public.partner_subscriptions(id),
   CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
 CREATE TABLE public.cart (
@@ -126,8 +126,8 @@ CREATE TABLE public.cart_items (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT cart_items_pkey PRIMARY KEY (id),
-  CONSTRAINT cart_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
-  CONSTRAINT cart_items_cart_id_fkey FOREIGN KEY (cart_id) REFERENCES public.cart(id)
+  CONSTRAINT cart_items_cart_id_fkey FOREIGN KEY (cart_id) REFERENCES public.cart(id),
+  CONSTRAINT cart_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
 );
 CREATE TABLE public.categories (
   id integer NOT NULL DEFAULT nextval('categories_id_seq'::regclass),
@@ -184,8 +184,8 @@ CREATE TABLE public.driver_orders (
   updated_at timestamp with time zone DEFAULT now(),
   status USER-DEFINED DEFAULT 'pending'::driver_order_type,
   CONSTRAINT driver_orders_pkey PRIMARY KEY (id),
-  CONSTRAINT driver_orders_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.driver_profiles(id),
-  CONSTRAINT driver_orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
+  CONSTRAINT driver_orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
+  CONSTRAINT driver_orders_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.driver_profiles(id)
 );
 CREATE TABLE public.driver_profiles (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -200,9 +200,10 @@ CREATE TABLE public.driver_profiles (
   email text,
   phone_number text,
   type USER-DEFINED DEFAULT 'independent'::driver_type,
+  is_available boolean NOT NULL DEFAULT true,
   CONSTRAINT driver_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT driver_profiles_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT driver_profiles_user_id_fkey FOREIGN KEY (id) REFERENCES public.user_profiles(id)
+  CONSTRAINT driver_profiles_user_id_fkey FOREIGN KEY (id) REFERENCES public.user_profiles(id),
+  CONSTRAINT driver_profiles_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.favorite_businesses (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -210,8 +211,8 @@ CREATE TABLE public.favorite_businesses (
   business_id integer NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT favorite_businesses_pkey PRIMARY KEY (id),
-  CONSTRAINT favorite_businesses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT favorite_businesses_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT favorite_businesses_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT favorite_businesses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.favorite_menu_items (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -219,8 +220,8 @@ CREATE TABLE public.favorite_menu_items (
   menu_item_id integer NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT favorite_menu_items_pkey PRIMARY KEY (id),
-  CONSTRAINT favorite_menu_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT favorite_menu_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+  CONSTRAINT favorite_menu_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
+  CONSTRAINT favorite_menu_items_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.menu_categories (
   id integer NOT NULL DEFAULT nextval('menu_categories_id_seq'::regclass),
@@ -314,8 +315,8 @@ CREATE TABLE public.orders (
   service_fee integer DEFAULT 0,
   verification_code character varying UNIQUE,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
-  CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
-  CONSTRAINT orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
 );
 CREATE TABLE public.partner_subscriptions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -359,6 +360,25 @@ CREATE TABLE public.payments (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT payments_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.profil_internal_user (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  business_id integer NOT NULL,
+  name character varying NOT NULL,
+  email character varying NOT NULL,
+  phone character varying,
+  role character varying NOT NULL CHECK (role::text = ANY (ARRAY['commandes'::character varying, 'menu'::character varying, 'reservations'::character varying, 'livreurs'::character varying, 'revenu'::character varying, 'user'::character varying, 'facturation'::character varying, 'admin'::character varying]::text[])),
+  is_active boolean DEFAULT true,
+  permissions jsonb DEFAULT '{}'::jsonb,
+  last_login timestamp with time zone,
+  created_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT profil_internal_user_pkey PRIMARY KEY (id),
+  CONSTRAINT profil_internal_user_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT profil_internal_user_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT profil_internal_user_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.user_profiles(id)
+);
 CREATE TABLE public.request_events (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   request_id uuid NOT NULL,
@@ -367,8 +387,8 @@ CREATE TABLE public.request_events (
   payload jsonb DEFAULT '{}'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT request_events_pkey PRIMARY KEY (id),
-  CONSTRAINT request_events_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.requests(id),
-  CONSTRAINT request_events_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id)
+  CONSTRAINT request_events_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id),
+  CONSTRAINT request_events_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.requests(id)
 );
 CREATE TABLE public.requests (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -412,10 +432,10 @@ CREATE TABLE public.requests (
   preferred_zones ARRAY,
   driver_notes text,
   CONSTRAINT requests_pkey PRIMARY KEY (id),
-  CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id),
   CONSTRAINT requests_submitted_by_fkey FOREIGN KEY (submitted_by) REFERENCES auth.users(id),
-  CONSTRAINT requests_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT requests_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.driver_profiles(id)
+  CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id),
+  CONSTRAINT requests_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.driver_profiles(id),
+  CONSTRAINT requests_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.reservations (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -533,9 +553,9 @@ CREATE TABLE public.user_profiles (
   is_manual_creation boolean DEFAULT false,
   businesse_id integer,
   CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id),
   CONSTRAINT user_profiles_businesse_id_fkey FOREIGN KEY (businesse_id) REFERENCES public.businesses(id),
-  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id)
 );
 CREATE TABLE public.user_push_tokens (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -556,30 +576,3 @@ CREATE TABLE public.user_roles (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_roles_pkey PRIMARY KEY (id)
 );
-
--- Table pour gérer les utilisateurs internes des partenaires
-CREATE TABLE public.profil_internal_user (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  business_id integer NOT NULL,
-  name character varying NOT NULL,
-  email character varying NOT NULL,
-  phone character varying,
-  role character varying NOT NULL CHECK (role IN ('commandes', 'menu', 'reservations', 'livreurs', 'revenu', 'user', 'facturation', 'admin')),
-  is_active boolean DEFAULT true,
-  permissions jsonb DEFAULT '{}'::jsonb,
-  last_login timestamp with time zone,
-  created_by uuid NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT profil_internal_user_pkey PRIMARY KEY (id),
-  CONSTRAINT profil_internal_user_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id) ON DELETE CASCADE,
-  CONSTRAINT profil_internal_user_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id) ON DELETE CASCADE,
-  CONSTRAINT profil_internal_user_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.user_profiles(id),
-  CONSTRAINT profil_internal_user_business_email_unique UNIQUE (business_id, email)
-);
-
--- Index pour améliorer les performances
-CREATE INDEX idx_profil_internal_user_business_id ON public.profil_internal_user(business_id);
-CREATE INDEX idx_profil_internal_user_role ON public.profil_internal_user(role);
-CREATE INDEX idx_profil_internal_user_created_by ON public.profil_internal_user(created_by);
