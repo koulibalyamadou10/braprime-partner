@@ -21,51 +21,97 @@ export class KDriverAuthPartnerService {
 
     // 1- Fonction pour creer un compte livreur
     async createDriverAuthAccount(request: KCreateDriverAuthRequest) {
-        // inscrire dans la table auth.users de supabase avec une rpc
+        let authId = '';
+        let driverId = '';
+        let userProfileId = '';
+        try {
+            // inscrire dans la table auth.users de supabase avec une rpc
         const { data, error } = await supabase.auth.admin.createUser({
             email: request.email,
             password: request.password
         });
 
-        console.log('data', data);
-
+        
+        
+        
         if (error) {
+            console.error('Erreur création utilisateur:', error)
             throw error;
         }
 
+        console.log('data', data);
+        authId = data.user.id;
+        
         // l'inscrire dans la table user_profile
         const { data: userProfileData, error: userProfileError } = await supabase
             .from('user_profiles')
             .insert({
                 id: data.user.id,
-                business_id: request.business_id,
                 name: request.name,
-            })
+                email: request.email,
+                phone_number: request.phone_number,
+                role_id: 10, // ID du rôle 'driver' dans user_roles
+                is_active: true,
+                is_verified: false
+            }).select().single();
 
-        // inscrire dans la table driver_profiles et selectionner toutes les donnees de la table driver_profiles
+            userProfileId = userProfileData.id;
+
+        if (userProfileError) {
+            console.error('Erreur création profil utilisateur:', userProfileError)
+            throw new Error('Erreur lors de la création du profil utilisateur')
+        }
+
+        // inscrire dans la table driver_profiles avec le même ID
         const { data: driverProfileData, error: driverProfileError } = await supabase
             .from('driver_profiles')
             .insert({
-                id: data.user.id,
+                id: data.user.id, // Même ID que user_profiles et auth.users
                 business_id: request.business_id,
                 name: request.name,
                 phone_number: request.phone_number,
                 email: request.email,
                 type: request.type,
                 vehicle_type: request.vehicle_type,
-                vehicle_plate: request.vehicle_plate
+                vehicle_plate: request.vehicle_plate,
+                is_active: true,
+                is_available: true
             })
+            .select().single();
 
-        console.log('driverProfileData', driverProfileData);
-        console.log('driverProfileError', driverProfileError);
+        driverId = driverProfileData.id;
 
         if (driverProfileError) {
-            throw driverProfileError;
+            console.error('Erreur création profil livreur:', driverProfileError)
+            throw new Error('Erreur lors de la création du profil livreur')
         }
 
-        console.log('driverProfileData', driverProfileData);
+        // Vérifier que les deux profils ont été créés avec succès
+        if (!userProfileData || !driverProfileData) {
+            throw new Error('Erreur lors de la création des profils')
+        }
+
+        console.log('Profils créés avec succès:', {
+            userProfile: userProfileData,
+            driverProfile: driverProfileData
+        })
 
         return driverProfileData;
+        } catch (error) {
+            // supprimer les donnees en cas d'incoherence dans l'execution
+            if (authId) {
+                await supabase.auth.admin.deleteUser(authId);
+            }
+            if (userProfileId) {
+                await supabase.from('user_profiles').delete().eq('id', userProfileId);
+            }
+            if (driverId) {
+                await supabase.from('driver_profiles').delete().eq('id', driverId);
+            }
+
+            console.error('Erreur lors de la création des profils:', error)
+            throw error;
+        }
     }
 
     // 2- Fonction pour recuperer les livreurs
