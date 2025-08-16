@@ -64,9 +64,33 @@ export class KUserService {
       console.log('✅ Utilisateur Auth créé:', authUser.user.id);
 
       // etapes intermediaires l'inscrire dans la table internal_user avec user_profiles! 
+            // 2. Créer l'entrée dans user_profiles
+            const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: authUser.user.id,
+              name: request.name,
+              email: request.email,
+              phone_number: request.phone,
+              role_id: 11, // Rôle driver comme spécifié
+              is_active: true,
+              is_manual_creation: true
+            });
+    
+          if (profileError) {
+            console.error('Erreur création profil utilisateur:', profileError);
+            
+            // Rollback: Supprimer l'utilisateur Auth créé
+            await supabase.auth.admin.deleteUser(authUser.user.id);
+            
+            return {
+              success: false,
+              error: `Erreur lors de la création du profil: ${profileError.message}`
+            };
+          }    
 
       // 2. Créer le profil dans profil_internal_user
-      const { data: internalUser, error: profileError } = await supabase
+      const { data: internalUser, error: internalUserError } = await supabase
         .from('profil_internal_user')
         .insert({
           id: authUser.user.id,
@@ -82,13 +106,13 @@ export class KUserService {
         .select()
         .single();
 
-      if (profileError || !internalUser) {
-        console.error('❌ Erreur création profil interne:', profileError);
+      if (internalUserError || !internalUser) {
+        console.error('❌ Erreur création profil interne:', internalUserError);
         
         // Rollback: supprimer l'utilisateur Auth créé
         await supabase.auth.admin.deleteUser(authUser.user.id);
         
-        return { success: false, error: profileError?.message || 'Erreur lors de la création du profil' };
+        return { success: false, error: internalUserError?.message || 'Erreur lors de la création du profil' };
       }
 
       console.log('✅ Profil interne créé:', internalUser.id);
