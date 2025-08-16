@@ -1,9 +1,19 @@
-import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
+
 import { AddInternalUserDialog } from '@/components/dashboard/AddInternalUserDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -38,7 +48,8 @@ import {
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-    import KUserService from '@/lib/kservices/k-users';
+import KUserService, { InternalUser, CreateInternalUserRequest, UpdateInternalUserRequest } from '@/lib/kservices/k-users';
+import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 
 const PartnerUsers = () => {
   const { currentUser } = useAuth();
@@ -648,7 +659,7 @@ const PartnerUsers = () => {
         isOpen={isAddUserDialogOpen}
         onClose={() => setIsAddUserDialogOpen(false)}
         businessId={business.id}
-        onUserAdded={handleUserAdded}
+        // onUserAdded={() => {}}
       />
 
       {/* Dialog d'édition */}
