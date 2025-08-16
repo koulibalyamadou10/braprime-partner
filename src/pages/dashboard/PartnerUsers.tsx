@@ -972,7 +972,7 @@ const PartnerUsers = () => {
 
       {/* Popup des identifiants créés */}
       <Dialog open={showCredentialsPopup} onOpenChange={setShowCredentialsPopup}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCheck className="h-5 w-5 text-green-600" />
@@ -1002,22 +1002,22 @@ const PartnerUsers = () => {
               <h5 className="font-medium text-gray-900">Identifiants de Connexion</h5>
               
               <div className="grid gap-3">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-gray-700">Email :</span>
                   </div>
-                  <code className="px-2 py-1 bg-white rounded text-sm font-mono text-blue-800 border">
+                  <code className="px-2 py-1 bg-white rounded text-sm font-mono text-blue-800 border break-all">
                     {createdUserCredentials?.email}
                   </code>
                 </div>
                 
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium text-gray-700">Mot de passe :</span>
                   </div>
-                  <code className="px-2 py-1 bg-white rounded text-sm font-mono text-green-800 border">
+                  <code className="px-2 py-1 bg-white rounded text-sm font-mono text-green-800 border break-all">
                     {createdUserCredentials?.password}
                   </code>
                 </div>
@@ -1027,7 +1027,7 @@ const PartnerUsers = () => {
             {/* Avertissement de sécurité */}
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
               <div className="flex items-start gap-2">
-                <Shield className="h-4 w-4 text-amber-600 mt-0.5" />
+                <Shield className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-amber-800">
                   <p className="font-medium mb-1">⚠️ Important :</p>
                   <p>Ces identifiants ne seront plus visibles après fermeture de cette fenêtre. 
