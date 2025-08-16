@@ -97,12 +97,20 @@ const PartnerOrders = () => {
       }
 
       if (businessOrders) {
-        const ordersWithBusinessId = businessOrders.map(order => ({
-          ...order,
-          business_id: business.id
-        }));
-        setOrders(ordersWithBusinessId);
-        setFilteredOrders(ordersWithBusinessId);
+        // Dédupliquer les commandes par ID pour éviter les doublons
+        const uniqueOrders = businessOrders.reduce((acc: DashboardOrder[], order) => {
+          const existingOrder = acc.find(o => o.id === order.id);
+          if (!existingOrder) {
+            acc.push({
+              ...order,
+              business_id: business.id
+            });
+          }
+          return acc;
+        }, []);
+
+        setOrders(uniqueOrders);
+        setFilteredOrders(uniqueOrders);
       }
     } catch (err) {
       console.error('Erreur lors du chargement des commandes:', err);
@@ -142,7 +150,24 @@ const PartnerOrders = () => {
       );
     }
 
-    setFilteredOrders(filtered);
+    // Dédupliquer une dernière fois par sécurité
+    const uniqueFiltered = filtered.reduce((acc: DashboardOrder[], order) => {
+      const existingOrder = acc.find(o => o.id === order.id);
+      if (!existingOrder) {
+        acc.push(order);
+      }
+      return acc;
+    }, []);
+
+    // Log pour déboguer
+    console.log('Commandes filtrées:', {
+      total: orders.length,
+      filtered: filtered.length,
+      uniqueFiltered: uniqueFiltered.length,
+      duplicates: filtered.length - uniqueFiltered.length
+    });
+
+    setFilteredOrders(uniqueFiltered);
   }, [orders, filterStatus, filterDeliveryType, searchQuery]);
 
   // Charger les livreurs disponibles pour l'assignation multiple
@@ -420,6 +445,9 @@ const PartnerOrders = () => {
   // Obtenir les statistiques des commandes
   const getOrderStats = () => {
     const total = orders.length;
+    const uniqueTotal = new Set(orders.map(o => o.id)).size;
+    const duplicates = total - uniqueTotal;
+    
     const pending = orders.filter(order => order.status === 'pending').length;
     const confirmed = orders.filter(order => order.status === 'confirmed').length;
     const preparing = orders.filter(order => order.status === 'preparing').length;
@@ -428,7 +456,18 @@ const PartnerOrders = () => {
     const delivered = orders.filter(order => order.status === 'delivered').length;
     const cancelled = orders.filter(order => order.status === 'cancelled').length;
 
-    return { total, pending, confirmed, preparing, ready, delivering, delivered, cancelled };
+    return { 
+      total, 
+      uniqueTotal, 
+      duplicates,
+      pending, 
+      confirmed, 
+      preparing, 
+      ready, 
+      delivering, 
+      delivered, 
+      cancelled 
+    };
   };
 
   const stats = getOrderStats();
@@ -488,6 +527,27 @@ const PartnerOrders = () => {
     } catch (error) {
       toast.error('❌ Erreur lors du préchargement')
       console.error('Erreur de préchargement:', error)
+    }
+  }
+
+  // Fonction pour nettoyer les doublons
+  const cleanDuplicates = () => {
+    const uniqueOrders = orders.reduce((acc: DashboardOrder[], order) => {
+      const existingOrder = acc.find(o => o.id === order.id);
+      if (!existingOrder) {
+        acc.push(order);
+      }
+      return acc;
+    }, []);
+
+    const duplicatesRemoved = orders.length - uniqueOrders.length;
+    
+    if (duplicatesRemoved > 0) {
+      setOrders(uniqueOrders);
+      setFilteredOrders(uniqueOrders);
+      toast.success(`🧹 ${duplicatesRemoved} doublon(s) supprimé(s)`);
+    } else {
+      toast.info('✅ Aucun doublon détecté');
     }
   }
 
@@ -572,8 +632,20 @@ const PartnerOrders = () => {
             <p className="text-gray-500">
               Gérez les commandes de {business.name}
             </p>
+            {stats.duplicates > 0 && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-700">
+                  ⚠️ Attention : {stats.duplicates} doublon(s) détecté(s) et supprimé(s)
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            {stats.duplicates > 0 && (
+              <Button onClick={cleanDuplicates} variant="outline" size="sm" className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100">
+                🧹 Nettoyer doublons
+              </Button>
+            )}
             <Button onClick={preloadData} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Précharger
@@ -637,7 +709,18 @@ const PartnerOrders = () => {
         </div>
 
         {/* Statistiques */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+          <Card>
+            <CardContent className="p-4 flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-500">Total commandes</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.total}</h3>
+              {stats.duplicates > 0 && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  {stats.duplicates} doublon(s)
+                </p>
+              )}
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-4 flex flex-col items-center justify-center">
               <p className="text-sm text-gray-500">Nouvelles commandes</p>
@@ -716,6 +799,7 @@ const PartnerOrders = () => {
                     <TableHead>Numéro</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Adresse</TableHead>
                     <TableHead>Livraison</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Statut</TableHead>
@@ -736,6 +820,11 @@ const PartnerOrders = () => {
                       <TableCell className="font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
                       <TableCell>{order.customer_name}</TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
+                      <TableCell className="max-w-[200px]">
+                        <div className="truncate" title={order.delivery_address}>
+                          {order.delivery_address}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <DeliveryInfoBadge
                           deliveryType={order.delivery_type}

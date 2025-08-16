@@ -27,9 +27,20 @@ export class KDriverAuthPartnerService {
             password: request.password
         });
 
+        console.log('data', data);
+
         if (error) {
             throw error;
         }
+
+        // l'inscrire dans la table user_profile
+        const { data: userProfileData, error: userProfileError } = await supabase
+            .from('user_profiles')
+            .insert({
+                id: data.user.id,
+                business_id: request.business_id,
+                name: request.name,
+            })
 
         // inscrire dans la table driver_profiles et selectionner toutes les donnees de la table driver_profiles
         const { data: driverProfileData, error: driverProfileError } = await supabase
@@ -44,6 +55,9 @@ export class KDriverAuthPartnerService {
                 vehicle_type: request.vehicle_type,
                 vehicle_plate: request.vehicle_plate
             })
+
+        console.log('driverProfileData', driverProfileData);
+        console.log('driverProfileError', driverProfileError);
 
         if (driverProfileError) {
             throw driverProfileError;
