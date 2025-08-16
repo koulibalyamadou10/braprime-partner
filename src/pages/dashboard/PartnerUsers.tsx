@@ -56,6 +56,9 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import KUserService, { InternalUser, CreateInternalUserRequest, UpdateInternalUserRequest } from '@/lib/kservices/k-users';
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { UserCredentials } from '@/components/mails/UserCredentials';
+import { client } from '@/lib/kservices/k-wontan';
 
 const PartnerUsers = () => {
   const { currentUser } = useAuth();
@@ -1054,9 +1057,32 @@ const PartnerUsers = () => {
               <Button 
                 variant="outline" 
                 className="flex-1 sm:flex-none"
-                onClick={() => {
+                onClick={async  () => {
                   // TODO: Implémenter l'envoi par email
-                  toast.info('Fonctionnalité Email à implémenter');
+                  const templateContent = renderToStaticMarkup(
+                    <UserCredentials
+                      userName={createdUserCredentials?.name}
+                      userEmail={createdUserCredentials?.email}
+                      userPassword={createdUserCredentials?.password}
+                      businessName={business?.name || ''}
+                      userRoles={formData.roles}
+                    />  
+                  );
+
+                  const result = await client.sendMailWithTemplate({
+                    recipients: [createdUserCredentials?.email],
+                    template_content: templateContent,
+                    subject: 'Identifiants de Connexion'
+                  })
+
+                  console.log(result);
+
+                  if (result.detail === "success" ) {
+                    toast.success('Email envoyé avec succès');
+                  } else {
+                    toast.error('Erreur lors de l\'envoi de l\'email');
+                  }
+                  
                 }}
               >
                 <Mail className="h-4 w-4 mr-2" />
