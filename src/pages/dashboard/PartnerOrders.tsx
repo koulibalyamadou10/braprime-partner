@@ -890,10 +890,10 @@ const PartnerOrders = () => {
                           <Checkbox
                             checked={order.available_for_drivers || false}
                             onCheckedChange={(checked) => handleAvailabilityChange(order.id, checked as boolean)}
-                            disabled={order.status === 'delivered' || order.status === 'cancelled'}
+                            disabled={order.status === 'delivered' || order.status === 'cancelled' || order.status === 'out_for_delivery'}
                           />
                           <span className="text-xs text-gray-500">
-                            {order.status === 'delivered' || order.status === 'cancelled' 
+                            {order.status === 'delivered' || order.status === 'cancelled' || order.status === 'out_for_delivery'
                               ? 'N/A' 
                               : order.available_for_drivers ? 'Disponible' : 'Non disponible'
                             }
@@ -1198,7 +1198,7 @@ const PartnerOrders = () => {
                 </div>
 
                 {/* Contrôle de disponibilité pour les livreurs */}
-                {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'out_for_delivery' && (
                   <div className="border rounded-lg p-4 bg-white">
                     <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
                       <Truck className="h-4 w-4" />
