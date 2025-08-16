@@ -656,14 +656,10 @@ const PartnerDrivers = () => {
 
         {/* Onglets */}
         <Tabs defaultValue="list" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-1">
             <TabsTrigger value="list" className="flex items-center gap-2">
               <Truck className="h-4 w-4" />
               Liste des Livreurs
-            </TabsTrigger>
-            <TabsTrigger value="auth" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              Comptes de Connexion
             </TabsTrigger>
           </TabsList>
 
@@ -802,10 +798,6 @@ const PartnerDrivers = () => {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="auth" className="space-y-6">
-            <PartnerDriverAuthManager businessId={business?.id || 0} />
           </TabsContent>
         </Tabs>
 
