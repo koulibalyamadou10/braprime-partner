@@ -1,5 +1,4 @@
 
-import { AddInternalUserDialog } from '@/components/dashboard/AddInternalUserDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -33,7 +39,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  Eye,
   Edit,
   Trash2,
   UserCheck,
@@ -44,7 +49,8 @@ import {
   Building,
   Clock,
   Truck,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -71,8 +77,31 @@ const PartnerUsers = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  // États pour le formulaire d'ajout
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    roles: [] as string[]
+  });
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+
   // Récupérer les données du business
   const { business } = usePartnerDashboard();
+
+  // Rôles disponibles
+  const INTERNAL_ROLES = [
+    { value: 'admin', label: 'Administrateur', description: 'Accès complet à toutes les fonctionnalités' },
+    { value: 'commandes', label: 'Commandes', description: 'Gestion des commandes et suivi' },
+    { value: 'menu', label: 'Menu', description: 'Gestion du menu et des articles' },
+    { value: 'reservations', label: 'Réservations', description: 'Gestion des réservations' },
+    { value: 'livreurs', label: 'Livreurs', description: 'Gestion des livreurs et affectations' },
+    { value: 'revenu', label: 'Revenus', description: 'Suivi des revenus et analytics' },
+    { value: 'user', label: 'Utilisateurs', description: 'Gestion des utilisateurs clients' },
+    { value: 'facturation', label: 'Facturation', description: 'Gestion des abonnements et factures' }
+  ];
 
   // Charger les utilisateurs internes
   const loadInternalUsers = async () => {
@@ -105,43 +134,109 @@ const PartnerUsers = () => {
     }
   }, [business?.id]);
 
+  // Valider le formulaire d'ajout
+  const validateForm = () => {
+    const errors: {[key: string]: string} = {};
+
+    if (!formData.name.trim()) {
+      errors.name = 'Le nom est requis';
+    }
+
+    if (!formData.email.trim()) {
+      errors.email = 'L\'email est requis';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'L\'email n\'est pas valide';
+    }
+
+    if (!formData.password) {
+      errors.password = 'Le mot de passe est requis';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      errors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    }
+
+    if (formData.roles.length === 0) {
+      errors.roles = 'Au moins un rôle doit être sélectionné';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Créer un nouvel utilisateur interne
-  const handleCreateUser = async (userData: CreateInternalUserRequest) => {
-    if (!business?.id || !currentUser?.id) return false;
+  const handleCreateUser = async () => {
+    if (!business?.id || !currentUser?.id) return;
+    
+    if (!validateForm()) return;
     
     setIsCreating(true);
     
     try {
-      const result = await KUserService.createInternalUser({
-        ...userData,
+      // Vérifier si l'email existe déjà
+      const emailExists = await KUserService.checkEmailExists(formData.email, business.id);
+      if (emailExists) {
+        setFormErrors({ email: 'Cet email est déjà utilisé dans votre business' });
+        setIsCreating(false);
+        return;
+      }
+
+      const userData: CreateInternalUserRequest = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        phone: formData.phone.trim() || undefined,
         business_id: business.id,
+        roles: formData.roles,
         created_by: currentUser.id
-      });
+      };
+
+      const result = await KUserService.createInternalUser(userData);
 
       if (result.success) {
         toast.success('Utilisateur interne créé avec succès !');
+        setIsAddUserDialogOpen(false);
+        resetForm();
         await loadInternalUsers(); // Recharger la liste
-        return true;
       } else {
         toast.error(result.error || 'Erreur lors de la création');
-        return false;
       }
     } catch (err) {
       console.error('Erreur création utilisateur:', err);
       toast.error('Erreur inattendue lors de la création');
-      return false;
     } finally {
       setIsCreating(false);
     }
   };
 
+  // Réinitialiser le formulaire
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      roles: []
+    });
+    setFormErrors({});
+  };
+
   // Mettre à jour un utilisateur
-  const handleUpdateUser = async (updates: UpdateInternalUserRequest) => {
-    if (!editingUser) return false;
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
     
     setIsUpdating(true);
     
     try {
+      const updates: UpdateInternalUserRequest = {};
+      
+      if (editingUser.name !== formData.name) updates.name = formData.name;
+      if (editingUser.phone !== formData.phone) updates.phone = formData.phone;
+      if (editingUser.roles !== formData.roles) updates.roles = formData.roles;
+
       const result = await KUserService.updateInternalUser(editingUser.id, updates);
       
       if (result.success) {
@@ -149,15 +244,13 @@ const PartnerUsers = () => {
         await loadInternalUsers(); // Recharger la liste
         setIsEditDialogOpen(false);
         setEditingUser(null);
-        return true;
+        resetForm();
       } else {
         toast.error(result.error || 'Erreur lors de la mise à jour');
-        return false;
       }
     } catch (err) {
       console.error('Erreur mise à jour utilisateur:', err);
       toast.error('Erreur inattendue lors de la mise à jour');
-      return false;
     } finally {
       setIsUpdating(false);
     }
@@ -205,26 +298,18 @@ const PartnerUsers = () => {
     }
   };
 
-  // Mettre à jour les rôles d'un utilisateur
-  const handleUpdateUserRoles = async (userId: string, roles: string[]) => {
-    try {
-      const result = await KUserService.updateUserRoles(userId, roles);
-      
-      if (result.success) {
-        toast.success('Rôles mis à jour avec succès !');
-        await loadInternalUsers(); // Recharger la liste
-      } else {
-        toast.error(result.error || 'Erreur lors de la mise à jour des rôles');
-      }
-    } catch (err) {
-      console.error('Erreur mise à jour rôles:', err);
-      toast.error('Erreur inattendue lors de la mise à jour des rôles');
-    }
-  };
-
   // Ouvrir le dialog d'édition
   const openEditDialog = (user: InternalUser) => {
     setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      phone: user.phone || '',
+      password: '',
+      confirmPassword: '',
+      roles: user.roles
+    });
+    setFormErrors({});
     setIsEditDialogOpen(true);
   };
 
@@ -327,18 +412,6 @@ const PartnerUsers = () => {
       month: '2-digit',
       year: 'numeric'
     });
-  };
-
-  // Actions sur les utilisateurs internes
-  const handleViewUser = (userId: string) => {
-    toast.info(`Voir les détails de l'utilisateur ${userId}`);
-  };
-
-  const handleUserAdded = async (userData: CreateInternalUserRequest) => {
-    const success = await handleCreateUser(userData);
-    if (success) {
-      setIsAddUserDialogOpen(false);
-    }
   };
 
   const handleRefetchClick = () => {
@@ -655,101 +728,230 @@ const PartnerUsers = () => {
       </div>
 
       {/* Modal d'ajout d'utilisateur interne */}
-      <AddInternalUserDialog
-        isOpen={isAddUserDialogOpen}
-        onClose={() => setIsAddUserDialogOpen(false)}
-        businessId={business.id}
-        // onUserAdded={() => {}}
-      />
+      <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Ajouter un Utilisateur Interne</DialogTitle>
+            <DialogDescription>
+              Créez un nouveau compte utilisateur pour votre équipe interne.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nom complet *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Nom et prénom"
+                  className={formErrors.name ? 'border-red-500' : ''}
+                />
+                {formErrors.name && <p className="text-sm text-red-500">{formErrors.name}</p>}
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@business.com"
+                  className={formErrors.email ? 'border-red-500' : ''}
+                />
+                {formErrors.email && <p className="text-sm text-red-500">{formErrors.email}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Téléphone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+224 XXX XXX XXX"
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="roles">Rôles *</Label>
+                <Select
+                  value={formData.roles[0] || ''}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, roles: [value] }))}
+                >
+                  <SelectTrigger className={formErrors.roles ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Sélectionner un rôle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTERNAL_ROLES.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        <div>
+                          <div className="font-medium">{role.label}</div>
+                          <div className="text-sm text-gray-500">{role.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formErrors.roles && <p className="text-sm text-red-500">{formErrors.roles}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="password">Mot de passe *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Minimum 6 caractères"
+                  className={formErrors.password ? 'border-red-500' : ''}
+                />
+                {formErrors.password && <p className="text-sm text-red-500">{formErrors.password}</p>}
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword">Confirmer le mot de passe *</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="Répéter le mot de passe"
+                  className={formErrors.confirmPassword ? 'border-red-500' : ''}
+                />
+                {formErrors.confirmPassword && <p className="text-sm text-red-500">{formErrors.confirmPassword}</p>}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsAddUserDialogOpen(false);
+              resetForm();
+            }}>
+              Annuler
+            </Button>
+            <Button onClick={handleCreateUser} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Création...
+                </>
+              ) : (
+                'Créer l\'utilisateur'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog d'édition */}
-      {editingUser && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Modifier l'Utilisateur</DialogTitle>
-              <DialogDescription>
-                Modifiez les informations de l'utilisateur interne.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-name">Nom complet</Label>
-                <Input
-                  id="edit-name"
-                  value={editingUser.name}
-                  onChange={(e) => setEditingUser(prev => prev ? { ...prev, name: e.target.value } : null)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-phone">Téléphone</Label>
-                <Input
-                  id="edit-phone"
-                  value={editingUser.phone || ''}
-                  onChange={(e) => setEditingUser(prev => prev ? { ...prev, phone: e.target.value } : null)}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-is_active"
-                  checked={editingUser.is_active}
-                  onCheckedChange={(checked) => setEditingUser(prev => prev ? { ...prev, is_active: checked } : null)}
-                />
-                <Label htmlFor="edit-is_active">Utilisateur actif</Label>
-              </div>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Modifier l'Utilisateur</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de l'utilisateur interne.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Nom complet</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              />
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button onClick={() => handleUpdateUser({})} disabled={isUpdating}>
-                {isUpdating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Mise à jour...
-                  </>
-                ) : (
-                  'Mettre à jour'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-phone">Téléphone</Label>
+              <Input
+                id="edit-phone"
+                value={formData.phone}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-roles">Rôles</Label>
+              <Select
+                value={formData.roles[0] || ''}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, roles: [value] }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un rôle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INTERNAL_ROLES.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false);
+              setEditingUser(null);
+              resetForm();
+            }}>
+              Annuler
+            </Button>
+            <Button onClick={handleUpdateUser} disabled={isUpdating}>
+              {isUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Mise à jour...
+                </>
+              ) : (
+                'Mettre à jour'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de suppression */}
-      {deletingUser && (
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Supprimer l'Utilisateur</DialogTitle>
-              <DialogDescription>
-                Êtes-vous sûr de vouloir supprimer cet utilisateur interne ? Cette action est irréversible.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-gray-600">
-                Utilisateur: <strong>{deletingUser.name}</strong>
-              </p>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                Annuler
-              </Button>
-              <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeleting}>
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Suppression...
-                  </>
-                ) : (
-                  'Supprimer'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer l'Utilisateur</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer cet utilisateur interne ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Utilisateur: <strong>{deletingUser?.name}</strong>
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Suppression...
+                </>
+              ) : (
+                'Supprimer'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
