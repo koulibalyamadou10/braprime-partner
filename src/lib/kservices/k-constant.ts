@@ -6,6 +6,7 @@ export const ORDER_STATUS_CONFIRMED = 'confirmed';
 export const ORDER_STATUS_PREPARING = 'preparing';
 export const ORDER_STATUS_READY = 'ready';
 export const ORDER_STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
+export const ORDER_STATUS_DELIVERED = 'delivered';
 export const ORDER_STATUS_CANCELLED = 'cancelled';
 
 export const DRIVER_ORDER_TYPE_PENDING = 'pending';

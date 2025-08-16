@@ -69,6 +69,14 @@ export interface PartnerOrder {
   available_for_drivers: boolean
   estimated_delivery_time?: string
   actual_delivery_time?: string
+  // Champs pour les informations du livreur
+  driver_id?: string
+  driver_vehicle_type?: string
+  driver_vehicle_plate?: string
+  // Champs pour les frais et la vérification
+  service_fee?: number
+  verification_code?: string
+  assigned_at?: string
 }
 
 export interface PartnerMenuItem {
@@ -344,7 +352,8 @@ export class PartnerDashboardService {
           scheduled_delivery_window_end,
           landmark,
           service_fee,
-          verification_code
+          verification_code,
+          assigned_at
         `)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
@@ -379,18 +388,78 @@ export class PartnerDashboardService {
         }
       }
 
-      // Créer un map pour accéder rapidement aux profils
+      // Récupérer les informations des livreurs si des commandes ont des livreurs assignés
+      const driverIds = orders?.map(order => order.driver_id).filter(Boolean) || []
+      let driverProfiles: any[] = []
+
+      if (driverIds.length > 0) {
+        const { data: drivers, error: driversError } = await supabase
+          .from('driver_profiles')
+          .select(`
+            id,
+            name,
+            phone_number,
+            vehicle_type,
+            vehicle_plate
+          `)
+          .in('id', driverIds)
+
+        if (driversError) {
+          console.error('Erreur récupération livreurs:', driversError)
+        } else {
+          driverProfiles = drivers || []
+        }
+      }
+
+      // Récupérer les items de chaque commande
+      const orderIds = orders?.map(order => order.id) || []
+      let orderItems: any[] = []
+
+      if (orderIds.length > 0) {
+        const { data: items, error: itemsError } = await supabase
+          .from('order_items')
+          .select(`
+            order_id,
+            name,
+            price,
+            quantity,
+            image,
+            special_instructions
+          `)
+          .in('order_id', orderIds)
+
+        if (itemsError) {
+          console.error('Erreur récupération items:', itemsError)
+        } else {
+          orderItems = items || []
+        }
+      }
+
+      // Créer des maps pour accéder rapidement aux données
       const profilesMap = new Map(userProfiles.map(profile => [profile.id, profile]))
+      const driversMap = new Map(driverProfiles.map(driver => [driver.id, driver]))
+      const itemsMap = new Map()
+      
+      // Grouper les items par commande
+      orderItems.forEach(item => {
+        if (!itemsMap.has(item.order_id)) {
+          itemsMap.set(item.order_id, [])
+        }
+        itemsMap.get(item.order_id).push(item)
+      })
 
       const partnerOrders: PartnerOrder[] = (orders || []).map(order => {
         const profile = profilesMap.get(order.user_id)
+        const driver = order.driver_id ? driversMap.get(order.driver_id) : null
+        const items = itemsMap.get(order.id) || []
+
         return {
           id: order.id,
           order_number: order.order_number,
           user_id: order.user_id,
           customer_name: profile?.name || 'Client',
           customer_phone: profile?.phone_number || '',
-          items: [], // Les items sont dans la table order_items séparée
+          items: items, // Maintenant on a les vrais items
           status: order.status,
           total: order.total,
           delivery_fee: order.delivery_fee,
@@ -403,16 +472,24 @@ export class PartnerDashboardService {
           created_at: order.created_at,
           updated_at: order.updated_at,
           estimated_delivery: order.estimated_delivery,
-          driver_name: '', // À récupérer depuis driver_profiles si nécessaire
-          driver_phone: '', // À récupérer depuis driver_profiles si nécessaire
-          // Nouveaux champs de livraison
+          driver_name: driver?.name || '',
+          driver_phone: driver?.phone_number || '',
+          // Nouveaux champs pour la gestion des livraisons ASAP/Scheduled
           delivery_type: order.delivery_type || 'asap',
           preferred_delivery_time: order.preferred_delivery_time,
           scheduled_delivery_window_start: order.scheduled_delivery_window_start,
           scheduled_delivery_window_end: order.scheduled_delivery_window_end,
           available_for_drivers: order.available_for_drivers || false,
           estimated_delivery_time: order.estimated_delivery, // Utiliser estimated_delivery
-          actual_delivery_time: order.actual_delivery // Utiliser actual_delivery
+          actual_delivery_time: order.actual_delivery, // Utiliser actual_delivery
+          // Champs pour les informations du livreur
+          driver_id: order.driver_id,
+          driver_vehicle_type: driver?.vehicle_type,
+          driver_vehicle_plate: driver?.vehicle_plate,
+          // Champs pour les frais et la vérification
+          service_fee: order.service_fee,
+          verification_code: order.verification_code,
+          assigned_at: order.assigned_at
         }
       })
 

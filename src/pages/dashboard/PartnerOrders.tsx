@@ -995,24 +995,41 @@ const PartnerOrders = () => {
                           <TableRow>
                             <TableHead>Article</TableHead>
                             <TableHead className="text-right">Qté</TableHead>
-                            <TableHead className="text-right">Prix</TableHead>
+                            <TableHead className="text-right">Prix unit.</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedOrder.items.map((item: any, index: number) => (
+                          {selectedOrder.items?.map((item: any, index: number) => (
                             <TableRow key={index}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium">{item.name}</p>
-                                  {item.special_instructions && (
-                                    <p className="text-xs text-gray-500 mt-1">{item.special_instructions}</p>
+                                <div className="flex items-center space-x-3">
+                                  {item.image ? (
+                                    <img 
+                                      src={item.image} 
+                                      alt={item.name}
+                                      className="w-10 h-10 object-cover rounded-md"
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
+                                      <Package className="h-5 w-5 text-gray-500" />
+                                    </div>
                                   )}
+                                  <div>
+                                    <p className="font-medium">{item.name}</p>
+                                    {item.special_instructions && (
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        📝 {item.special_instructions}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">{item.quantity}</TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant="outline">{item.quantity}</Badge>
+                              </TableCell>
                               <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(item.price * item.quantity)}</TableCell>
+                              <TableCell className="text-right font-medium">{formatCurrency(item.price * item.quantity)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -1028,6 +1045,12 @@ const PartnerOrders = () => {
                           <span>Frais de livraison:</span>
                           <span>{formatCurrency(selectedOrder.delivery_fee)}</span>
                         </div>
+                        {selectedOrder.service_fee && selectedOrder.service_fee > 0 && (
+                          <div className="flex justify-between">
+                            <span>Frais de service:</span>
+                            <span>{formatCurrency(selectedOrder.service_fee)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between font-bold text-lg border-t pt-2">
                           <span>Total:</span>
                           <span>{formatCurrency(selectedOrder.grand_total)}</span>
@@ -1225,33 +1248,199 @@ const PartnerOrders = () => {
                   </div>
                 )}
 
-                {/* Informations du livreur */}
-                {selectedOrder.driver_name && (
+                {/* Suivi de la commande */}
+                {selectedOrder.driver_id && (
                   <div className="border rounded-lg p-4 bg-white">
                     <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
                       <Truck className="h-4 w-4" />
-                      Livreur
+                      Suivi de la Livraison
                     </h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Nom:</span>
-                        <span className="font-medium">{selectedOrder.driver_name}</span>
+                    <div className="space-y-4">
+                      {/* Statut de la commande */}
+                      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${
+                            selectedOrder.status === 'out_for_delivery' ? 'bg-blue-500' : 
+                            selectedOrder.status === 'delivered' ? 'bg-green-500' : 'bg-gray-400'
+                          }`}></div>
+                          <span className="text-sm font-medium">
+                            {selectedOrder.status === 'out_for_delivery' ? 'En cours de livraison' :
+                             selectedOrder.status === 'delivered' ? 'Livrée' : 'En préparation'}
+                          </span>
+                        </div>
+                        <Badge className={`${getStatusColor(selectedOrder.status)}`}>
+                          {getStatusLabel(selectedOrder.status)}
+                        </Badge>
                       </div>
-                      {selectedOrder.driver_phone && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Téléphone:</span>
-                            <span className="font-medium">{selectedOrder.driver_phone}</span>
+
+                      {/* Informations du livreur */}
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Truck className="h-5 w-5 text-blue-600" />
                           </div>
-                          <Button variant="outline" size="sm" className="w-full gap-2 mt-2">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">
+                              {selectedOrder.driver_name || 'Livreur assigné'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {selectedOrder.driver_phone || 'Contact non disponible'}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm">
                             <Phone className="h-4 w-4" />
-                            Appeler le livreur
                           </Button>
-                        </>
+                        </div>
+                      </div>
+
+                      {/* Horaires de livraison */}
+                      <div className="space-y-2 text-sm">
+                        {selectedOrder.estimated_delivery && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Livraison estimée:</span>
+                            <span className="font-medium">{formatDate(selectedOrder.estimated_delivery)}</span>
+                          </div>
+                        )}
+                        {selectedOrder.actual_delivery && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Livrée à:</span>
+                            <span className="font-medium">{formatDate(selectedOrder.actual_delivery)}</span>
+                          </div>
+                        )}
+                        {selectedOrder.assigned_at && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Assignée à:</span>
+                            <span className="font-medium">{formatDate(selectedOrder.assigned_at)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Code de vérification */}
+                      {selectedOrder.verification_code && (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm font-medium text-yellow-800 mb-1">
+                            🔐 Code de vérification
+                          </p>
+                          <p className="text-lg font-mono font-bold text-yellow-900">
+                            {selectedOrder.verification_code}
+                          </p>
+                          <p className="text-xs text-yellow-700 mt-1">
+                            Remettez ce code au livreur pour confirmer la réception
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>
                 )}
+
+                {/* Informations du livreur */}
+                {selectedOrder.driver_id && (
+                  <div className="border rounded-lg p-4 bg-white">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      Livreur Assigné
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Truck className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">
+                            {selectedOrder.driver_name || 'Nom non disponible'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {selectedOrder.driver_phone || 'Téléphone non disponible'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {selectedOrder.driver_vehicle_type && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Véhicule:</span>
+                          <span className="font-medium">{selectedOrder.driver_vehicle_type}</span>
+                        </div>
+                      )}
+                      
+                      {selectedOrder.driver_vehicle_plate && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Plaque:</span>
+                          <span className="font-medium font-mono">{selectedOrder.driver_vehicle_plate}</span>
+                        </div>
+                      )}
+                      
+                      <div className="pt-2 border-t">
+                        <Button variant="outline" size="sm" className="w-full gap-2">
+                          <Phone className="h-4 w-4" />
+                          Appeler le livreur
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Articles de la commande détaillés */}
+                <div className="border rounded-lg p-4 bg-white">
+                  <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Articles ({selectedOrder.items?.length || 0})
+                  </h3>
+                  <div className="space-y-3">
+                    {selectedOrder.items?.map((item: any, index: number) => (
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        {item.image ? (
+                          <img 
+                            src={item.image} 
+                            alt={item.name}
+                            className="w-12 h-12 object-cover rounded-md"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
+                            <Package className="h-5 w-5 text-gray-500" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{item.name}</p>
+                          {item.special_instructions && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              📝 {item.special_instructions}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              Qté: {item.quantity}
+                            </span>
+                            <span className="text-sm font-medium">
+                              {formatCurrency(item.price * item.quantity)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Résumé des coûts */}
+                  <div className="mt-4 pt-3 border-t space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Sous-total:</span>
+                      <span className="font-medium">{formatCurrency(selectedOrder.total)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Frais de livraison:</span>
+                      <span className="font-medium">{formatCurrency(selectedOrder.delivery_fee)}</span>
+                    </div>
+                    {selectedOrder.service_fee && selectedOrder.service_fee > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Frais de service:</span>
+                        <span className="font-medium">{formatCurrency(selectedOrder.service_fee)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-lg border-t pt-2">
+                      <span>Total:</span>
+                      <span>{formatCurrency(selectedOrder.grand_total)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             
