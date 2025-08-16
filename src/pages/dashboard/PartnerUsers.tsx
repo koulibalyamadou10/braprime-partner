@@ -796,28 +796,49 @@ const PartnerUsers = () => {
                 />
               </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="roles">Rôles *</Label>
-                <Select
-                  value={formData.roles[0] || ''}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, roles: [value] }))}
-                >
-                  <SelectTrigger className={formErrors.roles ? 'border-red-500' : ''}>
-                    <SelectValue placeholder="Sélectionner un rôle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INTERNAL_ROLES.map((role) => (
-                      <SelectItem key={role.value} value={role.value}>
-                        <div>
-                          <div className="font-medium">{role.label}</div>
-                          <div className="text-sm text-gray-500">{role.description}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formErrors.roles && <p className="text-sm text-red-500">{formErrors.roles}</p>}
-              </div>
+                             <div className="grid gap-2">
+                 <Label htmlFor="roles">
+                   Rôles * 
+                   <span className="ml-2 text-sm text-gray-500">
+                     ({formData.roles.length} sélectionné{formData.roles.length > 1 ? 's' : ''})
+                   </span>
+                 </Label>
+                 <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                   {INTERNAL_ROLES.map((role) => (
+                     <div key={role.value} className="flex items-center space-x-2">
+                       <input
+                         type="checkbox"
+                         id={`role-${role.value}`}
+                         checked={formData.roles.includes(role.value)}
+                         onChange={(e) => {
+                           if (e.target.checked) {
+                             setFormData(prev => ({ 
+                               ...prev, 
+                               roles: [...prev.roles, role.value] 
+                             }));
+                           } else {
+                             setFormData(prev => ({ 
+                               ...prev, 
+                               roles: prev.roles.filter(r => r !== role.value) 
+                             }));
+                           }
+                         }}
+                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                       />
+                       <label htmlFor={`role-${role.value}`} className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
+                         <div>
+                           <div className="font-medium">{role.label}</div>
+                           <div className="text-sm text-gray-500">{role.description}</div>
+                         </div>
+                       </label>
+                     </div>
+                   ))}
+                 </div>
+                 {formErrors.roles && <p className="text-sm text-red-500">{formErrors.roles}</p>}
+                 <p className="text-xs text-gray-500">
+                   Cochez les rôles que cet utilisateur pourra exercer dans votre business
+                 </p>
+               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -899,24 +920,45 @@ const PartnerUsers = () => {
               />
             </div>
             
-            <div className="grid gap-2">
-              <Label htmlFor="edit-roles">Rôles</Label>
-              <Select
-                value={formData.roles[0] || ''}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, roles: [value] }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un rôle" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INTERNAL_ROLES.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                         <div className="grid gap-2">
+               <Label htmlFor="edit-roles">
+                 Rôles 
+                 <span className="ml-2 text-sm text-gray-500">
+                   ({formData.roles.length} sélectionné{formData.roles.length > 1 ? 's' : ''})
+                 </span>
+               </Label>
+               <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                 {INTERNAL_ROLES.map((role) => (
+                   <div key={role.value} className="flex items-center space-x-2">
+                     <input
+                       type="checkbox"
+                       id={`edit-role-${role.value}`}
+                       checked={formData.roles.includes(role.value)}
+                       onChange={(e) => {
+                         if (e.target.checked) {
+                           setFormData(prev => ({ 
+                             ...prev, 
+                             roles: [...prev.roles, role.value] 
+                           }));
+                         } else {
+                           setFormData(prev => ({ 
+                             ...prev, 
+                             roles: prev.roles.filter(r => r !== role.value) 
+                           }));
+                         }
+                       }}
+                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                     />
+                     <label htmlFor={`edit-role-${role.value}`} className="text-sm font-medium text-gray-700 cursor-pointer flex-1">
+                       {role.label}
+                     </label>
+                   </div>
+                 ))}
+               </div>
+               <p className="text-xs text-gray-500">
+                 Modifiez les rôles de cet utilisateur selon ses nouvelles responsabilités
+               </p>
+             </div>
           </div>
           
           <DialogFooter>
