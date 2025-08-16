@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/contexts/UserRoleContext';
-import { useInternalUsers } from '@/hooks/use-internal-users';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import {
   Search,
@@ -34,10 +33,12 @@ import {
   Users,
   Building,
   Clock,
-  Truck
+  Truck,
+  Loader2
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+    import KUserService from '@/lib/kservices/k-users';
 
 const PartnerUsers = () => {
   const { currentUser } = useAuth();
@@ -46,19 +47,181 @@ const PartnerUsers = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<InternalUser | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<InternalUser | null>(null);
+
+  // États pour la gestion des utilisateurs
+  const [internalUsers, setInternalUsers] = useState<InternalUser[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   // Récupérer les données du business
   const { business } = usePartnerDashboard();
-  
-  // Récupérer les utilisateurs internes
-  const {
-    internalUsers,
-    isLoading: internalUsersLoading,
-    error: internalUsersError,
-    deleteUser,
-    isDeleting,
-    refetch: refetchInternalUsers
-  } = useInternalUsers(business?.id || 0, currentUser?.id);
+
+  // Charger les utilisateurs internes
+  const loadInternalUsers = async () => {
+    if (!business?.id) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const result = await KUserService.getInternalUsers(business.id);
+      
+      if (result.success && result.user) {
+        const users = Array.isArray(result.user) ? result.user : [result.user];
+        setInternalUsers(users);
+      } else {
+        setError(result.error || 'Erreur lors du chargement');
+      }
+    } catch (err) {
+      console.error('Erreur chargement utilisateurs:', err);
+      setError('Erreur inattendue lors du chargement');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Charger les utilisateurs au montage et quand le business change
+  useEffect(() => {
+    if (business?.id) {
+      loadInternalUsers();
+    }
+  }, [business?.id]);
+
+  // Créer un nouvel utilisateur interne
+  const handleCreateUser = async (userData: CreateInternalUserRequest) => {
+    if (!business?.id || !currentUser?.id) return false;
+    
+    setIsCreating(true);
+    
+    try {
+      const result = await KUserService.createInternalUser({
+        ...userData,
+        business_id: business.id,
+        created_by: currentUser.id
+      });
+
+      if (result.success) {
+        toast.success('Utilisateur interne créé avec succès !');
+        await loadInternalUsers(); // Recharger la liste
+        return true;
+      } else {
+        toast.error(result.error || 'Erreur lors de la création');
+        return false;
+      }
+    } catch (err) {
+      console.error('Erreur création utilisateur:', err);
+      toast.error('Erreur inattendue lors de la création');
+      return false;
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Mettre à jour un utilisateur
+  const handleUpdateUser = async (updates: UpdateInternalUserRequest) => {
+    if (!editingUser) return false;
+    
+    setIsUpdating(true);
+    
+    try {
+      const result = await KUserService.updateInternalUser(editingUser.id, updates);
+      
+      if (result.success) {
+        toast.success('Utilisateur mis à jour avec succès !');
+        await loadInternalUsers(); // Recharger la liste
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
+        return true;
+      } else {
+        toast.error(result.error || 'Erreur lors de la mise à jour');
+        return false;
+      }
+    } catch (err) {
+      console.error('Erreur mise à jour utilisateur:', err);
+      toast.error('Erreur inattendue lors de la mise à jour');
+      return false;
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Changer le statut d'un utilisateur
+  const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
+    try {
+      const result = await KUserService.toggleUserStatus(userId, isActive);
+      
+      if (result.success) {
+        toast.success(`Utilisateur ${isActive ? 'activé' : 'désactivé'} avec succès !`);
+        await loadInternalUsers(); // Recharger la liste
+      } else {
+        toast.error(result.error || 'Erreur lors du changement de statut');
+      }
+    } catch (err) {
+      console.error('Erreur changement statut:', err);
+      toast.error('Erreur inattendue lors du changement de statut');
+    }
+  };
+
+  // Supprimer un utilisateur
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+
+    setIsDeleting(true);
+    
+    try {
+      const result = await KUserService.deleteInternalUser(deletingUser.id);
+      
+      if (result.success) {
+        toast.success('Utilisateur supprimé avec succès !');
+        setIsDeleteDialogOpen(false);
+        setDeletingUser(null);
+        await loadInternalUsers(); // Recharger la liste
+      } else {
+        toast.error(result.error || 'Erreur lors de la suppression');
+      }
+    } catch (err) {
+      console.error('Erreur suppression utilisateur:', err);
+      toast.error('Erreur inattendue lors de la suppression');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Mettre à jour les rôles d'un utilisateur
+  const handleUpdateUserRoles = async (userId: string, roles: string[]) => {
+    try {
+      const result = await KUserService.updateUserRoles(userId, roles);
+      
+      if (result.success) {
+        toast.success('Rôles mis à jour avec succès !');
+        await loadInternalUsers(); // Recharger la liste
+      } else {
+        toast.error(result.error || 'Erreur lors de la mise à jour des rôles');
+      }
+    } catch (err) {
+      console.error('Erreur mise à jour rôles:', err);
+      toast.error('Erreur inattendue lors de la mise à jour des rôles');
+    }
+  };
+
+  // Ouvrir le dialog d'édition
+  const openEditDialog = (user: InternalUser) => {
+    setEditingUser(user);
+    setIsEditDialogOpen(true);
+  };
+
+  // Ouvrir le dialog de suppression
+  const openDeleteDialog = (user: InternalUser) => {
+    setDeletingUser(user);
+    setIsDeleteDialogOpen(true);
+  };
 
   // Filtrer les utilisateurs internes
   const filteredInternalUsers = internalUsers.filter(user => {
@@ -160,22 +323,15 @@ const PartnerUsers = () => {
     toast.info(`Voir les détails de l'utilisateur ${userId}`);
   };
 
-  const handleEditUser = (userId: string) => {
-    toast.info(`Modifier l'utilisateur ${userId}`);
-  };
-
-  const handleDeleteInternalUser = async (userId: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur interne ? Cette action est irréversible.')) {
-      deleteUser(userId);
+  const handleUserAdded = async (userData: CreateInternalUserRequest) => {
+    const success = await handleCreateUser(userData);
+    if (success) {
+      setIsAddUserDialogOpen(false);
     }
   };
 
-  const handleUserAdded = () => {
-    refetchInternalUsers();
-  };
-
   const handleRefetchClick = () => {
-    refetchInternalUsers();
+    loadInternalUsers();
   };
 
   // Vérifier si l'utilisateur est authentifié
@@ -364,14 +520,14 @@ const PartnerUsers = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {internalUsersLoading ? (
+            {isLoading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="text-gray-500 mt-2">Chargement des utilisateurs internes...</p>
               </div>
-            ) : internalUsersError ? (
+            ) : error ? (
               <div className="text-center py-12">
-                <p className="text-red-500">Erreur lors du chargement : {internalUsersError.message}</p>
+                <p className="text-red-500">Erreur lors du chargement : {error}</p>
                 <Button onClick={handleRefetchClick} className="mt-2">
                   Réessayer
                 </Button>
@@ -424,16 +580,16 @@ const PartnerUsers = () => {
                             <span>{getStatusLabel(user.is_active ? 'active' : 'inactive')}</span>
                           </Badge>
                         </TableCell>
-                                                  <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {user.roles.map((role, index) => (
-                                <Badge key={index} className={`${getInternalRoleColor(role)} flex w-fit items-center gap-1`}>
-                                  {getInternalRoleIcon(role)}
-                                  <span>{getInternalRoleLabel(role)}</span>
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {user.roles.map((role, index) => (
+                              <Badge key={index} className={`${getInternalRoleColor(role)} flex w-fit items-center gap-1`}>
+                                {getInternalRoleIcon(role)}
+                                <span>{getInternalRoleLabel(role)}</span>
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-gray-400" />
@@ -453,21 +609,23 @@ const PartnerUsers = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleViewUser(user.id)}
+                              onClick={() => handleToggleUserStatus(user.id, !user.is_active)}
+                              disabled={isUpdating}
                             >
-                              <Eye className="h-4 w-4" />
+                              {user.is_active ? 'Désactiver' : 'Activer'}
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleEditUser(user.id)}
+                              onClick={() => openEditDialog(user)}
+                              disabled={isUpdating}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleDeleteInternalUser(user.id)}
+                              onClick={() => openDeleteDialog(user)}
                               disabled={isDeleting}
                               className="text-red-600 hover:text-red-700"
                             >
@@ -492,6 +650,95 @@ const PartnerUsers = () => {
         businessId={business.id}
         onUserAdded={handleUserAdded}
       />
+
+      {/* Dialog d'édition */}
+      {editingUser && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Modifier l'Utilisateur</DialogTitle>
+              <DialogDescription>
+                Modifiez les informations de l'utilisateur interne.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Nom complet</Label>
+                <Input
+                  id="edit-name"
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser(prev => prev ? { ...prev, name: e.target.value } : null)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-phone">Téléphone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editingUser.phone || ''}
+                  onChange={(e) => setEditingUser(prev => prev ? { ...prev, phone: e.target.value } : null)}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="edit-is_active"
+                  checked={editingUser.is_active}
+                  onCheckedChange={(checked) => setEditingUser(prev => prev ? { ...prev, is_active: checked } : null)}
+                />
+                <Label htmlFor="edit-is_active">Utilisateur actif</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button onClick={() => handleUpdateUser({})} disabled={isUpdating}>
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Mise à jour...
+                  </>
+                ) : (
+                  'Mettre à jour'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Dialog de suppression */}
+      {deletingUser && (
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Supprimer l'Utilisateur</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer cet utilisateur interne ? Cette action est irréversible.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm text-gray-600">
+                Utilisateur: <strong>{deletingUser.name}</strong>
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeleting}>
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Suppression...
+                  </>
+                ) : (
+                  'Supprimer'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </DashboardLayout>
   );
 };
