@@ -186,7 +186,7 @@ const PartnerOrders = () => {
       // Filtrer les livreurs disponibles (max 5 commandes pour l'assignation multiple)
       const available = drivers.filter(driver => 
         driver.is_active && 
-        driver.is_verified && 
+        driver.is_available && 
         (driver.active_orders_count || 0) < 5
       );
       

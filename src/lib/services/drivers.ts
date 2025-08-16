@@ -143,17 +143,35 @@ export class DriverService {
     try {
       console.log(`🚗 Assignation du livreur ${driverId} à la commande ${orderId}`);
 
-      // 1. Créer l'entrée dans driver_orders
+      // 1. Récupérer les informations de la commande pour les adresses
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('delivery_address, delivery_instructions')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) {
+        console.error('Erreur récupération commande:', orderError);
+        return { success: false, error: orderError.message };
+      }
+
+      // 2. Créer l'entrée dans driver_orders avec les bonnes colonnes
       const { error: driverOrderError } = await supabase
         .from('driver_orders')
         .insert({
           driver_id: driverId,
           order_id: orderId,
-          status: 'pending',
-          pickup_address: '', // Sera rempli plus tard
-          delivery_address: '', // Sera rempli plus tard
-          driver_earnings: 0, // Sera calculé plus tard
-          driver_commission_percentage: 15 // Pourcentage par défaut
+          pickup_address: 'Adresse du restaurant', // Adresse par défaut du restaurant
+          delivery_address: order.delivery_address || 'Adresse de livraison',
+          delivery_instructions: order.delivery_instructions || '',
+          customer_instructions: '',
+          estimated_distance: 0,
+          actual_distance: 0,
+          estimated_duration: 0,
+          actual_duration: 0,
+          driver_earnings: 0,
+          driver_commission_percentage: 15,
+          status: 'pending'
         });
 
       if (driverOrderError) {
@@ -161,7 +179,7 @@ export class DriverService {
         return { success: false, error: driverOrderError.message };
       }
 
-      // 2. Mettre à jour la commande avec le driver_id
+      // 3. Mettre à jour la commande avec le driver_id
       const { error: orderUpdateError } = await supabase
         .from('orders')
         .update({ 

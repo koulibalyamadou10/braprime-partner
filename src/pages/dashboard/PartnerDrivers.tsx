@@ -44,7 +44,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PartnerDriverAuthManager } from '@/components/dashboard/PartnerDriverAuthManager';
 import { supabase } from '@/lib/supabase';
-import { KCreateDriverAuthRequest, KDriverAuthPartnerService } from '@/lib/kservices/k-driver-auth-partner';
+import { KCreateDriverAuthRequest, KDriverAuthPartnerService, KDriverAuthResult } from '@/lib/kservices/k-driver-auth-partner';
 import { KBusinessService } from '@/lib/kservices/k-business';
 import { DRIVER_TYPE_INDEPENDENT } from '@/lib/kservices/k-constant';
 import { DriverCredentials } from '@/components/mails/DriverCredentials';
@@ -68,7 +68,7 @@ const PartnerDrivers = () => {
   // Nouveaux états pour le loading et la confirmation d'envoi
   const [isCreatingDriver, setIsCreatingDriver] = useState(false);
   const [showPasswordSendDialog, setShowPasswordSendDialog] = useState(false);
-  const [createdDriver, setCreatedDriver] = useState<any>(null);
+  const [createdDriver, setCreatedDriver] = useState<KDriverAuthResult | null>(null);
 
   // Formulaires
   const [addForm, setAddForm] = useState({
@@ -226,14 +226,14 @@ const PartnerDrivers = () => {
     try {
       const templateContent = renderToStaticMarkup(
           DriverCredentials({
-        email: createdDriver.email,
-        password: createdDriver.password,
-        driverName: createdDriver.name,
+        email: createdDriver?.email,
+        password: createdDriver?.password,
+        driverName: createdDriver?.name,
         businessName: business.name
       }));
 
       const result = await client.sendMailWithTemplate({
-        recipients: [createdDriver.email],
+        recipients: [createdDriver?.email || ''],
         subject: "Vos identifiants de connexion",
         template_content: templateContent,
       })

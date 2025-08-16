@@ -16,11 +16,27 @@ export interface KCreateDriverAuthRequest {
   is_active?: boolean;
 }
 
+export interface KDriverAuthResult {
+  id: string;
+  name: string;
+  phone_number: string;
+  email: string;
+  business_id: number;
+  type: string;
+  vehicle_type: string;
+  vehicle_plate: string;
+  is_active: boolean;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
+  password: string; // Mot de passe pour l'envoi du mail
+}
+
 
 export class KDriverAuthPartnerService {
 
     // 1- Fonction pour creer un compte livreur
-    async createDriverAuthAccount(request: KCreateDriverAuthRequest) {
+    async createDriverAuthAccount(request: KCreateDriverAuthRequest): Promise<KDriverAuthResult> {
         let authId = '';
         let driverId = '';
         let userProfileId = '';
@@ -112,7 +128,12 @@ export class KDriverAuthPartnerService {
                 driverProfile: driverProfileData
             });
 
-            return driverProfileData;
+            // Retourner les données nécessaires pour l'envoi du mail
+            return {
+                ...driverProfileData,
+                password: request.password, // Inclure le mot de passe pour l'envoi
+                email: request.email // Inclure l'email pour l'envoi
+            };
 
         } catch (error) {
             console.error('💥 Erreur lors de la création des profils:', error);
