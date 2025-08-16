@@ -53,7 +53,7 @@ export class KDriverAuthPartnerService {
                 role_id: 10, // ID du rôle 'driver' dans user_roles
                 is_active: true,
                 is_verified: false
-            }).select().single();
+            })
 
             
             if (userProfileError) {
@@ -61,7 +61,6 @@ export class KDriverAuthPartnerService {
                 throw new Error('Erreur lors de la création du profil utilisateur')
             }
             
-            userProfileId = userProfileData.id;
         // inscrire dans la table driver_profiles avec le même ID
         const { data: driverProfileData, error: driverProfileError } = await supabase
             .from('driver_profiles')
@@ -77,14 +76,11 @@ export class KDriverAuthPartnerService {
                 is_active: true,
                 is_available: true
             })
-            .select().single();
 
             if (driverProfileError) {
                 console.error('Erreur création profil livreur:', driverProfileError)
                 throw new Error('Erreur lors de la création du profil livreur')
             }
-
-            driverId = driverProfileData.id;
 
         // Vérifier que les deux profils ont été créés avec succès
         if (!userProfileData || !driverProfileData) {
