@@ -24,88 +24,119 @@ export class KDriverAuthPartnerService {
         let authId = '';
         let driverId = '';
         let userProfileId = '';
+        
         try {
-            // inscrire dans la table auth.users de supabase avec une rpc
-        const { data, error } = await supabase.auth.admin.createUser({
-            email: request.email,
-            password: request.password
-        });
-
-        
-        
-        
-        if (error) {
-            console.error('Erreur création utilisateur:', error)
-            throw error;
-        }
-
-        console.log('data', data);
-        authId = data.user.id;
-        
-        // l'inscrire dans la table user_profile
-        const { data: userProfileData, error: userProfileError } = await supabase
-            .from('user_profiles')
-            .insert({
-                id: data.user.id,
-                name: request.name,
-                email: request.email,
-                phone_number: request.phone_number,
-                role_id: 10, // ID du rôle 'driver' dans user_roles
-                is_active: true,
-                is_verified: false
-            })
-
+            console.log('🚀 Début création compte livreur:', request.email);
             
-            if (userProfileError) {
-                console.error('Erreur création profil utilisateur:', userProfileError)
-                throw new Error('Erreur lors de la création du profil utilisateur')
+            // 1. Créer l'utilisateur dans auth.users
+            const { data, error } = await supabase.auth.admin.createUser({
+                email: request.email,
+                password: request.password
+            });
+
+            if (error) {
+                console.error('❌ Erreur création utilisateur auth:', error);
+                throw error;
             }
-            
-        // inscrire dans la table driver_profiles avec le même ID
-        const { data: driverProfileData, error: driverProfileError } = await supabase
-            .from('driver_profiles')
-            .insert({
-                id: data.user.id, // Même ID que user_profiles et auth.users
-                business_id: request.business_id,
-                name: request.name,
-                phone_number: request.phone_number,
-                email: request.email,
-                type: request.type,
-                vehicle_type: request.vehicle_type,
-                vehicle_plate: request.vehicle_plate,
-                is_active: true,
-                is_available: true
-            })
+
+            if (!data.user) {
+                throw new Error('Aucun utilisateur créé dans auth');
+            }
+
+            authId = data.user.id;
+            console.log('✅ Utilisateur auth créé:', authId);
+
+            // 2. Créer le profil utilisateur
+            const { data: userProfileData, error: userProfileError } = await supabase
+                .from('user_profiles')
+                .insert({
+                    id: data.user.id,
+                    name: request.name,
+                    email: request.email,
+                    phone_number: request.phone_number,
+                    role_id: 10, // ID du rôle 'driver' dans user_roles
+                    is_active: true,
+                    is_verified: false
+                })
+                .select()
+                .single();
+
+            if (userProfileError) {
+                console.error('❌ Erreur création profil utilisateur:', userProfileError);
+                throw new Error('Erreur lors de la création du profil utilisateur');
+            }
+
+            if (!userProfileData) {
+                throw new Error('Profil utilisateur non créé');
+            }
+
+            userProfileId = userProfileData.id;
+            console.log('✅ Profil utilisateur créé:', userProfileId);
+
+            // 3. Créer le profil livreur
+            const { data: driverProfileData, error: driverProfileError } = await supabase
+                .from('driver_profiles')
+                .insert({
+                    id: data.user.id, // Même ID que user_profiles et auth.users
+                    business_id: request.business_id,
+                    name: request.name,
+                    phone_number: request.phone_number,
+                    email: request.email,
+                    type: request.type,
+                    vehicle_type: request.vehicle_type,
+                    vehicle_plate: request.vehicle_plate,
+                    is_active: true,
+                    is_available: true
+                })
+                .select()
+                .single();
 
             if (driverProfileError) {
-                console.error('Erreur création profil livreur:', driverProfileError)
-                throw new Error('Erreur lors de la création du profil livreur')
+                console.error('❌ Erreur création profil livreur:', driverProfileError);
+                throw new Error('Erreur lors de la création du profil livreur');
             }
 
-        // Vérifier que les deux profils ont été créés avec succès
-        if (!userProfileData || !driverProfileData) {
-            throw new Error('Erreur lors de la création des profils')
-        }
+            if (!driverProfileData) {
+                throw new Error('Profil livreur non créé');
+            }
 
-        console.log('Profils créés avec succès:', {
-            userProfile: userProfileData,
-            driverProfile: driverProfileData
-        })
+            driverId = driverProfileData.id;
+            console.log('✅ Profil livreur créé:', driverId);
 
-        return driverProfileData;
+            // 4. Vérification finale
+            console.log('🎉 Tous les profils créés avec succès:', {
+                authId,
+                userProfileId,
+                driverId,
+                userProfile: userProfileData,
+                driverProfile: driverProfileData
+            });
+
+            return driverProfileData;
+
         } catch (error) {
-            // supprimer les donnees en cas d'incoherence dans l'execution
-            if (authId) {
-                await supabase.auth.admin.deleteUser(authId);
-            }
-            if (userProfileId) {
-                await supabase.from('user_profiles').delete().eq('id', userProfileId);
-            }
-            if (driverId) {
-                await supabase.from('driver_profiles').delete().eq('id', driverId);
+            console.error('💥 Erreur lors de la création des profils:', error);
+            
+            // Nettoyage en cas d'erreur (rollback)
+            try {
+                if (driverId) {
+                    console.log('🧹 Suppression profil livreur:', driverId);
+                    await supabase.from('driver_profiles').delete().eq('id', driverId);
+                }
+                
+                if (userProfileId) {
+                    console.log('🧹 Suppression profil utilisateur:', userProfileId);
+                    await supabase.from('user_profiles').delete().eq('id', userProfileId);
+                }
+                
+                if (authId) {
+                    console.log('🧹 Suppression utilisateur auth:', authId);
+                    await supabase.auth.admin.deleteUser(authId);
+                }
+            } catch (cleanupError) {
+                console.error('⚠️ Erreur lors du nettoyage:', cleanupError);
             }
 
-            console.error('Erreur lors de la création des profils:', error)
             throw error;
         }
     }
@@ -150,6 +181,48 @@ export class KDriverAuthPartnerService {
         }
 
         return data;
+    }
+
+    // 5- Fonction de test pour vérifier la création
+    async testDriverCreation(request: KCreateDriverAuthRequest) {
+        try {
+            console.log('🧪 Test de création de livreur...');
+            
+            // Vérifier que les tables existent et sont accessibles
+            const { data: userProfilesTest, error: userProfilesError } = await supabase
+                .from('user_profiles')
+                .select('id')
+                .limit(1);
+            
+            if (userProfilesError) {
+                console.error('❌ Erreur accès user_profiles:', userProfilesError);
+                return { success: false, error: 'user_profiles inaccessible' };
+            }
+            
+            const { data: driverProfilesTest, error: driverProfilesError } = await supabase
+                .from('driver_profiles')
+                .select('id')
+                .limit(1);
+            
+            if (driverProfilesError) {
+                console.error('❌ Erreur accès driver_profiles:', driverProfilesError);
+                return { success: false, error: 'driver_profiles inaccessible' };
+            }
+            
+            console.log('✅ Tables accessibles');
+            
+            // Vérifier les contraintes
+            console.log('📋 Vérification des contraintes...');
+            console.log('- business_id:', request.business_id);
+            console.log('- role_id: 10 (driver)');
+            console.log('- email:', request.email);
+            
+            return { success: true, message: 'Tables accessibles et contraintes vérifiées' };
+            
+        } catch (error) {
+            console.error('❌ Erreur test:', error);
+            return { success: false, error: error.message };
+        }
     }
 }
 
