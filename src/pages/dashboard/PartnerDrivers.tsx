@@ -47,6 +47,9 @@ import { supabase } from '@/lib/supabase';
 import { KCreateDriverAuthRequest, KDriverAuthPartnerService } from '@/lib/kservices/k-driver-auth-partner';
 import { KBusinessService } from '@/lib/kservices/k-business';
 import { DRIVER_TYPE_INDEPENDENT } from '@/lib/kservices/k-constant';
+import { DriverCredentials } from '@/components/mails/DriverCredentials';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { client } from '@/lib/kservices/k-wontan';
 
 
 
@@ -221,7 +224,22 @@ const PartnerDrivers = () => {
   // Fonction pour envoyer le mot de passe par email
   const handleSendPasswordByEmail = async () => {
     try {
-      // TODO: Implémenter l'envoi par email
+      const templateContent = renderToStaticMarkup(
+          DriverCredentials({
+        email: createdDriver.email,
+        password: createdDriver.password,
+        driverName: createdDriver.name,
+        businessName: business.name
+      }));
+
+      const result = await client.sendMailWithTemplate({
+        recipients: [createdDriver.email],
+        subject: "Vos identifiants de connexion",
+        template_content: templateContent,
+      })
+
+      console.log('result', result);
+
       toast.success('Mot de passe envoyé par email avec succès');
       setShowPasswordSendDialog(false);
       setIsAddDialogOpen(false);
