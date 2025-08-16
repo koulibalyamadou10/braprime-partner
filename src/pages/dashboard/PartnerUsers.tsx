@@ -507,58 +507,58 @@ const PartnerUsers = () => {
 
         {/* Statistiques */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100">
+          <Card className="border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-blue-800">Total Équipe</p>
-                  <p className="text-3xl font-bold text-blue-900">
+                  <p className="text-sm font-medium text-gray-700">Total Équipe</p>
+                  <p className="text-3xl font-bold text-gray-900">
                     {internalUsers.length}
                   </p>
                 </div>
-                <Users className="h-8 w-8 text-blue-600" />
+                <Users className="h-8 w-8 text-gray-600" />
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100">
+          <Card className="border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-800">Utilisateurs Actifs</p>
-                  <p className="text-3xl font-bold text-green-900">
+                  <p className="text-sm font-medium text-gray-700">Utilisateurs Actifs</p>
+                  <p className="text-3xl font-bold text-gray-900">
                     {internalUsers.filter(u => u.is_active).length}
                   </p>
                 </div>
-                <UserCheck className="h-8 w-8 text-green-600" />
+                <UserCheck className="h-8 w-8 text-gray-600" />
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100">
+          <Card className="border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-purple-800">Rôles Différents</p>
-                  <p className="text-3xl font-bold text-purple-900">
+                  <p className="text-sm font-medium text-gray-700">Rôles Différents</p>
+                  <p className="text-3xl font-bold text-gray-900">
                     {new Set(internalUsers.flatMap(u => u.roles)).size}
                   </p>
                 </div>
-                <Shield className="h-8 w-8 text-purple-600" />
+                <Shield className="h-8 w-8 text-gray-600" />
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-50 to-amber-100">
+          <Card className="border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-amber-800">Dernière Connexion</p>
-                  <p className="text-3xl font-bold text-amber-900">
+                  <p className="text-sm font-medium text-gray-700">Dernière Connexion</p>
+                  <p className="text-3xl font-bold text-gray-900">
                     {internalUsers.length > 0 ? 'Aujourd\'hui' : 'Aucune'}
                   </p>
                 </div>
-                <Clock className="h-8 w-8 text-amber-600" />
+                <Clock className="h-8 w-8 text-gray-600" />
               </div>
             </CardContent>
           </Card>
