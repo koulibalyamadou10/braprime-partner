@@ -1,5 +1,5 @@
 import { AssignDriverDialog } from '@/components/AssignDriverDialog';
-import { PartnerOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { PartnerOrdersSkeleton, PartnerOrdersProgressiveSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,7 +46,16 @@ export interface DashboardOrder extends PartnerOrder {
 }
 
 const PartnerOrders = () => {
-  const { business, updateOrderStatus, refresh } = usePartnerDashboard();
+  // Utiliser le hook optimisé avec chargement progressif
+  const { 
+    business, 
+    updateOrderStatus, 
+    refresh,
+    isBusinessLoading,
+    isOrdersLoading,
+    error: dashboardError
+  } = usePartnerDashboard();
+  
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<DashboardOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<DashboardOrder | null>(null);
@@ -105,8 +114,10 @@ const PartnerOrders = () => {
 
   // Charger les commandes au montage et quand le business change
   useEffect(() => {
-    loadOrders();
-  }, [business]);
+    if (business && !isBusinessLoading) {
+      loadOrders();
+    }
+  }, [business, isBusinessLoading]);
 
   // Filtrer les commandes
   useEffect(() => {
@@ -467,6 +478,28 @@ const PartnerOrders = () => {
     setIsAssignDriverOpen(true);
   };
 
+  // Fonction de préchargement manuel des données
+  const preloadData = async () => {
+    try {
+      toast.info('🔄 Préchargement des données...')
+      await refresh()
+      await loadOrders()
+      toast.success('✅ Données préchargées avec succès!')
+    } catch (error) {
+      toast.error('❌ Erreur lors du préchargement')
+      console.error('Erreur de préchargement:', error)
+    }
+  }
+
+  // Vérifier si l'utilisateur est authentifié et si le business est chargé
+  if (!business && isBusinessLoading) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+        <PartnerOrdersSkeleton />
+      </DashboardLayout>
+    );
+  }
+
   if (!business) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
@@ -486,15 +519,20 @@ const PartnerOrders = () => {
     );
   }
 
-  if (isLoading) {
+  // Afficher le chargement progressif une fois que le business est chargé
+  if (business && (isOrdersLoading || isLoading)) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
-        <PartnerOrdersSkeleton />
+        <PartnerOrdersProgressiveSkeleton
+          business={business}
+          isBusinessLoading={false}
+          isOrdersLoading={isOrdersLoading || isLoading}
+        />
       </DashboardLayout>
     );
   }
 
-  if (error) {
+  if (error || dashboardError) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
         <div className="space-y-6">
@@ -506,11 +544,17 @@ const PartnerOrders = () => {
           </div>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-red-500 mb-4">{error}</p>
-              <Button onClick={loadOrders}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Réessayer
-              </Button>
+              <p className="text-red-500 mb-4">{error || dashboardError}</p>
+              <div className="flex gap-2">
+                <Button onClick={preloadData} variant="outline">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Précharger
+                </Button>
+                <Button onClick={loadOrders}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Réessayer
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -529,10 +573,16 @@ const PartnerOrders = () => {
               Gérez les commandes de {business.name}
             </p>
           </div>
-          <Button onClick={loadOrders} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualiser
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={preloadData} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Précharger
+            </Button>
+            <Button onClick={loadOrders} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
+          </div>
         </div>
 
         {/* Filtres et recherche */}

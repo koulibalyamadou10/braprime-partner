@@ -2,7 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, MapPin, Phone, Mail, Calendar, ShoppingBag, DollarSign, Users, Star, Package } from "lucide-react";
+import { Home, MapPin, Phone, Mail, Calendar, ShoppingBag, DollarSign, Users, Star, Package, Search, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 // Skeleton pour les cartes de statistiques
 export const StatsCardSkeleton = () => (
@@ -1089,6 +1090,108 @@ export const PartnerDashboardProgressiveSkeleton = ({
               <p className="text-gray-500">Aucun article dans le menu</p>
             </div>
           )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Composant de skeleton pour les commandes partenaires avec chargement progressif
+export const PartnerOrdersProgressiveSkeleton = ({ 
+  business,
+  isBusinessLoading,
+  isOrdersLoading
+}: {
+  business: any;
+  isBusinessLoading: boolean;
+  isOrdersLoading: boolean;
+}) => {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes</h2>
+          {business ? (
+            <p className="text-gray-500">
+              Gérez les commandes de {business.name}
+            </p>
+          ) : (
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-20 bg-gray-200 rounded animate-pulse" />
+          <div className="h-9 w-20 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Filtres et recherche */}
+      <div className="flex flex-col gap-4 md:flex-row">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input 
+              type="search" 
+              placeholder="Rechercher par client ou ID commande..." 
+              className="pl-8"
+              disabled
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          <div className="h-9 w-[180px] bg-gray-200 rounded animate-pulse" />
+          <div className="h-9 w-[180px] bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Statistiques en cours de chargement */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-4 flex flex-col items-center justify-center">
+              <div className="h-4 w-24 bg-gray-200 rounded animate-pulse mb-2" />
+              <div className="h-8 w-12 bg-gray-200 rounded animate-pulse" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Bouton d'action en cours de chargement */}
+      <div className="h-10 w-64 bg-gray-200 rounded animate-pulse" />
+
+      {/* Liste des commandes en cours de chargement */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Commandes récentes</CardTitle>
+          <CardDescription>
+            Gérez les commandes de vos clients et mettez à jour leur statut.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right space-y-2">
+                    <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                  <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-8 w-16 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>
