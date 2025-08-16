@@ -2,6 +2,7 @@
 // classe qui permet de gerer tout ce qui concerne les livreurs
 
 import { supabase } from "../supabase";
+import { DRIVER_ORDER_TYPE_PENDING, ORDER_STATUS_OUT_FOR_DELIVERY, ORDER_STATUS_READY } from "./k-constant";
 
 export interface KCreateDriverAuthRequest {
   id?: string;
@@ -247,6 +248,141 @@ export class KDriverAuthPartnerService {
     }
 
     // 6- Fonction pour assigner un livreur à une commande
+    static async assignDriverToOrder(driverId: string, orderId: string): Promise<{ success: boolean; error: string | null }> {
+        try {
+            console.log(`🚗 Début assignation du livreur ${driverId} à la commande ${orderId}`);
+            
+            // 1. Mettre à jour la commande avec le driver_id et changer le statut
+            const { error: orderUpdateError } = await supabase
+                .from('orders')
+                .update({
+                    driver_id: driverId,
+                    status: ORDER_STATUS_OUT_FOR_DELIVERY, // Commande en cours de livraison
+                    available_for_drivers: false, // Plus disponible pour d'autres livreurs
+                    updated_at: new Date().toISOString(),
+                    assigned_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (orderUpdateError) {
+                console.error('❌ Erreur mise à jour commande:', orderUpdateError);
+                
+                // Rollback : mettre le status a ready et driver_id a null et assigned_at a null
+                await supabase
+                    .from('orders')
+                    .update({
+                        driver_id: null,
+                        status: ORDER_STATUS_READY,
+                        assigned_at: null
+                    })
+                    .eq('id', orderId);
+
+                return { success: false, error: 'Erreur lors de la mise à jour de la commande' };
+            }
+
+            return { success: true, error: null };
+
+        } catch (error) {
+            console.error('💥 Erreur lors de l\'assignation du livreur:', error);
+            return { success: false, error: 'Erreur lors de l\'assignation du livreur' };
+        }
+    }
+
+    // 7- Fonction pour libérer un livreur d'une commande
+    async releaseDriverFromOrder(driverId: string, orderId: string): Promise<{ success: boolean; error: string | null }> {
+        try {
+            console.log(`🔓 Début libération du livreur ${driverId} de la commande ${orderId}`);
+            
+            // 1. Supprimer l'entrée dans driver_orders
+            const { error: driverOrderError } = await supabase
+                .from('driver_orders')
+                .delete()
+                .eq('driver_id', driverId)
+                .eq('order_id', orderId);
+
+            if (driverOrderError) {
+                console.error('❌ Erreur suppression driver_order:', driverOrderError);
+                return { success: false, error: 'Erreur lors de la suppression de l\'assignation' };
+            }
+
+            // 2. Mettre à jour la commande
+            const { error: orderUpdateError } = await supabase
+                .from('orders')
+                .update({
+                    driver_id: null,
+                    status: ORDER_STATUS_READY, // Retour au statut prêt
+                    available_for_drivers: true, // Disponible pour d'autres livreurs
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (orderUpdateError) {
+                console.error('❌ Erreur mise à jour commande:', orderUpdateError);
+                return { success: false, error: 'Erreur lors de la mise à jour de la commande' };
+            }
+
+            // 3. Vérifier si le livreur peut redevenir disponible
+            const { data: remainingOrders, error: remainingOrdersError } = await supabase
+                .from('driver_orders')
+                .select('id')
+                .eq('driver_id', driverId)
+                .in('status', ['pending', 'picked_up', 'out_for_delivery']);
+
+            if (!remainingOrdersError && remainingOrders && remainingOrders.length < 3) {
+                const { error: driverUpdateError } = await supabase
+                    .from('driver_profiles')
+                    .update({
+                        is_available: true,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', driverId);
+
+                if (driverUpdateError) {
+                    console.warn('⚠️ Erreur mise à jour disponibilité livreur:', driverUpdateError);
+                }
+            }
+
+            console.log('✅ Livreur libéré avec succès de la commande');
+            return { success: true, error: null };
+
+        } catch (error) {
+            console.error('💥 Erreur lors de la libération du livreur:', error);
+            return { success: false, error: 'Erreur lors de la libération du livreur' };
+        }
+    }
+
+    // 8- Fonction pour récupérer les commandes d'un livreur
+    async getDriverOrders(driverId: string): Promise<{ orders: any[] | null; error: string | null }> {
+        try {
+            const { data: driverOrders, error } = await supabase
+                .from('driver_orders')
+                .select(`
+                    *,
+                    orders (
+                        id,
+                        order_number,
+                        status,
+                        total,
+                        delivery_address,
+                        delivery_instructions,
+                        created_at
+                    )
+                `)
+                .eq('driver_id', driverId)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('❌ Erreur récupération commandes livreur:', error);
+                return { orders: null, error: error.message };
+            }
+
+            return { orders: driverOrders, error: null };
+
+        } catch (error) {
+            console.error('💥 Erreur lors de la récupération des commandes:', error);
+            return { orders: null, error: 'Erreur lors de la récupération des commandes' };
+        }
+    }
     
 }
 

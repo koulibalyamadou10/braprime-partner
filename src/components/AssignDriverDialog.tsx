@@ -16,6 +16,7 @@ import { User, Phone, Car, Zap, Bike, Truck, Star, RefreshCw, Search, Package } 
 import { toast } from 'sonner';
 import { DriverService, Driver } from '@/lib/services/drivers';
 import { OrderService } from '@/lib/services/orders';
+import { KDriverAuthPartnerService } from '@/lib/kservices/k-driver-auth-partner';
 
 interface AssignDriverDialogProps {
   isOpen: boolean;
@@ -114,52 +115,37 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
     }
 
     // Vérifier le nombre de commandes actives (maximum 3)
-    const activeOrdersCount = selectedDriver.active_orders_count || 0;
-    const maxOrders = isMultipleAssignment ? 5 : 3; // Plus de flexibilité pour l'assignation multiple
-    if (activeOrdersCount >= maxOrders) {
-      toast.error(`Ce livreur a déjà ${maxOrders} commandes en cours`);
-      return;
-    }
+    // const activeOrdersCount = selectedDriver.active_orders_count || 0;
+    // const maxOrders = isMultipleAssignment ? 5 : 3; // Plus de flexibilité pour l'assignation multiple
+    // if (activeOrdersCount >= maxOrders) {
+    //   toast.error(`Ce livreur a déjà ${maxOrders} commandes en cours`);
+    //   return;
+    // }
 
-    if (!selectedDriver.is_available) {
-      toast.error('Ce livreur n\'est pas disponible actuellement');
-      return;
-    }
+    // if (!selectedDriver.is_available) {
+    //   toast.error('Ce livreur n\'est pas disponible actuellement');
+    //   return;
+    // }
 
     try {
       setIsLoading(true);
 
       if (isMultipleAssignment) {
         // Pour l'assignation multiple, on ne fait pas l'assignation ici
-        // Elle sera gérée par le composant parent
         toast.success(`Livreur ${selectedDriver.name} sélectionné pour l'assignation multiple`);
-        onDriverAssigned(selectedDriver.id, selectedDriver.name, selectedDriver.phone);
         onClose();
       } else {
         // Assignation normale pour une seule commande
-      const { error: assignError } = await OrderService.assignDriver(
-        orderId, 
-        selectedDriver.id, 
-        selectedDriver.name, 
-        selectedDriver.phone
-      );
-
-      if (assignError) {
-        throw new Error(assignError);
-      }
-
-      // Assigner le livreur dans la table drivers
-      const { error: driverAssignError } = await DriverService.assignDriverToOrder(
-        selectedDriver.id, 
-        orderId
-      );
-
-      if (driverAssignError) {
-        throw new Error(driverAssignError);
-      }
+      
+        const result = await KDriverAuthPartnerService.assignDriverToOrder(selectedDriver.id, orderId);
+        if (result.success) {
+          toast.success(`Livreur ${selectedDriver.name} assigné avec succès`);
+          onClose();
+        } else {
+          toast.error(result.error || 'Erreur lors de l\'assignation du livreur');
+        }
 
       toast.success(`Livreur ${selectedDriver.name} assigné avec succès`);
-      onDriverAssigned(selectedDriver.id, selectedDriver.name, selectedDriver.phone);
       onClose();
       }
     } catch (err) {

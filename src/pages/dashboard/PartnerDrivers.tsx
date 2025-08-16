@@ -51,6 +51,13 @@ import { DriverCredentials } from '@/components/mails/DriverCredentials';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { client } from '@/lib/kservices/k-wontan';
 
+// Interface pour l'assignation des livreurs
+interface DriverAssignment {
+  driverId: string;
+  orderId: string;
+  driverName: string;
+  orderNumber: string;
+}
 
 
 const PartnerDrivers = () => {
@@ -69,6 +76,13 @@ const PartnerDrivers = () => {
   const [isCreatingDriver, setIsCreatingDriver] = useState(false);
   const [showPasswordSendDialog, setShowPasswordSendDialog] = useState(false);
   const [createdDriver, setCreatedDriver] = useState<KDriverAuthResult | null>(null);
+
+  // États pour l'assignation des livreurs
+  const [isAssigningDriver, setIsAssigningDriver] = useState(false);
+  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<DriverAssignment | null>(null);
+  const [availableOrders, setAvailableOrders] = useState<any[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   // Formulaires
   const [addForm, setAddForm] = useState({
@@ -145,6 +159,81 @@ const PartnerDrivers = () => {
     loadDrivers() // appeler la fonction getDrivers
   }, []);
 
+  // Fonction pour charger les commandes disponibles pour l'assignation
+  const loadAvailableOrders = async () => {
+    if (!business) return;
+    
+    setIsLoadingOrders(true);
+    try {
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('business_id', business.id)
+        .is('driver_id', null) // Pas encore assignée
+        .eq('status', 'ready') // Statut prêt pour l'assignation
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erreur chargement commandes:', error);
+        toast.error('Erreur lors du chargement des commandes');
+        return;
+      }
+
+      setAvailableOrders(orders || []);
+    } catch (error) {
+      console.error('Erreur chargement commandes:', error);
+      toast.error('Erreur lors du chargement des commandes');
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  // Fonction pour ouvrir le dialog d'assignation
+  const openAssignmentDialog = (driver: any) => {
+    setSelectedAssignment({
+      driverId: driver.id,
+      orderId: '',
+      driverName: driver.name,
+      orderNumber: ''
+    });
+    setShowAssignmentDialog(true);
+    loadAvailableOrders();
+  };
+
+  // Fonction pour assigner un livreur à une commande
+  const handleAssignDriverToOrder = async () => {
+    if (!selectedAssignment || !selectedAssignment.orderId) {
+      toast.error('Veuillez sélectionner une commande');
+      return;
+    }
+
+    setIsAssigningDriver(true);
+    try {
+      const result = await driverAuthService.assignDriverToOrder(
+        selectedAssignment.driverId,
+        selectedAssignment.orderId
+      );
+
+      if (result.success) {
+        toast.success('Livreur assigné avec succès à la commande !');
+        setShowAssignmentDialog(false);
+        setSelectedAssignment(null);
+        
+        // Recharger les données
+        const updatedDrivers = await driverAuthService.getDrivers(business.id);
+        setDrivers(updatedDrivers || []);
+        loadAvailableOrders();
+      } else {
+        toast.error(result.error || 'Erreur lors de l\'assignation');
+      }
+    } catch (error) {
+      console.error('Erreur assignation:', error);
+      toast.error('Erreur lors de l\'assignation du livreur');
+    } finally {
+      setIsAssigningDriver(false);
+    }
+  };
+
 
   // Gestionnaires d'événements
   const handleAddDriver = async () => {
@@ -194,6 +283,7 @@ const PartnerDrivers = () => {
         // Recharger la liste des livreurs
         const updatedDrivers = await driverAuthService.getDrivers(business.id);
         setDrivers(updatedDrivers || []);
+        loadAvailableOrders();
       }
       else {
         setIsCreatingDriver(false);
@@ -676,6 +766,14 @@ const PartnerDrivers = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                onClick={() => openAssignmentDialog(driver)}
+                                title="Assigner à une commande"
+                              >
+                                <Package className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => openEditDialog(driver)}
                               >
                                 <Edit className="h-4 w-4" />
@@ -864,6 +962,102 @@ const PartnerDrivers = () => {
             <DialogFooter className="pt-4">
               <Button onClick={() => setShowPasswordSendDialog(false)}>
                 Fermer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog d'assignation des livreurs aux commandes */}
+        <Dialog open={showAssignmentDialog} onOpenChange={setShowAssignmentDialog}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Assigner un Livreur à une Commande</DialogTitle>
+              <DialogDescription>
+                Assignez le livreur <strong>{selectedAssignment?.driverName}</strong> à une commande disponible.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <div className="grid gap-2">
+                <Label htmlFor="order-selection" className="text-sm">Sélectionner une commande *</Label>
+                <Select 
+                  value={selectedAssignment?.orderId || ''} 
+                  onValueChange={(value) => setSelectedAssignment(prev => prev ? { ...prev, orderId: value } : null)}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Choisir une commande" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingOrders ? (
+                      <SelectItem value="" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Chargement des commandes...
+                        </div>
+                      </SelectItem>
+                    ) : availableOrders.length > 0 ? (
+                      availableOrders.map((order) => (
+                        <SelectItem key={order.id} value={order.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {order.order_number || `Commande #${order.id.slice(0, 8)}`}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {order.delivery_address}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        Aucune commande disponible
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  Seules les commandes avec le statut "Prêt" peuvent être assignées.
+                </p>
+              </div>
+
+              {selectedAssignment?.orderId && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-sm text-blue-900 mb-2">Détails de la commande</h4>
+                  {(() => {
+                    const order = availableOrders.find(o => o.id === selectedAssignment.orderId);
+                    if (!order) return null;
+                    
+                    return (
+                      <div className="space-y-1 text-sm text-blue-800">
+                        <p><strong>Numéro:</strong> {order.order_number || `#${order.id.slice(0, 8)}`}</p>
+                        <p><strong>Adresse:</strong> {order.delivery_address}</p>
+                        <p><strong>Instructions:</strong> {order.delivery_instructions || 'Aucune'}</p>
+                        <p><strong>Total:</strong> {order.total ? `${order.total / 100} €` : 'Non spécifié'}</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={() => setShowAssignmentDialog(false)} size="sm">
+                Annuler
+              </Button>
+              <Button 
+                onClick={handleAssignDriverToOrder} 
+                size="sm"
+                disabled={!selectedAssignment?.orderId || isAssigningDriver}
+              >
+                {isAssigningDriver ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Assignation...
+                  </>
+                ) : (
+                  <>
+                    <Package className="mr-2 h-4 w-4" />
+                    Assigner le livreur
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
