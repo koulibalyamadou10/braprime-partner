@@ -38,6 +38,7 @@ import { Input } from '../../components/ui/input';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Label } from '../../components/ui/label';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -209,6 +210,47 @@ const PartnerOrders = () => {
       await loadOrders();
     } else {
       toast.error('Erreur lors de la mise à jour du statut');
+    }
+  };
+
+  // Gérer le changement de disponibilité pour les livreurs
+  const handleAvailabilityChange = async (orderId: string, available: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          available_for_drivers: available,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Erreur mise à jour disponibilité:', error);
+        toast.error('Erreur lors de la mise à jour de la disponibilité');
+        return;
+      }
+
+      toast.success(`Commande ${available ? 'disponible' : 'non disponible'} pour les livreurs`);
+      
+      // Mettre à jour l'état local
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, available_for_drivers: available }
+            : order
+        )
+      );
+      
+      setFilteredOrders(prevFiltered => 
+        prevFiltered.map(order => 
+          order.id === orderId 
+            ? { ...order, available_for_drivers: available }
+            : order
+        )
+      );
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour de la disponibilité:', err);
+      toast.error('Erreur lors de la mise à jour de la disponibilité');
     }
   };
 
@@ -803,6 +845,7 @@ const PartnerOrders = () => {
                     <TableHead>Livraison</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Statut</TableHead>
+                    <TableHead>Disponible</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -841,6 +884,21 @@ const PartnerOrders = () => {
                           {getStatusIcon(order.status)}
                           <span className="capitalize">{getStatusLabel(order.status)}</span>
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={order.available_for_drivers || false}
+                            onCheckedChange={(checked) => handleAvailabilityChange(order.id, checked as boolean)}
+                            disabled={order.status === 'delivered' || order.status === 'cancelled'}
+                          />
+                          <span className="text-xs text-gray-500">
+                            {order.status === 'delivered' || order.status === 'cancelled' 
+                              ? 'N/A' 
+                              : order.available_for_drivers ? 'Disponible' : 'Non disponible'
+                            }
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -1138,6 +1196,34 @@ const PartnerOrders = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Contrôle de disponibilité pour les livreurs */}
+                {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                  <div className="border rounded-lg p-4 bg-white">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      Disponibilité Livreurs
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          id="available-for-drivers"
+                          checked={selectedOrder.available_for_drivers || false}
+                          onCheckedChange={(checked) => handleAvailabilityChange(selectedOrder.id, checked as boolean)}
+                        />
+                        <Label htmlFor="available-for-drivers" className="text-sm">
+                          Cette commande est disponible pour les livreurs
+                        </Label>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {selectedOrder.available_for_drivers 
+                          ? "Les livreurs peuvent voir et accepter cette commande"
+                          : "Cette commande n'est pas visible pour les livreurs"
+                        }
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Informations du livreur */}
                 {selectedOrder.driver_name && (
