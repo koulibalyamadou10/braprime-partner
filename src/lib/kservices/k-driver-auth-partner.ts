@@ -245,6 +245,9 @@ export class KDriverAuthPartnerService {
             return { success: false, error: error.message };
         }
     }
+
+    // 6- Fonction pour assigner un livreur à une commande
+    
 }
 
 

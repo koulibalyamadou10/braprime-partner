@@ -24,10 +24,18 @@ export class DriverService {
     try {
       console.log(`🔍 Recherche de tous les drivers pour business ${businessId}`);
 
-      // Récupérer tous les drivers du business ou indépendants
+      // Récupérer tous les drivers du business ou indépendants avec une JOIN
       const { data: drivers, error } = await supabase
         .from('driver_profiles')
-        .select('*')
+        .select(`
+          *,
+          user_profiles!inner(
+            id,
+            name,
+            email,
+            phone_number
+          )
+        `)
         .or(`business_id.eq.${businessId},business_id.is.null`)
         .order('is_active', { ascending: false })
         .order('is_available', { ascending: false });
@@ -53,7 +61,9 @@ export class DriverService {
 
           return {
             ...driver,
-            phone: driver.phone_number || driver.phone, // Compatibilité avec les deux champs
+            name: driver.user_profiles?.name || driver.name,
+            email: driver.user_profiles?.email || driver.email,
+            phone: driver.user_profiles?.phone_number || driver.phone_number,
             active_orders_count: ordersError ? 0 : (activeOrders?.length || 0)
           };
         })
@@ -83,10 +93,18 @@ export class DriverService {
     try {
       console.log(`🔍 Recherche de drivers disponibles pour business ${businessId}`);
 
-      // Récupérer les drivers actifs et disponibles
+      // Récupérer les drivers actifs et disponibles avec une JOIN
       const { data: drivers, error } = await supabase
         .from('driver_profiles')
-        .select('*')
+        .select(`
+          *,
+          user_profiles!inner(
+            id,
+            name,
+            email,
+            phone_number
+          )
+        `)
         .or(`business_id.eq.${businessId},business_id.is.null`)
         .eq('is_active', true)
         .eq('is_available', true)
@@ -110,6 +128,9 @@ export class DriverService {
 
             return {
               ...driver,
+              name: driver.user_profiles?.name || driver.name,
+              email: driver.user_profiles?.email || driver.email,
+              phone: driver.user_profiles?.phone_number || driver.phone_number,
               active_orders_count: ordersError ? 0 : (activeOrders?.length || 0)
             };
           })
@@ -126,7 +147,6 @@ export class DriverService {
         name: d.name, 
         business_id: d.business_id, 
         type: d.business_id === businessId ? 'service' : 'independent',
-        rating: d.rating,
         vehicle_type: d.vehicle_type,
         active_orders_count: d.active_orders_count
       })));
