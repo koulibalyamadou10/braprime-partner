@@ -88,6 +88,14 @@ const PartnerUsers = () => {
   });
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
 
+  // État pour le popup des identifiants
+  const [showCredentialsPopup, setShowCredentialsPopup] = useState(false);
+  const [createdUserCredentials, setCreatedUserCredentials] = useState<{
+    name: string;
+    email: string;
+    password: string;
+  } | null>(null);
+
   // Récupérer les données du business
   const { business } = usePartnerDashboard();
 
@@ -198,6 +206,15 @@ const PartnerUsers = () => {
       if (result.success) {
         toast.success('Utilisateur interne créé avec succès !');
         setIsAddUserDialogOpen(false);
+        
+        // Afficher le popup avec les identifiants
+        setCreatedUserCredentials({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password
+        });
+        setShowCredentialsPopup(true);
+        
         resetForm();
         await loadInternalUsers(); // Recharger la liste
       } else {
@@ -948,6 +965,110 @@ const PartnerUsers = () => {
               ) : (
                 'Supprimer'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Popup des identifiants créés */}
+      <Dialog open={showCredentialsPopup} onOpenChange={setShowCredentialsPopup}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-green-600" />
+              Utilisateur Créé avec Succès !
+            </DialogTitle>
+            <DialogDescription>
+              Voici les identifiants de connexion pour {createdUserCredentials?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Informations de l'utilisateur */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900">{createdUserCredentials?.name}</h4>
+                  <p className="text-sm text-gray-500">Nouvel utilisateur interne</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Identifiants de connexion */}
+            <div className="space-y-3">
+              <h5 className="font-medium text-gray-900">Identifiants de Connexion</h5>
+              
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Email :</span>
+                  </div>
+                  <code className="px-2 py-1 bg-white rounded text-sm font-mono text-blue-800 border">
+                    {createdUserCredentials?.email}
+                  </code>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-gray-700">Mot de passe :</span>
+                  </div>
+                  <code className="px-2 py-1 bg-white rounded text-sm font-mono text-green-800 border">
+                    {createdUserCredentials?.password}
+                  </code>
+                </div>
+              </div>
+            </div>
+
+            {/* Avertissement de sécurité */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <Shield className="h-4 w-4 text-amber-600 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium mb-1">⚠️ Important :</p>
+                  <p>Ces identifiants ne seront plus visibles après fermeture de cette fenêtre. 
+                  Envoyez-les immédiatement à l'utilisateur par email ou SMS.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col gap-3 sm:flex-row">
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                className="flex-1 sm:flex-none"
+                onClick={() => {
+                  // TODO: Implémenter l'envoi par SMS
+                  toast.info('Fonctionnalité SMS à implémenter');
+                }}
+              >
+                <Phone className="h-4 w-4 mr-2" />
+                Envoyer par SMS
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="flex-1 sm:flex-none"
+                onClick={() => {
+                  // TODO: Implémenter l'envoi par email
+                  toast.info('Fonctionnalité Email à implémenter');
+                }}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Envoyer par Email
+              </Button>
+            </div>
+            
+            <Button 
+              onClick={() => setShowCredentialsPopup(false)}
+              className="w-full sm:w-auto"
+            >
+              Fermer
             </Button>
           </DialogFooter>
         </DialogContent>
