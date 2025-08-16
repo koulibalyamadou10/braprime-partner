@@ -55,13 +55,13 @@ export class KDriverAuthPartnerService {
                 is_verified: false
             }).select().single();
 
+            
+            if (userProfileError) {
+                console.error('Erreur création profil utilisateur:', userProfileError)
+                throw new Error('Erreur lors de la création du profil utilisateur')
+            }
+            
             userProfileId = userProfileData.id;
-
-        if (userProfileError) {
-            console.error('Erreur création profil utilisateur:', userProfileError)
-            throw new Error('Erreur lors de la création du profil utilisateur')
-        }
-
         // inscrire dans la table driver_profiles avec le même ID
         const { data: driverProfileData, error: driverProfileError } = await supabase
             .from('driver_profiles')
@@ -79,12 +79,12 @@ export class KDriverAuthPartnerService {
             })
             .select().single();
 
-        driverId = driverProfileData.id;
+            if (driverProfileError) {
+                console.error('Erreur création profil livreur:', driverProfileError)
+                throw new Error('Erreur lors de la création du profil livreur')
+            }
 
-        if (driverProfileError) {
-            console.error('Erreur création profil livreur:', driverProfileError)
-            throw new Error('Erreur lors de la création du profil livreur')
-        }
+            driverId = driverProfileData.id;
 
         // Vérifier que les deux profils ont été créés avec succès
         if (!userProfileData || !driverProfileData) {
