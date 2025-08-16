@@ -121,8 +121,8 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
       return;
     }
 
-    if (!selectedDriver.is_verified) {
-      toast.error('Ce livreur n\'est pas encore vérifié');
+    if (!selectedDriver.is_available) {
+      toast.error('Ce livreur n\'est pas disponible actuellement');
       return;
     }
 
@@ -187,8 +187,8 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
       return;
     }
 
-    if (!driver.is_verified) {
-      toast.error('Ce livreur n\'est pas encore vérifié');
+    if (!driver.is_available) {
+      toast.error('Ce livreur n\'est pas disponible actuellement');
       return;
     }
 
@@ -199,16 +199,16 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
     const activeOrdersCount = driver.active_orders_count || 0;
     const maxOrders = isMultipleAssignment ? 5 : 3;
     
-    // Un driver est disponible s'il est actif ET vérifié ET n'a pas trop de commandes
-    return driver.is_active && driver.is_verified && activeOrdersCount < maxOrders;
+    // Un driver est disponible s'il est actif ET disponible ET n'a pas trop de commandes
+    return driver.is_active && driver.is_available && activeOrdersCount < maxOrders;
   };
 
   const getDriverStatusBadge = (driver: Driver) => {
     if (!driver.is_active) {
       return <Badge variant="destructive" className="text-xs">Inactif</Badge>;
     }
-    if (!driver.is_verified) {
-      return <Badge variant="secondary" className="text-xs">Non vérifié</Badge>;
+    if (!driver.is_available) {
+      return <Badge variant="secondary" className="text-xs">Non disponible</Badge>;
     }
     
     const activeOrdersCount = driver.active_orders_count || 0;
@@ -231,8 +231,8 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
     if (!driver.is_active) {
       return <div className="w-2 h-2 bg-gray-400 rounded-full" title="Inactif"></div>;
     }
-    if (!driver.is_verified) {
-      return <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Non vérifié"></div>;
+    if (!driver.is_available) {
+      return <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Non disponible"></div>;
     }
     
     const activeOrdersCount = driver.active_orders_count || 0;
@@ -421,15 +421,15 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
                                   {!isAvailable && (
                                     <div className="mt-1 text-xs text-gray-400">
                                       {!driver.is_active && '• Livreur inactif'}
-                                      {!driver.is_verified && '• Non vérifié'}
+                                      {!driver.is_available && '• Non disponible'}
                                       {(driver.active_orders_count || 0) >= 3 && '• Trop de commandes (3 max)'}
                                     </div>
                                   )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-1 text-xs text-gray-500">
-                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                <span>{driver.rating.toFixed(1)}</span>
+                                <Package className="h-3 w-3 text-gray-400" />
+                                <span>{driver.active_orders_count || 0} commande{(driver.active_orders_count || 0) > 1 ? 's' : ''}</span>
                               </div>
                             </div>
                           </div>
@@ -490,12 +490,6 @@ export const AssignDriverDialog: React.FC<AssignDriverDialogProps> = ({
                           <span className="text-sm text-gray-600">
                             {getVehicleLabel(driver.vehicle_type)}
                             {driver.vehicle_plate && ` - ${driver.vehicle_plate}`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Star className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm text-gray-600">
-                            {driver.rating.toFixed(1)}/5 ({driver.total_deliveries} livraisons)
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

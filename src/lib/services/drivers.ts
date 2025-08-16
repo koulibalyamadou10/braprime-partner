@@ -3,17 +3,15 @@ import { supabase } from '@/lib/supabase';
 export interface Driver {
   id: string;
   name: string;
-  phone: string;
+  phone_number?: string;
+  phone?: string;
   email?: string;
-  business_id: number;
+  business_id?: number;
   is_active: boolean;
-  current_location?: any;
-  rating: number;
-  total_deliveries: number;
+  is_available?: boolean;
   vehicle_type?: string;
   vehicle_plate?: string;
-  total_earnings: number;
-  is_verified: boolean;
+  type?: string;
   avatar_url?: string;
   created_at: string;
   updated_at: string;
@@ -32,7 +30,7 @@ export class DriverService {
         .select('*')
         .or(`business_id.eq.${businessId},business_id.is.null`)
         .order('is_active', { ascending: false })
-        .order('rating', { ascending: false });
+        .order('is_available', { ascending: false });
 
       if (error) {
         console.error('Erreur récupération livreurs:', error);
@@ -55,6 +53,7 @@ export class DriverService {
 
           return {
             ...driver,
+            phone: driver.phone_number || driver.phone, // Compatibilité avec les deux champs
             active_orders_count: ordersError ? 0 : (activeOrders?.length || 0)
           };
         })
@@ -67,9 +66,8 @@ export class DriverService {
         business_id: d.business_id, 
         type: d.business_id === businessId ? 'service' : 'independent',
         is_active: d.is_active,
-        is_verified: d.is_verified,
+        is_available: d.is_available,
         active_orders_count: d.active_orders_count,
-        rating: d.rating,
         vehicle_type: d.vehicle_type
       })));
 
@@ -85,14 +83,14 @@ export class DriverService {
     try {
       console.log(`🔍 Recherche de drivers disponibles pour business ${businessId}`);
 
-      // Récupérer les drivers actifs et vérifiés
+      // Récupérer les drivers actifs et disponibles
       const { data: drivers, error } = await supabase
         .from('driver_profiles')
         .select('*')
         .or(`business_id.eq.${businessId},business_id.is.null`)
         .eq('is_active', true)
-        .eq('is_verified', true)
-        .order('rating', { ascending: false });
+        .eq('is_available', true)
+        .order('is_available', { ascending: false });
 
       if (error) {
         console.error('Erreur récupération livreurs disponibles:', error);
@@ -140,46 +138,47 @@ export class DriverService {
     }
   }
 
-  // Assigner un livreur à une commande (sans vérifier current_order_id)
-  static async assignDriverToOrder(
-    driverId: string, 
-    orderId: string
-  ): Promise<{ success: boolean; error: string | null }> {
+  // Assigner un livreur à une commande
+  static async assignDriverToOrder(driverId: string, orderId: string): Promise<{ success: boolean; error: string | null }> {
     try {
-      // Vérifier que le livreur est actif et vérifié
-      const { data: driver, error: driverError } = await supabase
-        .from('driver_profiles')
-        .select('*')
-        .eq('id', driverId)
-        .eq('is_active', true)
-        .eq('is_verified', true)
-        .single();
+      console.log(`🚗 Assignation du livreur ${driverId} à la commande ${orderId}`);
 
-      if (driverError || !driver) {
-        return { success: false, error: 'Livreur non disponible ou non vérifié' };
+      // 1. Créer l'entrée dans driver_orders
+      const { error: driverOrderError } = await supabase
+        .from('driver_orders')
+        .insert({
+          driver_id: driverId,
+          order_id: orderId,
+          status: 'pending',
+          pickup_address: '', // Sera rempli plus tard
+          delivery_address: '', // Sera rempli plus tard
+          driver_earnings: 0, // Sera calculé plus tard
+          driver_commission_percentage: 15 // Pourcentage par défaut
+        });
+
+      if (driverOrderError) {
+        console.error('Erreur création driver_order:', driverOrderError);
+        return { success: false, error: driverOrderError.message };
       }
 
-      // Vérifier le nombre de commandes actives du chauffeur
-      const { data: activeOrders, error: ordersError } = await supabase
+      // 2. Mettre à jour la commande avec le driver_id
+      const { error: orderUpdateError } = await supabase
         .from('orders')
-        .select('id')
-        .eq('driver_id', driverId)
-        .in('status', ['pending', 'confirmed', 'preparing', 'ready', 'picked_up', 'out_for_delivery']);
+        .update({ 
+          driver_id: driverId,
+          status: 'out_for_delivery',
+          available_for_drivers: false
+        })
+        .eq('id', orderId);
 
-      if (ordersError) {
-        console.error('Erreur vérification commandes actives:', ordersError);
-        return { success: false, error: 'Erreur lors de la vérification des commandes actives' };
+      if (orderUpdateError) {
+        console.error('Erreur mise à jour commande:', orderUpdateError);
+        return { success: false, error: orderUpdateError.message };
       }
 
-      // Limiter à 3 commandes simultanées
-      if ((activeOrders?.length || 0) >= 3) {
-        return { success: false, error: 'Livreur a déjà 3 commandes en cours' };
-      }
-
-      // L'assignation se fait maintenant directement dans la table orders
-      // Pas besoin de mettre à jour current_order_id dans drivers
-      console.log(`✅ Livreur ${driver.name} assigné à la commande ${orderId}`);
+      console.log(`✅ Livreur ${driverId} assigné avec succès à la commande ${orderId}`);
       return { success: true, error: null };
+
     } catch (error) {
       console.error('Erreur lors de l\'assignation du livreur:', error);
       return { success: false, error: 'Erreur lors de l\'assignation du livreur' };
