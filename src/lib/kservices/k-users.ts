@@ -63,6 +63,8 @@ export class KUserService {
 
       console.log('✅ Utilisateur Auth créé:', authUser.user.id);
 
+      // etapes intermediaires l'inscrire dans la table internal_user avec user_profiles! 
+
       // 2. Créer le profil dans profil_internal_user
       const { data: internalUser, error: profileError } = await supabase
         .from('profil_internal_user')
