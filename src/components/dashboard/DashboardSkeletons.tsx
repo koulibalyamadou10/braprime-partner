@@ -1,5 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Home, MapPin, Phone, Mail, Calendar, ShoppingBag, DollarSign, Users, Star, Package } from "lucide-react";
 
 // Skeleton pour les cartes de statistiques
 export const StatsCardSkeleton = () => (
@@ -811,5 +814,285 @@ export const DriversSkeleton = () => (
     </div>
   </div>
 );
+
+// Composant de chargement progressif pour le dashboard partenaire
+export const PartnerDashboardProgressiveSkeleton = ({ 
+  business, 
+  stats, 
+  recentOrders, 
+  menu,
+  isBusinessLoading,
+  isStatsLoading,
+  isOrdersLoading,
+  isMenuLoading
+}: {
+  business: any;
+  stats: any;
+  recentOrders: any[];
+  menu: any[];
+  isBusinessLoading: boolean;
+  isStatsLoading: boolean;
+  isOrdersLoading: boolean;
+  isMenuLoading: boolean;
+}) => {
+  return (
+    <div className="space-y-6">
+      {/* Header avec informations du business */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Tableau de bord</h2>
+          {business ? (
+            <p className="text-gray-500">
+              Bienvenue, {business.name}
+            </p>
+          ) : (
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-20 bg-gray-200 rounded animate-pulse" />
+          <div className="h-9 w-20 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Informations du business */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Home className="h-5 w-5" />
+            Informations du Business
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {business ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="flex items-center gap-3">
+                <MapPin className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Adresse</p>
+                  <p className="text-sm text-gray-500">{business.address}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Téléphone</p>
+                  <p className="text-sm text-gray-500">{business.phone}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm text-gray-500">{business.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <div>
+                  <p className="text-sm font-medium">Horaires</p>
+                  <p className="text-sm text-gray-500">{business.opening_hours}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-3 w-24 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Statistiques */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats ? (
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Commandes Totales</CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                <p className="text-xs text-muted-foreground">
+                  +{stats.completedOrders} livrées
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Revenus Totaux</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{(stats.totalRevenue / 1000).toFixed(0)}k GNF</div>
+                <p className="text-xs text-muted-foreground">
+                  Moyenne: {(stats.averageOrderValue / 1000).toFixed(0)}k GNF
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Clients</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalCustomers}</div>
+                <p className="text-xs text-muted-foreground">
+                  Clients uniques
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Note</CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.rating.toFixed(1)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.reviewCount} avis
+                </p>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          [...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Commandes récentes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Commandes Récentes</CardTitle>
+          <CardDescription>
+            Les dernières commandes de votre business
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentOrders.length > 0 ? (
+            <div className="space-y-4">
+              {recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <p className="font-medium">{order.customer_name}</p>
+                      <p className="text-sm text-gray-500">{order.customer_phone}</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="font-medium">{(order.grand_total / 1000).toFixed(0)}k GNF</p>
+                      <p className="text-sm text-gray-500">Articles de commande</p>
+                    </div>
+                    <Badge className="bg-blue-100 text-blue-800">
+                      {order.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : isOrdersLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right space-y-2">
+                      <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                    <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Aucune commande récente</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Menu */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Menu ({menu.length} articles)</CardTitle>
+          <CardDescription>
+            Articles de votre menu
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {menu.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {menu.slice(0, 6).map((item) => (
+                <div key={item.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium">{item.name}</h4>
+                    <Badge variant={item.is_available ? "default" : "secondary"}>
+                      {item.is_available ? "Disponible" : "Indisponible"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-2">{item.description}</p>
+                  <p className="font-medium">{(item.price / 1000).toFixed(0)}k GNF</p>
+                  <p className="text-xs text-gray-500">{item.category_name}</p>
+                </div>
+              ))}
+            </div>
+          ) : isMenuLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                  <div className="h-3 w-full bg-gray-200 rounded animate-pulse" />
+                  <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Aucun article dans le menu</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
  

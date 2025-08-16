@@ -18,11 +18,12 @@ import AdminSubscriptions from '@/pages/dashboard/AdminSubscriptions';
 import AdminSystem from '@/pages/dashboard/AdminSystem';
 import AdminUsers from '@/pages/dashboard/AdminUsers';
 import DriverRegistrationPage from '@/pages/DriverRegistrationPage';
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
+import { createQueryClient } from "@/config/query-client";
 
 // Use dynamic imports for page components
 const Index = lazy(() => import("./pages/Index"));
@@ -71,7 +72,8 @@ const PaymentStatusPage = lazy(() => import("./pages/PaymentStatusPage"));
 const SubscriptionPaymentStatusPage = lazy(() => import("./pages/SubscriptionPaymentStatusPage"));
 
 
-const queryClient = new QueryClient();
+// Utiliser notre configuration optimisée du QueryClient
+const queryClient = createQueryClient();
 
 const PageLoader = () => (
   <div className="flex items-center justify-center w-full h-screen">

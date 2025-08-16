@@ -1,5 +1,5 @@
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
-import { PartnerDashboardSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { PartnerDashboardSkeleton, PartnerDashboardProgressiveSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { SubscriptionStatus } from '@/components/dashboard/SubscriptionStatus';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -190,6 +190,10 @@ const PartnerDashboard = () => {
     recentOrders,
     menu,
     isLoading,
+    isBusinessLoading,
+    isStatsLoading,
+    isOrdersLoading,
+    isMenuLoading,
     error,
     isAuthenticated,
     currentUser: partnerCurrentUser,
@@ -262,6 +266,18 @@ const PartnerDashboard = () => {
       toast.success('✅ Diagnostic réussi! Vérifiez la console pour les détails.')
     } else {
       toast.error(`❌ Diagnostic échoué: ${result.error}`)
+    }
+  }
+
+  // Fonction de préchargement manuel des données
+  const preloadData = async () => {
+    try {
+      toast.info('🔄 Préchargement des données...')
+      await refresh()
+      toast.success('✅ Données préchargées avec succès!')
+    } catch (error) {
+      toast.error('❌ Erreur lors du préchargement')
+      console.error('Erreur de préchargement:', error)
     }
   }
 
@@ -339,10 +355,29 @@ const PartnerDashboard = () => {
     );
   }
 
-  if (isLoading) {
+  // Utiliser le chargement progressif au lieu du chargement simple
+  if (isBusinessLoading && !business) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
         <PartnerDashboardSkeleton />
+      </DashboardLayout>
+    );
+  }
+
+  // Afficher le chargement progressif une fois que le business est chargé
+  if (business && (isStatsLoading || isOrdersLoading || isMenuLoading)) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+        <PartnerDashboardProgressiveSkeleton
+          business={business}
+          stats={stats}
+          recentOrders={recentOrders}
+          menu={menu}
+          isBusinessLoading={false}
+          isStatsLoading={isStatsLoading}
+          isOrdersLoading={isOrdersLoading}
+          isMenuLoading={isMenuLoading}
+        />
       </DashboardLayout>
     );
   }
@@ -407,6 +442,10 @@ const PartnerDashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button onClick={preloadData} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Précharger
+            </Button>
             <Button onClick={refresh} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualiser

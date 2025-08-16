@@ -11,13 +11,13 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-business', currentUser?.id],
     queryFn: () => PartnerDashboardService.getPartnerBusiness(),
     enabled: !!currentUser?.id && currentUser.role === 'partner' && isAuthenticated,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 5 * 60 * 1000, // Réduit de 10 à 5 minutes
+    gcTime: 15 * 60 * 1000, // Réduit de 30 à 15 minutes
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 3
+      return failureCount < 2 // Réduit de 3 à 2 tentatives
     }
   })
 
@@ -29,13 +29,13 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-stats', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerStats(business!.id),
     enabled: !!business?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 5 * 60 * 1000, // 5 minutes
+    staleTime: 1 * 60 * 1000, // Réduit de 2 à 1 minute
+    refetchInterval: 3 * 60 * 1000, // Réduit de 5 à 3 minutes
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 3
+      return failureCount < 2
     }
   })
 
@@ -44,13 +44,13 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-recent-orders', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerOrders(business!.id, 5),
     enabled: !!business?.id,
-    staleTime: 30 * 1000, // 30 secondes
-    refetchInterval: 2 * 60 * 1000, // 2 minutes
+    staleTime: 15 * 1000, // Réduit de 30 à 15 secondes
+    refetchInterval: 1 * 60 * 1000, // Réduit de 2 à 1 minute
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 3
+      return failureCount < 2
     }
   })
 
@@ -59,12 +59,12 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-menu', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerMenu(business!.id, 50),
     enabled: !!business?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 3 * 60 * 1000, // Réduit de 5 à 3 minutes
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 3
+      return failureCount < 2
     }
   })
 
@@ -73,12 +73,12 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-drivers', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerDrivers(business!.id, 20),
     enabled: !!business?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 1 * 60 * 1000, // Réduit de 2 à 1 minute
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 3
+      return failureCount < 2
     }
   })
 
@@ -265,8 +265,23 @@ export const usePartnerDashboard = () => {
     }
   }
 
-  // États de chargement et d'erreur
-  const isLoading = businessQuery.isLoading || statsQuery.isLoading || recentOrdersQuery.isLoading || menuQuery.isLoading || driversQuery.isLoading
+  // États de chargement améliorés - chargement progressif
+  const isBusinessLoading = businessQuery.isLoading
+  const isStatsLoading = statsQuery.isLoading
+  const isOrdersLoading = recentOrdersQuery.isLoading
+  const isMenuLoading = menuQuery.isLoading
+  const isDriversLoading = driversQuery.isLoading
+
+  // Chargement principal - seulement si le business n'est pas encore chargé
+  const isLoading = isBusinessLoading && !business
+  
+  // Chargement des données secondaires - seulement si le business est chargé mais pas les autres données
+  const isSecondaryDataLoading = business && (isStatsLoading || isOrdersLoading || isMenuLoading || isDriversLoading)
+  
+  // Chargement global - pour l'état initial
+  const isInitialLoading = isBusinessLoading || (business && isSecondaryDataLoading)
+
+  // Erreurs
   const error = businessError || statsQuery.data?.error || recentOrdersQuery.data?.error || menuQuery.data?.error || driversQuery.data?.error
 
   return {
@@ -277,13 +292,14 @@ export const usePartnerDashboard = () => {
     menu: menuQuery.data?.menu || [],
     drivers: driversQuery.data?.drivers || [],
     
-    // États de chargement
-    isLoading,
-    isBusinessLoading: businessQuery.isLoading,
-    isStatsLoading: statsQuery.isLoading,
-    isOrdersLoading: recentOrdersQuery.isLoading,
-    isMenuLoading: menuQuery.isLoading,
-    isDriversLoading: driversQuery.isLoading,
+    // États de chargement améliorés
+    isLoading: isInitialLoading,
+    isBusinessLoading,
+    isStatsLoading,
+    isOrdersLoading,
+    isMenuLoading,
+    isDriversLoading,
+    isSecondaryDataLoading,
     
     // États de mutation
     isUpdatingOrderStatus: updateOrderStatusMutation.isPending,

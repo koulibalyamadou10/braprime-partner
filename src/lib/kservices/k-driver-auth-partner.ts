@@ -22,7 +22,7 @@ export class KDriverAuthPartnerService {
     // 1- Fonction pour creer un compte livreur
     async createDriverAuthAccount(request: KCreateDriverAuthRequest) {
         // inscrire dans la table auth.users de supabase avec une rpc
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.admin.createUser({
             email: request.email,
             password: request.password
         });
