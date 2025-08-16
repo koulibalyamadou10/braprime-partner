@@ -103,18 +103,18 @@ export class DriverAuthPartnerService {
         };
       }
 
-      // 5. Créer le lien driver_profiles
+      // 5. Mettre à jour le profil driver existant avec l'user_id
       const { data: driverProfileData, error: driverProfileError } = await supabase
         .from('driver_profiles')
-        .insert({
-          user_profile_id: authData.user.id,
-          driver_id: request.driver_id
+        .update({
+          user_id: authData.user.id
         })
+        .eq('id', request.driver_id)
         .select()
         .single();
 
       if (driverProfileError) {
-        console.error('Erreur création profil driver:', driverProfileError);
+        console.error('Erreur mise à jour profil driver:', driverProfileError);
         // Nettoyer
         await supabase.auth.admin.deleteUser(authData.user.id);
         await supabase.from('user_profiles').delete().eq('id', authData.user.id);
@@ -126,7 +126,7 @@ export class DriverAuthPartnerService {
 
       // 6. Mettre à jour le nom du profil avec les données du driver
       const { data: driverData, error: driverError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('name')
         .eq('id', request.driver_id)
         .single();
@@ -163,13 +163,11 @@ export class DriverAuthPartnerService {
       const { data: driverCheck, error: checkError } = await supabase
         .from('driver_profiles')
         .select(`
-          driver_id,
-          drivers!inner(
-            business_id
-          )
+          id,
+          business_id
         `)
-        .eq('user_profile_id', userId)
-        .eq('drivers.business_id', businessId)
+        .eq('user_id', userId)
+        .eq('business_id', businessId)
         .single();
 
       if (checkError || !driverCheck) {
@@ -179,14 +177,16 @@ export class DriverAuthPartnerService {
         };
       }
 
-      // Supprimer le profil driver
+      // Mettre à jour le profil driver pour retirer l'user_id
       const { error: driverProfileError } = await supabase
         .from('driver_profiles')
-        .delete()
-        .eq('user_profile_id', userId);
+        .update({
+          user_id: null
+        })
+        .eq('id', driverCheck.id);
 
       if (driverProfileError) {
-        console.error('Erreur suppression profil driver:', driverProfileError);
+        console.error('Erreur mise à jour profil driver:', driverProfileError);
         return {
           success: false,
           error: driverProfileError.message
@@ -239,12 +239,12 @@ export class DriverAuthPartnerService {
   }> {
     try {
       const { data, error } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select(`
           id,
           name,
           email,
-          phone,
+          phone_number,
           vehicle_type,
           vehicle_plate,
           is_active,
@@ -252,11 +252,7 @@ export class DriverAuthPartnerService {
         `)
         .eq('business_id', businessId)
         .eq('is_active', true)
-        .not('id', 'in', `(
-          SELECT driver_id 
-          FROM driver_profiles 
-          WHERE driver_id IS NOT NULL
-        )`);
+        .is('user_id', null);
 
       if (error) {
         console.error('Erreur récupération drivers sans auth:', error);
@@ -290,8 +286,12 @@ export class DriverAuthPartnerService {
         .from('driver_profiles')
         .select(`
           id,
-          user_profile_id,
-          driver_id,
+          user_id,
+          name,
+          email,
+          phone_number,
+          vehicle_type,
+          vehicle_plate,
           created_at,
           user_profiles (
             id,
@@ -301,17 +301,10 @@ export class DriverAuthPartnerService {
             user_roles (
               name
             )
-          ),
-          drivers (
-            id,
-            name,
-            vehicle_type,
-            vehicle_plate,
-            business_id
           )
         `)
-        .eq('drivers.business_id', businessId)
-        .not('user_profile_id', 'is', null);
+        .eq('business_id', businessId)
+        .not('user_id', 'is', null);
 
       if (error) {
         console.error('Erreur récupération comptes auth:', error);
@@ -345,7 +338,7 @@ export class DriverAuthPartnerService {
     try {
       // Total des drivers actifs
       const { data: totalData, error: totalError } = await supabase
-        .from('drivers')
+        .from('driver_profiles')
         .select('id', { count: 'exact' })
         .eq('business_id', businessId)
         .eq('is_active', true);
@@ -362,14 +355,10 @@ export class DriverAuthPartnerService {
       // Drivers avec compte auth
       const { data: withAuthData, error: withAuthError } = await supabase
         .from('driver_profiles')
-        .select(`
-          driver_id,
-          drivers!inner(
-            business_id
-          )
-        `, { count: 'exact' })
-        .eq('drivers.business_id', businessId)
-        .not('user_profile_id', 'is', null);
+        .select('id', { count: 'exact' })
+        .eq('business_id', businessId)
+        .eq('is_active', true)
+        .not('user_id', 'is', null);
 
       if (withAuthError) {
         return {

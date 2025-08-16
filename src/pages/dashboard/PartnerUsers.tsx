@@ -20,14 +20,10 @@ import {
   Search,
   Plus,
   Filter,
-  MoreHorizontal,
   User,
   Mail,
   Phone,
   Calendar,
-  MapPin,
-  Star,
-  ShoppingBag,
   Eye,
   Edit,
   Trash2,
@@ -43,59 +39,12 @@ import {
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 
-// Données statiques pour les utilisateurs clients (à remplacer plus tard par un vrai service)
-const mockCustomers = [
-  {
-    id: '1',
-    name: 'Mamadou Diallo',
-    email: 'mamadou.diallo@email.com',
-    phone: '+224 123 456 789',
-    role: 'customer',
-    status: 'active',
-    joinDate: '2024-01-15',
-    lastOrder: '2024-03-20',
-    totalOrders: 12,
-    totalSpent: 450000,
-    location: 'Conakry, Kaloum',
-    avatar: '/placeholder-avatar.jpg'
-  },
-  {
-    id: '2',
-    name: 'Fatoumata Camara',
-    email: 'fatoumata.camara@email.com',
-    phone: '+224 987 654 321',
-    role: 'customer',
-    status: 'active',
-    joinDate: '2024-02-10',
-    lastOrder: '2024-03-18',
-    totalOrders: 8,
-    totalSpent: 320000,
-    location: 'Conakry, Ratoma',
-    avatar: '/placeholder-avatar.jpg'
-  },
-  {
-    id: '3',
-    name: 'Ibrahima Bah',
-    email: 'ibrahima.bah@email.com',
-    phone: '+224 555 123 456',
-    role: 'customer',
-    status: 'inactive',
-    joinDate: '2023-12-05',
-    lastOrder: '2024-01-20',
-    totalOrders: 5,
-    totalSpent: 180000,
-    location: 'Conakry, Dixinn',
-    avatar: '/placeholder-avatar.jpg'
-  }
-];
-
 const PartnerUsers = () => {
   const { currentUser } = useAuth();
   const { isPartner } = useUserRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState<'customers' | 'internal'>('customers');
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 
   // Récupérer les données du business
@@ -109,18 +58,7 @@ const PartnerUsers = () => {
     deleteUser,
     isDeleting,
     refetch: refetchInternalUsers
-  } = useInternalUsers(business?.id || 0);
-
-  // Filtrer les utilisateurs clients
-  const filteredCustomers = mockCustomers.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    
-    return matchesSearch && matchesStatus && matchesRole;
-  });
+  } = useInternalUsers(business?.id || 0, currentUser?.id);
 
   // Filtrer les utilisateurs internes
   const filteredInternalUsers = internalUsers.filter(user => {
@@ -128,7 +66,7 @@ const PartnerUsers = () => {
                          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (user.phone && user.phone.includes(searchTerm));
     const matchesStatus = statusFilter === 'all' || (user.is_active ? 'active' : 'inactive') === statusFilter;
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesRole = roleFilter === 'all' || user.roles.includes(roleFilter as any);
     
     return matchesSearch && matchesStatus && matchesRole;
   });
@@ -182,8 +120,8 @@ const PartnerUsers = () => {
   const getInternalRoleIcon = (role: string) => {
     switch (role) {
       case 'admin': return <Crown className="h-4 w-4" />;
-      case 'commandes': return <ShoppingBag className="h-4 w-4" />;
-      case 'menu': return <Star className="h-4 w-4" />;
+      case 'commandes': return <Shield className="h-4 w-4" />;
+      case 'menu': return <Shield className="h-4 w-4" />;
       case 'reservations': return <Calendar className="h-4 w-4" />;
       case 'livreurs': return <Truck className="h-4 w-4" />;
       case 'revenu': return <Building className="h-4 w-4" />;
@@ -217,17 +155,7 @@ const PartnerUsers = () => {
     });
   };
 
-  // Formater le montant
-  const formatCurrency = (amount: number) => {
-    if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(1)}M GNF`;
-    } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(0)}k GNF`;
-    }
-    return `${amount} GNF`;
-  };
-
-  // Actions sur les utilisateurs
+  // Actions sur les utilisateurs internes
   const handleViewUser = (userId: string) => {
     toast.info(`Voir les détails de l'utilisateur ${userId}`);
   };
@@ -236,11 +164,6 @@ const PartnerUsers = () => {
     toast.info(`Modifier l'utilisateur ${userId}`);
   };
 
-  const handleDeleteUser = (userId: string) => {
-    toast.info(`Supprimer l'utilisateur ${userId}`);
-  };
-
-  // Actions sur les utilisateurs internes
   const handleDeleteInternalUser = async (userId: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur interne ? Cette action est irréversible.')) {
       deleteUser(userId);
@@ -311,24 +234,16 @@ const PartnerUsers = () => {
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Gestion des Utilisateurs</h2>
             <p className="text-gray-500">
-              Gérez vos clients et votre équipe interne
+              Gérez votre équipe interne
             </p>
           </div>
           <div className="flex gap-2">
-            {activeTab === 'internal' && (
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => setIsAddUserDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter un Utilisateur Interne
-              </Button>
-            )}
             <Button 
-              variant="outline"
-              onClick={() => setActiveTab(activeTab === 'customers' ? 'internal' : 'customers')}
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setIsAddUserDialogOpen(true)}
             >
-              {activeTab === 'customers' ? 'Voir Équipe Interne' : 'Voir Clients'}
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un Utilisateur Interne
             </Button>
           </div>
         </div>
@@ -339,11 +254,9 @@ const PartnerUsers = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-blue-800">
-                    {activeTab === 'customers' ? 'Total Clients' : 'Total Équipe'}
-                  </p>
+                  <p className="text-sm font-medium text-blue-800">Total Équipe</p>
                   <p className="text-3xl font-bold text-blue-900">
-                    {activeTab === 'customers' ? mockCustomers.length : internalUsers.length}
+                    {internalUsers.length}
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
@@ -357,10 +270,7 @@ const PartnerUsers = () => {
                 <div>
                   <p className="text-sm font-medium text-green-800">Utilisateurs Actifs</p>
                   <p className="text-3xl font-bold text-green-900">
-                    {activeTab === 'customers' 
-                      ? mockCustomers.filter(u => u.status === 'active').length
-                      : internalUsers.filter(u => u.is_active).length
-                    }
+                    {internalUsers.filter(u => u.is_active).length}
                   </p>
                 </div>
                 <UserCheck className="h-8 w-8 text-green-600" />
@@ -372,21 +282,12 @@ const PartnerUsers = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-purple-800">
-                    {activeTab === 'customers' ? 'Commandes Totales' : 'Rôles Différents'}
-                  </p>
+                  <p className="text-sm font-medium text-purple-800">Rôles Différents</p>
                   <p className="text-3xl font-bold text-purple-900">
-                    {activeTab === 'customers' 
-                      ? mockCustomers.reduce((sum, user) => sum + user.totalOrders, 0)
-                      : new Set(internalUsers.map(u => u.role)).size
-                    }
+                    {new Set(internalUsers.flatMap(u => u.roles)).size}
                   </p>
                 </div>
-                {activeTab === 'customers' ? (
-                  <ShoppingBag className="h-8 w-8 text-purple-600" />
-                ) : (
-                  <Shield className="h-8 w-8 text-purple-600" />
-                )}
+                <Shield className="h-8 w-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
@@ -395,21 +296,12 @@ const PartnerUsers = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-amber-800">
-                    {activeTab === 'customers' ? 'Revenus Totaux' : 'Dernière Connexion'}
-                  </p>
+                  <p className="text-sm font-medium text-amber-800">Dernière Connexion</p>
                   <p className="text-3xl font-bold text-amber-900">
-                    {activeTab === 'customers' 
-                      ? formatCurrency(mockCustomers.reduce((sum, user) => sum + user.totalSpent, 0))
-                      : internalUsers.length > 0 ? 'Aujourd\'hui' : 'Aucune'
-                    }
+                    {internalUsers.length > 0 ? 'Aujourd\'hui' : 'Aucune'}
                   </p>
                 </div>
-                {activeTab === 'customers' ? (
-                  <Star className="h-8 w-8 text-amber-600" />
-                ) : (
-                  <Clock className="h-8 w-8 text-amber-600" />
-                )}
+                <Clock className="h-8 w-8 text-amber-600" />
               </div>
             </CardContent>
           </Card>
@@ -423,7 +315,7 @@ const PartnerUsers = () => {
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder={`Rechercher par nom, email ou téléphone...`}
+                    placeholder="Rechercher par nom, email ou téléphone..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -444,27 +336,15 @@ const PartnerUsers = () => {
                   onChange={(e) => setRoleFilter(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">
-                    {activeTab === 'customers' ? 'Tous les rôles' : 'Tous les rôles internes'}
-                  </option>
-                  {activeTab === 'customers' ? (
-                    <>
-                      <option value="customer">Clients</option>
-                      <option value="vip">VIP</option>
-                      <option value="premium">Premium</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="admin">Administrateur</option>
-                      <option value="commandes">Commandes</option>
-                      <option value="menu">Menu</option>
-                      <option value="reservations">Réservations</option>
-                      <option value="livreurs">Livreurs</option>
-                      <option value="revenu">Revenus</option>
-                      <option value="user">Utilisateurs</option>
-                      <option value="facturation">Facturation</option>
-                    </>
-                  )}
+                  <option value="all">Tous les rôles internes</option>
+                  <option value="admin">Administrateur</option>
+                  <option value="commandes">Commandes</option>
+                  <option value="menu">Menu</option>
+                  <option value="reservations">Réservations</option>
+                  <option value="livreurs">Livreurs</option>
+                  <option value="revenu">Revenus</option>
+                  <option value="user">Utilisateurs</option>
+                  <option value="facturation">Facturation</option>
                 </select>
               </div>
               <Button variant="outline" size="sm">
@@ -475,26 +355,21 @@ const PartnerUsers = () => {
           </CardContent>
         </Card>
 
-        {/* Table des utilisateurs */}
+        {/* Table des utilisateurs internes */}
         <Card className="border-0 shadow-lg">
           <CardHeader>
-            <CardTitle>
-              {activeTab === 'customers' ? 'Liste des Clients' : 'Liste de l\'Équipe Interne'}
-            </CardTitle>
+            <CardTitle>Liste de l'Équipe Interne</CardTitle>
             <CardDescription>
-              {activeTab === 'customers' 
-                ? `${filteredCustomers.length} client(s) trouvé(s)`
-                : `${filteredInternalUsers.length} membre(s) de l'équipe trouvé(s)`
-              }
+              {filteredInternalUsers.length} membre(s) de l'équipe trouvé(s)
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {activeTab === 'internal' && internalUsersLoading ? (
+            {internalUsersLoading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="text-gray-500 mt-2">Chargement des utilisateurs internes...</p>
               </div>
-            ) : activeTab === 'internal' && internalUsersError ? (
+            ) : internalUsersError ? (
               <div className="text-center py-12">
                 <p className="text-red-500">Erreur lors du chargement : {internalUsersError.message}</p>
                 <Button onClick={handleRefetchClick} className="mt-2">
@@ -509,189 +384,99 @@ const PartnerUsers = () => {
                       <TableHead>Utilisateur</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Statut</TableHead>
-                      {activeTab === 'customers' ? (
-                        <>
-                          <TableHead>Activité</TableHead>
-                          <TableHead>Localisation</TableHead>
-                        </>
-                      ) : (
-                        <>
-                          <TableHead>Rôle</TableHead>
-                          <TableHead>Dernière Connexion</TableHead>
-                          <TableHead>Créé par</TableHead>
-                        </>
-                      )}
+                      <TableHead>Rôle</TableHead>
+                      <TableHead>Dernière Connexion</TableHead>
+                      <TableHead>Créé par</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {activeTab === 'customers' ? (
-                      // Affichage des clients
-                      filteredCustomers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                                <User className="h-5 w-5 text-gray-600" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{user.name}</p>
-                                <p className="text-sm text-gray-500">ID: {user.id}</p>
-                              </div>
+                    {filteredInternalUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="h-5 w-5 text-blue-600" />
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <Mail className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{user.email}</span>
-                              </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{user.name}</p>
+                              <p className="text-sm text-gray-500">ID: {user.id}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm">{user.email}</span>
+                            </div>
+                            {user.phone && (
                               <div className="flex items-center gap-2">
                                 <Phone className="h-4 w-4 text-gray-400" />
                                 <span className="text-sm">{user.phone}</span>
                               </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${getStatusColor(user.is_active ? 'active' : 'inactive')} flex w-fit items-center gap-1`}>
+                            {getStatusIcon(user.is_active ? 'active' : 'inactive')}
+                            <span>{getStatusLabel(user.is_active ? 'active' : 'inactive')}</span>
+                          </Badge>
+                        </TableCell>
+                                                  <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {user.roles.map((role, index) => (
+                                <Badge key={index} className={`${getInternalRoleColor(role)} flex w-fit items-center gap-1`}>
+                                  {getInternalRoleIcon(role)}
+                                  <span>{getInternalRoleLabel(role)}</span>
+                                </Badge>
+                              ))}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge className={`${getStatusColor(user.status)} flex w-fit items-center gap-1`}>
-                              {getStatusIcon(user.status)}
-                              <span>{getStatusLabel(user.status)}</span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">Inscrit le {formatDate(user.joinDate)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <ShoppingBag className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{user.totalOrders} commandes</span>
-                              </div>
-                              <div className="text-sm font-medium text-green-600">
-                                {formatCurrency(user.totalSpent)}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.location}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleViewUser(user.id)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditUser(user.id)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      // Affichage des utilisateurs internes
-                      filteredInternalUsers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <User className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{user.name}</p>
-                                <p className="text-sm text-gray-500">ID: {user.id}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <Mail className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{user.email}</span>
-                              </div>
-                              {user.phone && (
-                                <div className="flex items-center gap-2">
-                                  <Phone className="h-4 w-4 text-gray-400" />
-                                  <span className="text-sm">{user.phone}</span>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`${getStatusColor(user.is_active ? 'active' : 'inactive')} flex w-fit items-center gap-1`}>
-                              {getStatusIcon(user.is_active ? 'active' : 'inactive')}
-                              <span>{getStatusLabel(user.is_active ? 'active' : 'inactive')}</span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`${getInternalRoleColor(user.role)} flex w-fit items-center gap-1`}>
-                              {getInternalRoleIcon(user.role)}
-                              <span>{getInternalRoleLabel(user.role)}</span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">
-                                {user.last_login ? formatDate(user.last_login) : 'Jamais connecté'}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.created_by}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleViewUser(user.id)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditUser(user.id)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeleteInternalUser(user.id)}
-                                disabled={isDeleting}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">
+                              {user.last_login ? formatDate(user.last_login) : 'Jamais connecté'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm">{user.created_by}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewUser(user.id)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditUser(user.id)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteInternalUser(user.id)}
+                              disabled={isDeleting}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>

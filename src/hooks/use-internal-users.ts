@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { InternalUsersService, CreateInternalUserData, UpdateInternalUserData, InternalUser } from '@/lib/services/internal-users';
 
-export const useInternalUsers = (businessId: number) => {
+export const useInternalUsers = (businessId: number, currentUserId?: string) => {
   const queryClient = useQueryClient();
 
   // Récupérer tous les utilisateurs internes
@@ -27,10 +27,14 @@ export const useInternalUsers = (businessId: number) => {
   // Créer un nouvel utilisateur interne
   const createUserMutation = useMutation({
     mutationFn: async (userData: Omit<CreateInternalUserData, 'business_id' | 'created_by'>) => {
+      if (!currentUserId) {
+        throw new Error('ID de l\'utilisateur connecté requis');
+      }
+      
       const result = await InternalUsersService.createInternalUser({
         ...userData,
         business_id: businessId,
-        created_by: 'current_user_id' // À remplacer par l'ID de l'utilisateur connecté
+        created_by: currentUserId
       });
       if (result.error) {
         throw new Error(result.error);

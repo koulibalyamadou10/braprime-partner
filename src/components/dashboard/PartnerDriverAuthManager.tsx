@@ -104,7 +104,7 @@ export function PartnerDriverAuthManager({ businessId }: PartnerDriverAuthManage
       const request: CreateDriverAuthRequest = {
         driver_id: driver.id,
         email: driver.email,
-        phone: driver.phone,
+        phone: driver.phone_number,
         password: password
       };
 
@@ -139,13 +139,13 @@ export function PartnerDriverAuthManager({ businessId }: PartnerDriverAuthManage
   };
 
   // Supprimer un compte auth
-  const deleteDriverAuth = async (userProfileId: string) => {
+  const deleteDriverAuth = async (userId: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce compte auth ?')) {
       return;
     }
 
     try {
-      const result = await DriverAuthPartnerService.deleteDriverAuthAccount(userProfileId, businessId);
+      const result = await DriverAuthPartnerService.deleteDriverAuthAccount(userId, businessId);
 
       if (result.success) {
         toast({
@@ -244,7 +244,7 @@ export function PartnerDriverAuthManager({ businessId }: PartnerDriverAuthManage
                   <div>
                     <h4 className="font-medium">{driver.name}</h4>
                     <p className="text-sm text-muted-foreground">
-                      {driver.email} • {driver.phone}
+                      {driver.email} • {driver.phone_number}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-xs">
@@ -351,20 +351,20 @@ export function PartnerDriverAuthManager({ businessId }: PartnerDriverAuthManage
                 <div key={account.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{account.user_profiles.name}</h4>
+                      <h4 className="font-medium">{account.name}</h4>
                       <Badge variant="secondary">
-                        {account.user_profiles.user_roles.name}
+                        {account.user_profiles?.user_roles?.name || 'Driver'}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {account.user_profiles.email} • {account.user_profiles.phone_number}
+                      {account.email} • {account.phone_number}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-xs">
-                        {account.drivers.vehicle_type}
+                        {account.vehicle_type}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        {account.drivers.vehicle_plate}
+                        {account.vehicle_plate}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -374,7 +374,7 @@ export function PartnerDriverAuthManager({ businessId }: PartnerDriverAuthManage
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => deleteDriverAuth(account.user_profile_id)}
+                    onClick={() => deleteDriverAuth(account.user_id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

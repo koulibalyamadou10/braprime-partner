@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/select';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { InternalUsersService } from '@/lib/services/internal-users';
+import { useInternalUsers } from '@/hooks/use-internal-users';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AddInternalUserDialogProps {
   isOpen: boolean;
@@ -44,16 +45,19 @@ export const AddInternalUserDialog = ({
   businessId,
   onUserAdded
 }: AddInternalUserDialogProps) => {
+  const { currentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    role: '',
+    roles: [] as string[],
     password: '',
     confirmPassword: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
+
+  // Utiliser le hook pour la gestion des utilisateurs internes
+  const { createUser, checkEmailExists, isCreating } = useInternalUsers(businessId, currentUser?.id);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -67,6 +71,15 @@ export const AddInternalUserDialog = ({
     }
   };
 
+  const handleRoleToggle = (roleValue: string) => {
+    setFormData(prev => ({
+      ...prev,
+      roles: prev.roles.includes(roleValue)
+        ? prev.roles.filter(role => role !== roleValue)
+        : [...prev.roles, roleValue]
+    }));
+  };
+
   const validateForm = () => {
     if (!formData.name.trim()) {
       toast.error('Le nom est requis');
@@ -76,22 +89,12 @@ export const AddInternalUserDialog = ({
       toast.error('L\'email est requis');
       return false;
     }
-    if (!formData.role) {
-      toast.error('Le rôle est requis');
+    if (formData.roles.length === 0) {
+      toast.error('Au moins un rôle est requis');
       return false;
     }
-    if (!formData.password) {
-      toast.error('Le mot de passe est requis');
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Les mots de passe ne correspondent pas');
-      return false;
-    }
-    if (formData.password.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
-      return false;
-    }
+    // Pour l'instant, le mot de passe n'est pas requis
+    // car nous créons seulement l'utilisateur dans la table profil_internal_user
     return true;
   };
 
@@ -102,41 +105,39 @@ export const AddInternalUserDialog = ({
       return;
     }
 
-    setIsLoading(true);
+    if (!currentUser?.id) {
+      toast.error('Vous devez être connecté pour créer un utilisateur');
+      return;
+    }
     
     try {
       // Vérifier si l'email existe déjà
-      const emailExists = await InternalUsersService.checkEmailExists(formData.email, businessId);
-      if (emailExists.exists) {
+      const emailExists = await checkEmailExists(formData.email);
+      if (emailExists) {
         setEmailError('Cet email est déjà utilisé dans votre business');
-        setIsLoading(false);
         return;
       }
 
-      // Créer l'utilisateur interne
-      const result = await InternalUsersService.createInternalUser({
+      // Créer l'utilisateur interne via le hook
+      createUser({
         name: formData.name,
         email: formData.email,
         phone: formData.phone || undefined,
-        role: formData.role as any,
-        password: formData.password,
-        business_id: businessId,
-        created_by: 'current_user_id' // À remplacer par l'ID de l'utilisateur connecté
+        roles: formData.roles as any
+      }, {
+        onSuccess: () => {
+          toast.success('Utilisateur interne créé avec succès !');
+          onUserAdded();
+          handleClose();
+        },
+        onError: (error: Error) => {
+          toast.error(`Erreur lors de la création : ${error.message}`);
+        }
       });
 
-      if (result.error) {
-        toast.error(`Erreur lors de la création : ${result.error}`);
-        return;
-      }
-
-      toast.success('Utilisateur interne créé avec succès !');
-      onUserAdded();
-      handleClose();
     } catch (error) {
       console.error('Error creating internal user:', error);
       toast.error('Erreur lors de l\'ajout de l\'utilisateur');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -145,7 +146,7 @@ export const AddInternalUserDialog = ({
       name: '',
       email: '',
       phone: '',
-      role: '',
+      roles: [],
       password: '',
       confirmPassword: ''
     });
@@ -208,29 +209,36 @@ export const AddInternalUserDialog = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role">Rôle *</Label>
-            <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un rôle" />
-              </SelectTrigger>
-              <SelectContent>
-                {INTERNAL_ROLES.map((role) => (
-                  <SelectItem key={role.value} value={role.value}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{role.label}</span>
-                      <span className="text-sm text-gray-500">{role.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {formData.role && (
-              <p className="text-sm text-gray-600 mt-1">
-                {getRoleDescription(formData.role)}
+            <Label>Rôles *</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {INTERNAL_ROLES.map((role) => (
+                <div key={role.value} className="flex items-start space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`role-${role.value}`}
+                    checked={formData.roles.includes(role.value)}
+                    onChange={() => handleRoleToggle(role.value)}
+                    className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor={`role-${role.value}`} className="text-sm font-medium text-gray-900 cursor-pointer">
+                      {role.label}
+                    </label>
+                    <p className="text-xs text-gray-500">{role.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {formData.roles.length > 0 && (
+              <p className="text-sm text-gray-600 mt-2">
+                Rôles sélectionnés : {formData.roles.map(role => 
+                  INTERNAL_ROLES.find(r => r.value === role)?.label
+                ).join(', ')}
               </p>
             )}
           </div>
 
+          {/* Champs de mot de passe temporairement masqués
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe *</Label>
@@ -255,11 +263,12 @@ export const AddInternalUserDialog = ({
               />
             </div>
           </div>
+          */}
 
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Note :</strong> L'utilisateur recevra un email avec ses identifiants de connexion.
-              Il pourra se connecter directement à votre dashboard partenaire.
+              <strong>Note :</strong> L'utilisateur est ajouté à votre équipe interne. 
+              La création de compte de connexion sera implémentée dans une prochaine version.
             </p>
           </div>
 
@@ -267,8 +276,8 @@ export const AddInternalUserDialog = ({
             <Button type="button" variant="outline" onClick={handleClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Ajout en cours...' : 'Ajouter l\'utilisateur'}
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? 'Ajout en cours...' : 'Ajouter l\'utilisateur'}
             </Button>
           </DialogFooter>
         </form>

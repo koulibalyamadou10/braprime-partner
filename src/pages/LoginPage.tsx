@@ -109,7 +109,7 @@ const LoginPage = () => {
       </div>
       
       {/* Auth Modals */}
-      <AuthModals
+      {isAuthenticated ? <></> : <AuthModals
         isLoginOpen={isLoginOpen}
         isSignupOpen={isSignupOpen}
         onLoginClose={() => setIsLoginOpen(false)}
@@ -122,7 +122,7 @@ const LoginPage = () => {
           setIsLoginOpen(false);
           setIsSignupOpen(true);
         }}
-      />
+      />}
     </Layout>
   );
 };

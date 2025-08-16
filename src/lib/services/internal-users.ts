@@ -7,7 +7,7 @@ export interface InternalUser {
   name: string;
   email: string;
   phone?: string;
-  role: 'commandes' | 'menu' | 'reservations' | 'livreurs' | 'revenu' | 'user' | 'facturation' | 'admin';
+  roles: ('commandes' | 'menu' | 'reservations' | 'livreurs' | 'revenu' | 'user' | 'facturation' | 'admin')[];
   is_active: boolean;
   permissions: Record<string, any>;
   last_login?: string;
@@ -20,8 +20,8 @@ export interface CreateInternalUserData {
   name: string;
   email: string;
   phone?: string;
-  role: InternalUser['role'];
-  password: string;
+  roles: InternalUser['roles'];
+  password?: string; // Optionnel pour l'instant
   business_id: number;
   created_by: string;
 }
@@ -29,7 +29,7 @@ export interface CreateInternalUserData {
 export interface UpdateInternalUserData {
   name?: string;
   phone?: string;
-  role?: InternalUser['role'];
+  roles?: InternalUser['roles'];
   is_active?: boolean;
   permissions?: Record<string, any>;
 }
@@ -72,7 +72,7 @@ export class InternalUsersService {
         name: user.user_profiles?.name || user.name,
         email: user.user_profiles?.email || user.email,
         phone: user.user_profiles?.phone_number || user.phone,
-        role: user.role,
+        roles: user.roles || [user.role], // Fallback pour la compatibilité
         is_active: user.is_active,
         permissions: user.permissions || {},
         last_login: user.last_login,
@@ -94,63 +94,27 @@ export class InternalUsersService {
     error: string | null;
   }> {
     try {
-      // 1. Créer d'abord l'utilisateur dans auth.users
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        email_confirm: true,
-        user_metadata: {
-          name: userData.name,
-          phone: userData.phone,
-          role: 'internal_user'
-        }
-      });
-
-      if (authError || !authData.user) {
-        console.error('Error creating auth user:', authError);
-        return { data: null, error: authError?.message || 'Erreur lors de la création du compte utilisateur' };
-      }
-
-      // 2. Créer le profil utilisateur
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          id: authData.user.id,
-          name: userData.name,
-          email: userData.email,
-          phone_number: userData.phone,
-          role_id: 1, // Rôle par défaut pour les utilisateurs internes
-          is_manual_creation: true
-        });
-
-      if (profileError) {
-        console.error('Error creating user profile:', profileError);
-        // Supprimer l'utilisateur auth créé en cas d'erreur
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        return { data: null, error: 'Erreur lors de la création du profil utilisateur' };
-      }
-
-      // 3. Créer l'utilisateur interne
+      // Pour l'instant, on va créer directement dans la table profil_internal_user
+      // sans créer de compte auth (à implémenter plus tard avec une fonction Supabase)
+      
+      // 1. Créer l'utilisateur interne directement
       const { data: internalUser, error: internalError } = await supabase
         .from('profil_internal_user')
         .insert({
-          user_id: authData.user.id,
+          user_id: userData.created_by, // Utiliser temporairement l'ID du créateur
           business_id: userData.business_id,
           name: userData.name,
           email: userData.email,
           phone: userData.phone,
-          role: userData.role,
+          roles: userData.roles,
           created_by: userData.created_by,
-          permissions: this.getDefaultPermissions(userData.role)
+          permissions: this.getDefaultPermissions(userData.roles)
         })
         .select()
         .single();
 
       if (internalError) {
         console.error('Error creating internal user:', internalError);
-        // Nettoyer en cas d'erreur
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        await supabase.from('user_profiles').delete().eq('id', authData.user.id);
         return { data: null, error: 'Erreur lors de la création de l\'utilisateur interne' };
       }
 
@@ -240,28 +204,40 @@ export class InternalUsersService {
     }
   }
 
-  // Obtenir les permissions par défaut selon le rôle
-  private static getDefaultPermissions(role: InternalUser['role']): Record<string, any> {
-    switch (role) {
-      case 'admin':
-        return { full_access: true };
-      case 'commandes':
-        return { orders_management: true, order_tracking: true, order_status_update: true };
-      case 'menu':
-        return { menu_management: true, item_editing: true, category_management: true };
-      case 'reservations':
-        return { reservations_management: true, table_management: true };
-      case 'livreurs':
-        return { drivers_management: true, driver_assignment: true, driver_tracking: true };
-      case 'revenu':
-        return { revenue_view: true, analytics_view: true, reports_view: true };
-      case 'user':
-        return { customer_management: true, customer_view: true };
-      case 'facturation':
-        return { billing_view: true, subscription_management: true, invoice_view: true };
-      default:
-        return {};
-    }
+  // Obtenir les permissions par défaut selon les rôles
+  private static getDefaultPermissions(roles: InternalUser['roles']): Record<string, any> {
+    const permissions: Record<string, any> = {};
+    
+    roles.forEach(role => {
+      switch (role) {
+        case 'admin':
+          Object.assign(permissions, { full_access: true });
+          break;
+        case 'commandes':
+          Object.assign(permissions, { orders_management: true, order_tracking: true, order_status_update: true });
+          break;
+        case 'menu':
+          Object.assign(permissions, { menu_management: true, item_editing: true, category_management: true });
+          break;
+        case 'reservations':
+          Object.assign(permissions, { reservations_management: true, table_management: true });
+          break;
+        case 'livreurs':
+          Object.assign(permissions, { drivers_management: true, driver_assignment: true, driver_tracking: true });
+          break;
+        case 'revenu':
+          Object.assign(permissions, { revenue_view: true, analytics_view: true, reports_view: true });
+          break;
+        case 'user':
+          Object.assign(permissions, { customer_management: true, customer_view: true });
+          break;
+        case 'facturation':
+          Object.assign(permissions, { billing_view: true, subscription_management: true, invoice_view: true });
+          break;
+      }
+    });
+    
+    return permissions;
   }
 
   // Vérifier si un email existe déjà pour un business
