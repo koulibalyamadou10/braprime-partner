@@ -39,6 +39,7 @@ import { ScrollArea } from '../../components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Label } from '../../components/ui/label';
+import { useUserRole } from '@/contexts/UserRoleContext';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -49,13 +50,13 @@ export interface DashboardOrder extends PartnerOrder {
 const PartnerOrders = () => {
   // Utiliser le hook optimisé avec chargement progressif
   const { 
-    business, 
     updateOrderStatus, 
     refresh,
     isBusinessLoading,
     isOrdersLoading,
     error: dashboardError
   } = usePartnerDashboard();
+
   
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<DashboardOrder[]>([]);
@@ -66,6 +67,7 @@ const PartnerOrders = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [business, setBusiness] = useState<PartnerBusiness | null>(null);
 
   // État pour l'assignation de livreur
   const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
@@ -81,6 +83,7 @@ const PartnerOrders = () => {
   const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+
 
   // Charger les commandes du business
   const loadOrders = async () => {

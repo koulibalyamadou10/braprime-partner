@@ -1,3 +1,5 @@
+import { useRole } from '@/contexts/RoleContext'
+import { useUserRole } from '@/contexts/UserRoleContext'
 import { supabase } from '@/lib/supabase'
 
 export interface PartnerBusiness {
