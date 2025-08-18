@@ -96,8 +96,8 @@ CREATE TABLE public.businesses (
   owner_phone character varying,
   has_own_drivers boolean DEFAULT false,
   CONSTRAINT businesses_pkey PRIMARY KEY (id),
-  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id),
   CONSTRAINT businesses_current_subscription_id_fkey FOREIGN KEY (current_subscription_id) REFERENCES public.partner_subscriptions(id),
+  CONSTRAINT businesses_business_type_id_fkey FOREIGN KEY (business_type_id) REFERENCES public.business_types(id),
   CONSTRAINT businesses_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
 CREATE TABLE public.cart (
@@ -126,8 +126,8 @@ CREATE TABLE public.cart_items (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT cart_items_pkey PRIMARY KEY (id),
-  CONSTRAINT cart_items_cart_id_fkey FOREIGN KEY (cart_id) REFERENCES public.cart(id),
-  CONSTRAINT cart_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+  CONSTRAINT cart_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
+  CONSTRAINT cart_items_cart_id_fkey FOREIGN KEY (cart_id) REFERENCES public.cart(id)
 );
 CREATE TABLE public.categories (
   id integer NOT NULL DEFAULT nextval('categories_id_seq'::regclass),
@@ -156,37 +156,6 @@ CREATE TABLE public.driver_documents (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT driver_documents_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.driver_orders (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  driver_id uuid NOT NULL,
-  order_id uuid NOT NULL,
-  pickup_address text NOT NULL,
-  delivery_address text NOT NULL,
-  pickup_coordinates jsonb,
-  delivery_coordinates jsonb,
-  delivery_instructions text,
-  customer_instructions text,
-  estimated_distance numeric,
-  actual_distance numeric,
-  estimated_duration integer,
-  actual_duration integer,
-  driver_earnings numeric DEFAULT 0,
-  driver_commission_percentage numeric DEFAULT 15,
-  assigned_at timestamp with time zone DEFAULT now(),
-  picked_up_at timestamp with time zone,
-  delivered_at timestamp with time zone,
-  customer_rating integer CHECK (customer_rating >= 1 AND customer_rating <= 5),
-  driver_rating integer CHECK (driver_rating >= 1 AND driver_rating <= 5),
-  customer_review text,
-  driver_review text,
-  metadata jsonb DEFAULT '{}'::jsonb,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  status USER-DEFINED DEFAULT 'pending'::driver_order_type,
-  CONSTRAINT driver_orders_pkey PRIMARY KEY (id),
-  CONSTRAINT driver_orders_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
-  CONSTRAINT driver_orders_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.driver_profiles(id)
-);
 CREATE TABLE public.driver_profiles (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   vehicle_type character varying,
@@ -202,8 +171,8 @@ CREATE TABLE public.driver_profiles (
   type USER-DEFINED DEFAULT 'independent'::driver_type,
   is_available boolean NOT NULL DEFAULT true,
   CONSTRAINT driver_profiles_pkey PRIMARY KEY (id),
-  CONSTRAINT driver_profiles_user_id_fkey FOREIGN KEY (id) REFERENCES public.user_profiles(id),
-  CONSTRAINT driver_profiles_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT driver_profiles_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT driver_profiles_user_id_fkey FOREIGN KEY (id) REFERENCES public.user_profiles(id)
 );
 CREATE TABLE public.favorite_businesses (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -252,8 +221,8 @@ CREATE TABLE public.menu_items (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT menu_items_pkey PRIMARY KEY (id),
-  CONSTRAINT menu_items_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT menu_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.menu_categories(id)
+  CONSTRAINT menu_items_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.menu_categories(id),
+  CONSTRAINT menu_items_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -266,7 +235,8 @@ CREATE TABLE public.notifications (
   data jsonb DEFAULT '{}'::jsonb,
   expires_at timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT notifications_pkey PRIMARY KEY (id)
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
 );
 CREATE TABLE public.order_items (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -280,8 +250,8 @@ CREATE TABLE public.order_items (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT order_items_pkey PRIMARY KEY (id),
-  CONSTRAINT order_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
-  CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
+  CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
+  CONSTRAINT order_items_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
 );
 CREATE TABLE public.orders (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -314,8 +284,16 @@ CREATE TABLE public.orders (
   order_number character varying,
   service_fee integer DEFAULT 0,
   verification_code character varying UNIQUE,
+  assigned_at timestamp with time zone,
+  delivery_latitude numeric CHECK (delivery_latitude IS NULL OR delivery_latitude >= '-90'::integer::numeric AND delivery_latitude <= 90::numeric),
+  delivery_longitude numeric CHECK (delivery_longitude IS NULL OR delivery_longitude >= '-180'::integer::numeric AND delivery_longitude <= 180::numeric),
+  delivery_formatted_address text,
+  pickup_latitude numeric CHECK (pickup_latitude IS NULL OR pickup_latitude >= '-90'::integer::numeric AND pickup_latitude <= 90::numeric),
+  pickup_longitude numeric CHECK (pickup_longitude IS NULL OR pickup_longitude >= '-180'::integer::numeric AND pickup_longitude <= 180::numeric),
+  pickup_formatted_address text,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
   CONSTRAINT orders_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
+  CONSTRAINT orders_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.driver_profiles(id),
   CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
 );
 CREATE TABLE public.partner_subscriptions (
@@ -336,8 +314,8 @@ CREATE TABLE public.partner_subscriptions (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT partner_subscriptions_pkey PRIMARY KEY (id),
-  CONSTRAINT partner_subscriptions_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES public.businesses(id),
-  CONSTRAINT partner_subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.subscription_plans(id)
+  CONSTRAINT partner_subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.subscription_plans(id),
+  CONSTRAINT partner_subscriptions_partner_id_fkey FOREIGN KEY (partner_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.payment_methods (
   id integer NOT NULL DEFAULT nextval('payment_methods_id_seq'::regclass),
@@ -374,7 +352,7 @@ CREATE TABLE public.profil_internal_user (
   updated_at timestamp with time zone DEFAULT now(),
   roles ARRAY,
   CONSTRAINT profil_internal_user_pkey PRIMARY KEY (id),
-  CONSTRAINT profil_internal_user_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT profil_internal_user_user_id_fkey1 FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT profil_internal_user_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
   CONSTRAINT profil_internal_user_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.user_profiles(id)
 );
@@ -386,8 +364,8 @@ CREATE TABLE public.request_events (
   payload jsonb DEFAULT '{}'::jsonb,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT request_events_pkey PRIMARY KEY (id),
-  CONSTRAINT request_events_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id),
-  CONSTRAINT request_events_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.requests(id)
+  CONSTRAINT request_events_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.requests(id),
+  CONSTRAINT request_events_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.requests (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -431,10 +409,10 @@ CREATE TABLE public.requests (
   preferred_zones ARRAY,
   driver_notes text,
   CONSTRAINT requests_pkey PRIMARY KEY (id),
-  CONSTRAINT requests_submitted_by_fkey FOREIGN KEY (submitted_by) REFERENCES auth.users(id),
-  CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id),
+  CONSTRAINT requests_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
   CONSTRAINT requests_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.driver_profiles(id),
-  CONSTRAINT requests_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT requests_submitted_by_fkey FOREIGN KEY (submitted_by) REFERENCES auth.users(id),
+  CONSTRAINT requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id)
 );
 CREATE TABLE public.reservations (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -463,8 +441,9 @@ CREATE TABLE public.reviews (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT reviews_pkey PRIMARY KEY (id),
+  CONSTRAINT reviews_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
   CONSTRAINT reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
-  CONSTRAINT reviews_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+  CONSTRAINT reviews_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
 );
 CREATE TABLE public.subscription_payments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -552,9 +531,9 @@ CREATE TABLE public.user_profiles (
   is_manual_creation boolean DEFAULT false,
   businesse_id integer,
   CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id),
   CONSTRAINT user_profiles_businesse_id_fkey FOREIGN KEY (businesse_id) REFERENCES public.businesses(id),
-  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
-  CONSTRAINT user_profiles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.user_roles(id)
+  CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.user_push_tokens (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

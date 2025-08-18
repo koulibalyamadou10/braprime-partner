@@ -3,10 +3,10 @@ import { PartnerOrdersSkeleton, PartnerOrdersProgressiveSkeleton } from '@/compo
 import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { DriverService } from '@/lib/services/drivers';
-import { PartnerDashboardService, PartnerOrder } from '@/lib/services/partner-dashboard';
+import { PartnerOrder } from '@/lib/services/partner-dashboard';
 import { supabase } from '@/lib/supabase';
+import { getUserWithManyInformationsForTheDashboard, UserWithBusiness } from '@/lib/kservices/k-helpers';
 import {
     AlertCircle,
     Check,
@@ -47,17 +47,28 @@ export interface DashboardOrder extends PartnerOrder {
   business_id: number;
 }
 
-const PartnerOrders = () => {
-  // Utiliser le hook optimisé avec chargement progressif
-  const { 
-    updateOrderStatus, 
-    refresh,
-    isBusinessLoading,
-    isOrdersLoading,
-    error: dashboardError
-  } = usePartnerDashboard();
 
+
+// Interface pour le business
+interface Business {
+  id: number;
+  name: string;
+  description?: string;
+  address: string;
+  phone?: string;
+  email?: string;
+  is_active: boolean;
+  owner_id: string;
+}
+
+const PartnerOrders = () => {
+  // États pour les données utilisateur et business
+  const [userData, setUserData] = useState<UserWithBusiness | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
+  // États pour les commandes
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<DashboardOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<DashboardOrder | null>(null);
@@ -65,9 +76,6 @@ const PartnerOrders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDeliveryType, setFilterDeliveryType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [business, setBusiness] = useState<PartnerBusiness | null>(null);
 
   // État pour l'assignation de livreur
   const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
@@ -85,30 +93,73 @@ const PartnerOrders = () => {
   const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
 
 
-  // Charger les commandes du business
-  const loadOrders = async () => {
-    if (!business) return;
-
+  // Charger les données utilisateur et business
+  const loadUserData = async () => {
     try {
       setIsLoading(true);
       setError(null);
+      
+      const userData = await getUserWithManyInformationsForTheDashboard();
+      
+      if (userData && userData.isInternalUser && userData.business) {
+        setUserData(userData);
+        setBusiness(userData.business);
+        
+        // Charger les commandes après avoir récupéré le business
+        await loadOrders(userData.business.id);
+      } else {
+        setError('Aucun business associé à votre compte partenaire');
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des données utilisateur:', err);
+      setError('Erreur lors du chargement des données utilisateur');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      const { orders: businessOrders, error: ordersError } = await PartnerDashboardService.getPartnerOrders(business.id, 100);
+  // Charger les commandes du business
+  const loadOrders = async (businessId: number) => {
+    try {
+      setError(null);
+
+      // Récupérer les commandes depuis la table orders
+      const { data: businessOrders, error: ordersError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          items:order_items(*),
+          customer:user_profiles!orders_user_id_fkey(name, phone_number),
+          driver:driver_profiles!orders_driver_id_fkey(name, phone_number, vehicle_type, vehicle_plate)
+        `)
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (ordersError) {
-        setError(ordersError);
+        setError(ordersError.message);
         return;
       }
 
       if (businessOrders) {
+        // Transformer les données pour correspondre à l'interface DashboardOrder
+        const transformedOrders = businessOrders.map(order => ({
+          ...order,
+          business_id: businessId,
+          customer_name: order.customer?.name || 'Client inconnu',
+          customer_phone: order.customer?.phone_number || 'Téléphone inconnu',
+          driver_name: order.driver?.name || null,
+          driver_phone: order.driver?.phone_number || null,
+          driver_vehicle_type: order.driver?.vehicle_type || null,
+          driver_vehicle_plate: order.driver?.vehicle_plate || null,
+          items: order.items || []
+        }));
+
         // Dédupliquer les commandes par ID pour éviter les doublons
-        const uniqueOrders = businessOrders.reduce((acc: DashboardOrder[], order) => {
+        const uniqueOrders = transformedOrders.reduce((acc: DashboardOrder[], order) => {
           const existingOrder = acc.find(o => o.id === order.id);
           if (!existingOrder) {
-            acc.push({
-              ...order,
-              business_id: business.id
-            });
+            acc.push(order);
           }
           return acc;
         }, []);
@@ -119,17 +170,13 @@ const PartnerOrders = () => {
     } catch (err) {
       console.error('Erreur lors du chargement des commandes:', err);
       setError('Erreur lors du chargement des commandes');
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // Charger les commandes au montage et quand le business change
+  // Charger les données au montage
   useEffect(() => {
-    if (business && !isBusinessLoading) {
-      loadOrders();
-    }
-  }, [business, isBusinessLoading]);
+    loadUserData();
+  }, []);
 
   // Filtrer les commandes
   useEffect(() => {
@@ -203,6 +250,29 @@ const PartnerOrders = () => {
     }
   };
 
+  // Fonction pour mettre à jour le statut d'une commande
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Erreur mise à jour statut:', error);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour du statut:', err);
+      return false;
+    }
+  };
+
   // Gérer le changement de statut
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const success = await updateOrderStatus(orderId, newStatus);
@@ -210,7 +280,9 @@ const PartnerOrders = () => {
     if (success) {
       toast.success('Statut de la commande mis à jour');
       // Recharger les commandes
-      await loadOrders();
+      if (business) {
+        await loadOrders(business.id);
+      }
     } else {
       toast.error('Erreur lors de la mise à jour du statut');
     }
@@ -327,9 +399,11 @@ const PartnerOrders = () => {
       const success = await updateOrderStatus(orderToAssign.id, 'out_for_delivery');
       
       if (success) {
-        toast.success(`Livreur assigné et commande mise en livraison`);
-        // Recharger les commandes
-        await loadOrders();
+              toast.success(`Livreur assigné et commande mise en livraison`);
+      // Recharger les commandes
+      if (business) {
+        await loadOrders(business.id);
+      }
       } else {
         toast.error('Erreur lors de la mise à jour du statut');
       }
@@ -370,7 +444,9 @@ const PartnerOrders = () => {
       }
       
       // Recharger les commandes et fermer le modal
-      await loadOrders();
+      if (business) {
+        await loadOrders(business.id);
+      }
       setIsMultipleAssignOpen(false);
       setOrdersToAssign([]);
       setSelectedOrderIds([]);
@@ -548,7 +624,9 @@ const PartnerOrders = () => {
       }
       toast.success('Batch créé avec succès !');
       setSelectedOrderIds([]);
-      await loadOrders();
+      if (business) {
+        await loadOrders(business.id);
+      }
     } catch (e) {
       toast.error('Erreur inattendue');
     } finally {
@@ -566,8 +644,7 @@ const PartnerOrders = () => {
   const preloadData = async () => {
     try {
       toast.info('🔄 Préchargement des données...')
-      await refresh()
-      await loadOrders()
+      await loadUserData()
       toast.success('✅ Données préchargées avec succès!')
     } catch (error) {
       toast.error('❌ Erreur lors du préchargement')
@@ -597,7 +674,7 @@ const PartnerOrders = () => {
   }
 
   // Vérifier si l'utilisateur est authentifié et si le business est chargé
-  if (!business && isBusinessLoading) {
+  if (!business && isLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
         <PartnerOrdersSkeleton />
@@ -614,7 +691,7 @@ const PartnerOrders = () => {
             <p className="text-muted-foreground mb-4">
               Aucun business n'est associé à votre compte partenaire.
             </p>
-            <Button onClick={refresh}>
+            <Button onClick={loadUserData}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualiser
             </Button>
@@ -625,19 +702,19 @@ const PartnerOrders = () => {
   }
 
   // Afficher le chargement progressif une fois que le business est chargé
-  if (business && (isOrdersLoading || isLoading)) {
+  if (business && isLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
         <PartnerOrdersProgressiveSkeleton
           business={business}
           isBusinessLoading={false}
-          isOrdersLoading={isOrdersLoading || isLoading}
+          isOrdersLoading={isLoading}
         />
       </DashboardLayout>
     );
   }
 
-  if (error || dashboardError) {
+  if (error) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
         <div className="space-y-6">
@@ -649,13 +726,13 @@ const PartnerOrders = () => {
           </div>
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-red-500 mb-4">{error || dashboardError}</p>
+              <p className="text-red-500 mb-4">{error}</p>
               <div className="flex gap-2">
                 <Button onClick={preloadData} variant="outline">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Précharger
                 </Button>
-                <Button onClick={loadOrders}>
+                <Button onClick={() => business && loadOrders(business.id)}>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Réessayer
                 </Button>
@@ -695,7 +772,7 @@ const PartnerOrders = () => {
               <RefreshCw className="h-4 w-4 mr-2" />
               Précharger
             </Button>
-            <Button onClick={loadOrders} variant="outline">
+            <Button onClick={() => business && loadOrders(business.id)} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualiser
             </Button>
@@ -1304,10 +1381,10 @@ const PartnerOrders = () => {
                             <span className="font-medium">{formatDate(selectedOrder.estimated_delivery)}</span>
                           </div>
                         )}
-                        {selectedOrder.actual_delivery && (
+                        {selectedOrder.actual_delivery_time && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Livrée à:</span>
-                            <span className="font-medium">{formatDate(selectedOrder.actual_delivery)}</span>
+                            <span className="font-medium">{formatDate(selectedOrder.actual_delivery_time)}</span>
                           </div>
                         )}
                         {selectedOrder.assigned_at && (
