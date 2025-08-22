@@ -467,7 +467,7 @@ export const subscriptionService = {
     }
   },
 
-  // Renouveler un abonnement
+  // Renouveler un abonnement (upgrade uniquement)
   async renewSubscription(subscriptionId: string, newPlanId: string): Promise<boolean> {
     try {
       // Récupérer le plan actuel et le nouveau plan
@@ -487,7 +487,33 @@ export const subscriptionService = {
         throw new Error('Données manquantes pour le renouvellement');
       }
 
-      // Créer un nouvel abonnement
+      // Vérifier si le nouveau plan est différent
+      if (currentSub.plan_id === newPlanId) {
+        toast.error('Vous avez déjà ce plan d\'abonnement');
+        return false;
+      }
+
+      // Calculer la différence de prix
+      const priceDifference = newPlan.price - currentSub.total_paid;
+      const isUpgrade = priceDifference > 0;
+      const isDowngrade = priceDifference < 0;
+
+      console.log(`🔄 Changement de plan: ${currentSub.plan_id} → ${newPlanId}`);
+      console.log(`💰 Différence de prix: ${priceDifference} GNF`);
+
+      // Empêcher les downgrades
+      if (isDowngrade) {
+        toast.error('Les downgrades ne sont pas autorisés. Seuls les upgrades sont possibles.');
+        return false;
+      }
+
+      // Vérifier que c'est bien un upgrade
+      if (!isUpgrade) {
+        toast.error('Seuls les upgrades vers des plans supérieurs sont autorisés');
+        return false;
+      }
+
+      // Créer un nouvel abonnement avec le nouveau plan
       const newSubscriptionId = await this.createSubscription(
         currentSub.partner_id,
         newPlanId,
@@ -506,11 +532,13 @@ export const subscriptionService = {
       // Annuler l'ancien abonnement
       await this.cancelSubscription(subscriptionId);
 
-      toast.success('Abonnement renouvelé avec succès');
+      // Notifier l'utilisateur
+      toast.success(`Plan mis à niveau vers ${newPlan.name}. Montant supplémentaire: ${priceDifference.toLocaleString()} GNF`);
+
       return true;
     } catch (error) {
       console.error('Erreur lors du renouvellement:', error);
-      toast.error('Erreur lors du renouvellement de l\'abonnement');
+      toast.error('Erreur lors du changement de plan');
       return false;
     }
   }

@@ -170,9 +170,9 @@ export const CreateSubscriptionModal: React.FC<CreateSubscriptionModalProps> = (
             subscription_id: subscriptionId,
             partner_id: partnerId,
             plan_id: selectedPlan!.id,
-            amount: selectedPlan!.price,
+            amount: selectedPlan!.price, // ✅ CORRECTION : utiliser price (montant total du plan)
             currency: 'GNF',
-            payment_method: selectedPaymentMethod === 'mobile_money' ? 'lp-om-gn' : 'lp-card-gn',
+            payment_method: selectedPaymentMethod === 'mobile_money' ? 'mobile_money' : 'card',
             phone_number: billingInfo.phone || '',
             subscription_number: `SUB-${subscriptionId.substring(0, 8)}`,
             business_name: 'BraPrime Partenariat',

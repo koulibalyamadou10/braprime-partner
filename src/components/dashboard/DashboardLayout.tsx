@@ -218,11 +218,6 @@ export const partnerNavItems = [
     icon: <Bell className="h-5 w-5" />,
   },
   {
-    href: '/partner-dashboard/drivers',
-    label: 'Livreurs',
-    icon: <Truck className="h-5 w-5" />,
-  },
-  {
     href: '/partner-dashboard/revenue',
     label: 'Revenus',
     icon: <DollarSign className="h-5 w-5" />,

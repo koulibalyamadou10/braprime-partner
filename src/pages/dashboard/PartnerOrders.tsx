@@ -1,15 +1,14 @@
-import { AssignDriverDialog } from '@/components/AssignDriverDialog';
-import { PartnerOrdersSkeleton, PartnerOrdersProgressiveSkeleton } from '@/components/dashboard/DashboardSkeletons';
+// import { AssignDriverDialog } from '@/components/AssignDriverDialog';
+import { PartnerOrdersProgressiveSkeleton, PartnerOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Skeleton } from '@/components/ui/skeleton';
+import { getUserWithManyInformationsForTheDashboard, UserWithBusiness } from '@/lib/kservices/k-helpers';
+import { DriverNotificationService } from '@/lib/services/driver-notifications';
 import { DriverService } from '@/lib/services/drivers';
 import { PartnerOrder } from '@/lib/services/partner-dashboard';
 import { supabase } from '@/lib/supabase';
-import { getUserWithManyInformationsForTheDashboard, UserWithBusiness } from '@/lib/kservices/k-helpers';
 import {
     AlertCircle,
-    Check,
     CheckCircle,
     Clock,
     Eye,
@@ -23,8 +22,7 @@ import {
     Timer,
     Truck,
     User,
-    XCircle,
-    Zap
+    XCircle
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -32,14 +30,13 @@ import DashboardLayout, { partnerNavItems } from '../../components/dashboard/Das
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Label } from '../../components/ui/label';
-import { useUserRole } from '@/contexts/UserRoleContext';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -77,20 +74,20 @@ const PartnerOrders = () => {
   const [filterDeliveryType, setFilterDeliveryType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // État pour l'assignation de livreur
-  const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
-  const [orderToAssign, setOrderToAssign] = useState<DashboardOrder | null>(null);
+  // État pour l'assignation de livreur - DÉSACTIVÉ
+  // const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
+  // const [orderToAssign, setOrderToAssign] = useState<DashboardOrder | null>(null);
 
   // État pour la sélection multiple de commandes prêtes
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
 
-  // État pour l'assignation multiple de livreur
-  const [isMultipleAssignOpen, setIsMultipleAssignOpen] = useState(false);
-  const [ordersToAssign, setOrdersToAssign] = useState<DashboardOrder[]>([]);
-  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
-  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
-  const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+  // État pour l'assignation multiple de livreur - DÉSACTIVÉ
+  // const [isMultipleAssignOpen, setIsMultipleAssignOpen] = useState(false);
+  // const [ordersToAssign, setOrdersToAssign] = useState<DashboardOrder[]>([]);
+  // const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
+  // const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  // const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
 
 
   // Charger les données utilisateur et business
@@ -123,7 +120,7 @@ const PartnerOrders = () => {
     try {
       setError(null);
 
-      // Récupérer les commandes depuis la table orders
+      // Récupérer toutes les commandes du business
       const { data: businessOrders, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -133,7 +130,6 @@ const PartnerOrders = () => {
           driver:driver_profiles!orders_driver_id_fkey(name, phone_number, vehicle_type, vehicle_plate)
         `)
         .eq('business_id', businessId)
-        .order('created_at', { ascending: false })
         .limit(100);
 
       if (ordersError) {
@@ -142,8 +138,65 @@ const PartnerOrders = () => {
       }
 
       if (businessOrders) {
+        // Séparer les commandes individuelles et groupées
+        const individualOrders = businessOrders.filter(order => !order.is_grouped_delivery);
+        const groupedOrders = businessOrders.filter(order => order.is_grouped_delivery);
+
+        // Pour les commandes groupées, récupérer tous les items du groupe
+        let enhancedGroupedOrders = groupedOrders;
+        if (groupedOrders.length > 0) {
+          // Récupérer les IDs des groupes de livraison
+          const groupIds = [...new Set(groupedOrders.map(order => order.delivery_group_id).filter(Boolean))];
+          
+          // Récupérer tous les items des commandes groupées
+          const { data: groupedItems, error: itemsError } = await supabase
+            .from('order_items')
+            .select('*')
+            .in('order_id', groupedOrders.map(order => order.id));
+
+          if (!itemsError && groupedItems) {
+            // Créer un map des items par commande
+            const itemsMap = new Map();
+            groupedItems.forEach(item => {
+              if (!itemsMap.has(item.order_id)) {
+                itemsMap.set(item.order_id, []);
+              }
+              itemsMap.get(item.order_id).push(item);
+            });
+
+            // Enrichir les commandes groupées avec leurs items
+            enhancedGroupedOrders = groupedOrders.map(order => ({
+              ...order,
+              items: itemsMap.get(order.id) || []
+            }));
+          }
+
+          // Vérifier le statut de paiement des groupes
+          const { data: groupPayments, error: groupError } = await supabase
+            .from('payments')
+            .select('delivery_group_id, status')
+            .in('delivery_group_id', groupIds);
+
+          if (!groupError && groupPayments) {
+            // Créer un map des groupes payés
+            const paidGroups = new Set(
+              groupPayments
+                .filter(payment => payment.status === 'success')
+                .map(payment => payment.delivery_group_id)
+            );
+
+            // Filtrer les commandes groupées pour ne garder que celles des groupes payés
+            enhancedGroupedOrders = enhancedGroupedOrders.filter(order => 
+              order.delivery_group_id && paidGroups.has(order.delivery_group_id)
+            );
+          }
+        }
+
+        // Combiner les commandes individuelles payées et les commandes groupées payées
+        const allPaidOrders = [...individualOrders, ...enhancedGroupedOrders];
+
         // Transformer les données pour correspondre à l'interface DashboardOrder
-        const transformedOrders = businessOrders.map(order => ({
+        const transformedOrders = allPaidOrders.map(order => ({
           ...order,
           business_id: businessId,
           customer_name: order.customer?.name || 'Client inconnu',
@@ -210,13 +263,7 @@ const PartnerOrders = () => {
       return acc;
     }, []);
 
-    // Log pour déboguer
-    console.log('Commandes filtrées:', {
-      total: orders.length,
-      filtered: filtered.length,
-      uniqueFiltered: uniqueFiltered.length,
-      duplicates: filtered.length - uniqueFiltered.length
-    });
+    
 
     setFilteredOrders(uniqueFiltered);
   }, [orders, filterStatus, filterDeliveryType, searchQuery]);
@@ -323,6 +370,13 @@ const PartnerOrders = () => {
             : order
         )
       );
+
+      // Envoyer une notification aux drivers indépendants si le business est défini
+      if (business?.id) {
+        // Envoyer la notification de manière asynchrone (ne pas bloquer l'interface)
+        // Note: Seuls les drivers indépendants (business_id = null) sont notifiés
+        DriverNotificationService.notifyAvailabilityChange(orderId, business.id, available);
+      }
     } catch (err) {
       console.error('Erreur lors de la mise à jour de la disponibilité:', err);
       toast.error('Erreur lors de la mise à jour de la disponibilité');
@@ -365,97 +419,100 @@ const PartnerOrders = () => {
     return firstOrder?.delivery_type;
   };
 
-  // Fonction pour gérer l'action selon le type de livraison
+  // Fonction pour gérer l'action selon le type de livraison - DÉSACTIVÉ
   const handleBatchAction = () => {
     const deliveryType = getSelectedOrdersDeliveryType();
     
-    if (deliveryType === 'asap') {
-      // Pour les commandes ASAP : assignation directe
-      if (selectedOrderIds.length === 1) {
-        const order = orders.find(o => o.id === selectedOrderIds[0]);
-        if (order) {
-    setOrderToAssign(order);
-    setIsAssignDriverOpen(true);
-        }
-      } else {
-        // Assigner un livreur pour toutes les commandes ASAP sélectionnées
-        const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
-        setOrdersToAssign(selectedOrders);
-        setIsMultipleAssignOpen(true);
-        loadAvailableDrivers(); // Charger les livreurs quand le modal s'ouvre
-      }
-    } else {
-      // Pour les commandes Scheduled : créer un batch
-      createBatch();
-    }
+    // Fonctionnalité d'assignation de livreur désactivée
+    toast.info('Fonctionnalité d\'assignation de livreur désactivée');
+    
+    // if (deliveryType === 'asap') {
+    //   // Pour les commandes ASAP : assignation directe
+    //   if (selectedOrderIds.length === 1) {
+    //     const order = orders.find(o => o.id === selectedOrderIds[0]);
+    //     if (order) {
+    // setOrderToAssign(order);
+    // setIsAssignDriverOpen(true);
+    //     }
+    //   } else {
+    //     // Assigner un livreur pour toutes les commandes ASAP sélectionnées
+    //     const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+    //     setOrdersToAssign(selectedOrders);
+    //     setIsMultipleAssignOpen(true);
+    //     loadAvailableDrivers(); // Charger les livreurs quand le modal s'ouvre
+    //   }
+    // } else {
+    //   // Pour les commandes Scheduled : créer un batch
+    //   createBatch();
+    // }
   };
 
-  // Gérer l'assignation réussie d'un livreur
-  const handleDriverAssigned = async (driverId: string, driverName: string, driverPhone: string) => {
-    if (!orderToAssign) return;
+  // Gérer l'assignation réussie d'un livreur - DÉSACTIVÉ
+  // const handleDriverAssigned = async (driverId: string, driverName: string, driverPhone: string) => {
+  //   if (!orderToAssign) return;
 
-    try {
-      // Mettre à jour le statut de la commande vers "out_for_delivery"
-      const success = await updateOrderStatus(orderToAssign.id, 'out_for_delivery');
+  //   try {
+  //     // Mettre à jour le statut de la commande vers "out_for_delivery"
+  //     const success = await updateOrderStatus(orderToAssign.id, 'out_for_delivery');
       
-      if (success) {
-              toast.success(`Livreur assigné et commande mise en livraison`);
-      // Recharger les commandes
-      if (business) {
-        await loadOrders(business.id);
-      }
-      } else {
-        toast.error('Erreur lors de la mise à jour du statut');
-      }
-    } catch (err) {
-      console.error('Erreur lors de l\'assignation:', err);
-      toast.error('Erreur lors de l\'assignation du livreur');
-    }
-  };
+  //     if (success) {
+  //             toast.success(`Livreur assigné et commande mise en livraison`);
+  //     // Recharger les commandes
+  //     if (business) {
+  //       await loadOrders(business.id);
+  //     }
+  //     } else {
+  //       toast.error('Erreur lors de la mise à jour du statut');
+  //     }
+  //   } catch (err) {
+  //     console.error('Erreur lors de l\'assignation:', err);
+  //     toast.error('Erreur lors de l\'assignation du livreur');
+  //   }
+  // };
 
-  // Gérer l'assignation multiple réussie d'un livreur
-  const handleMultipleDriverAssigned = async () => {
-    if (!selectedDriverId) {
-      toast.error('Veuillez sélectionner un livreur');
-      return;
-    }
+  // Gérer l'assignation multiple réussie d'un livreur - DÉSACTIVÉ
+  // const handleMultipleDriverAssigned = async () => {
+  //   if (!selectedDriverId) {
+  //     toast.error('Veuillez sélectionner un livreur');
+  //     return;
+  //   }
 
-    const selectedDriver = availableDrivers.find(d => d.id === selectedDriverId);
-    if (!selectedDriver) {
-      toast.error('Livreur non trouvé');
-      return;
-    }
+  //   const selectedDriver = availableDrivers.find(d => d.id === selectedDriverId);
+  //   if (!selectedDriver) {
+  //     toast.error('Livreur non trouvé');
+  //     return;
+  //   }
 
-    try {
-      let successCount = 0;
+  //   try {
+  //     let successCount = 0;
       
-      for (const order of ordersToAssign) {
-        // Mettre à jour le statut de chaque commande vers "out_for_delivery"
-        const success = await updateOrderStatus(order.id, 'out_for_delivery');
-        if (success) {
-          successCount++;
-        }
-      }
+  //     for (const order of ordersToAssign) {
+  //       // Mettre à jour le statut de chaque commande vers "out_for_delivery"
+  //       const success = await updateOrderStatus(order.id, 'out_for_delivery');
+  //       if (success) {
+  //         successCount++;
+  //       }
+  //     }
       
-      if (successCount === ordersToAssign.length) {
-        toast.success(`${successCount} commande(s) ASAP assignée(s) au livreur ${selectedDriver.name}`);
-      } else {
-        toast.warning(`${successCount}/${ordersToAssign.length} commande(s) assignée(s) avec succès`);
-      }
+  //     if (successCount === ordersToAssign.length) {
+  //       toast.success(`${successCount} commande(s) ASAP assignée(s) au livreur ${selectedDriver.name}`);
+  //     } else {
+  //       toast.warning(`${successCount}/${ordersToAssign.length} commande(s) assignée(s) avec succès`);
+  //     }
       
-      // Recharger les commandes et fermer le modal
-      if (business) {
-        await loadOrders(business.id);
-      }
-      setIsMultipleAssignOpen(false);
-      setOrdersToAssign([]);
-      setSelectedOrderIds([]);
-      setSelectedDriverId('');
-    } catch (err) {
-      console.error('Erreur lors de l\'assignation multiple:', err);
-      toast.error('Erreur lors de l\'assignation multiple');
-    }
-  };
+  //     // Recharger les commandes et fermer le modal
+  //     if (business) {
+  //         await loadOrders(business.id);
+  //       }
+  //       setIsMultipleAssignOpen(false);
+  //       setOrdersToAssign([]);
+  //       setSelectedOrderIds([]);
+  //       setSelectedDriverId('');
+  //     } catch (err) {
+  //       console.error('Erreur lors de l\'assignation multiple:', err);
+  //       toast.error('Erreur lors de l\'assignation multiple');
+  //     }
+  //   };
 
   // Formater les montants
   const formatCurrency = (amount: number) => {
@@ -576,6 +633,7 @@ const PartnerOrders = () => {
     const delivering = orders.filter(order => order.status === 'out_for_delivery').length;
     const delivered = orders.filter(order => order.status === 'delivered').length;
     const cancelled = orders.filter(order => order.status === 'cancelled').length;
+    const grouped = orders.filter(order => order.is_grouped_delivery).length;
 
     return { 
       total, 
@@ -587,7 +645,8 @@ const PartnerOrders = () => {
       ready, 
       delivering, 
       delivered, 
-      cancelled 
+      cancelled,
+      grouped
     };
   };
 
@@ -634,11 +693,11 @@ const PartnerOrders = () => {
     }
   };
 
-  // Gérer l'ouverture du dialogue d'assignation de livreur
-  const handleAssignDriver = (order: DashboardOrder) => {
-    setOrderToAssign(order);
-    setIsAssignDriverOpen(true);
-  };
+  // Gérer l'ouverture du dialogue d'assignation de livreur - DÉSACTIVÉ
+  // const handleAssignDriver = (order: DashboardOrder) => {
+  //   setOrderToAssign(order);
+  //   setIsAssignDriverOpen(true);
+  // };
 
   // Fonction de préchargement manuel des données
   const preloadData = async () => {
@@ -674,17 +733,17 @@ const PartnerOrders = () => {
   }
 
   // Vérifier si l'utilisateur est authentifié et si le business est chargé
-  if (!business && isLoading) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+     if (!business && isLoading) {
+     return (
+       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
         <PartnerOrdersSkeleton />
       </DashboardLayout>
     );
   }
 
-  if (!business) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+     if (!business) {
+     return (
+       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Aucun Business Trouvé</h3>
@@ -701,10 +760,10 @@ const PartnerOrders = () => {
     );
   }
 
-  // Afficher le chargement progressif une fois que le business est chargé
-  if (business && isLoading) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+     // Afficher le chargement progressif une fois que le business est chargé
+   if (business && isLoading) {
+     return (
+       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
         <PartnerOrdersProgressiveSkeleton
           business={business}
           isBusinessLoading={false}
@@ -714,9 +773,9 @@ const PartnerOrders = () => {
     );
   }
 
-  if (error) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+     if (error) {
+     return (
+       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
         <div className="space-y-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -744,16 +803,16 @@ const PartnerOrders = () => {
     );
   }
 
-  return (
-    <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+     return (
+     <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes</h2>
-            <p className="text-gray-500">
-              Gérez les commandes de {business.name}
-            </p>
+                         <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes Payées</h2>
+             <p className="text-gray-500">
+               Gérez les commandes payées de {business.name}
+             </p>
             {stats.duplicates > 0 && (
               <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
                 <p className="text-sm text-yellow-700">
@@ -768,14 +827,14 @@ const PartnerOrders = () => {
                 🧹 Nettoyer doublons
               </Button>
             )}
-            <Button onClick={preloadData} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Précharger
-            </Button>
-            <Button onClick={() => business && loadOrders(business.id)} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Actualiser
-            </Button>
+                         <Button onClick={preloadData} variant="outline" size="sm">
+               <RefreshCw className="h-4 w-4 mr-2" />
+               Précharger
+             </Button>
+             <Button onClick={() => business && loadOrders(business.id)} variant="outline">
+               <RefreshCw className="h-4 w-4 mr-2" />
+               Actualiser
+             </Button>
           </div>
         </div>
 
@@ -831,11 +890,11 @@ const PartnerOrders = () => {
         </div>
 
         {/* Statistiques */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          <Card>
-            <CardContent className="p-4 flex flex-col items-center justify-center">
-              <p className="text-sm text-gray-500">Total commandes</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.total}</h3>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
+                     <Card>
+             <CardContent className="p-4 flex flex-col items-center justify-center">
+               <p className="text-sm text-gray-500">Total commandes payées</p>
+               <h3 className="text-2xl font-bold mt-1">{stats.total}</h3>
               {stats.duplicates > 0 && (
                 <p className="text-xs text-yellow-600 mt-1">
                   {stats.duplicates} doublon(s)
@@ -867,6 +926,12 @@ const PartnerOrders = () => {
               <h3 className="text-2xl font-bold mt-1">{stats.delivering}</h3>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="p-4 flex flex-col items-center justify-center">
+              <p className="text-sm text-gray-500">Commandes groupées</p>
+              <h3 className="text-2xl font-bold mt-1">{stats.grouped}</h3>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Bouton d'action selon le type */}
@@ -878,21 +943,21 @@ const PartnerOrders = () => {
                 {getSelectedOrdersDeliveryType() === 'asap' ? 'Assignation en cours...' : 'Création en cours...'}
               </>
             ) : (
-              getSelectedOrdersDeliveryType() === 'asap' 
-                ? `Assigner livreur (${selectedOrderIds.length} commande${selectedOrderIds.length > 1 ? 's' : ''} ASAP)`
-                : `Créer un batch de livraison (${selectedOrderIds.length} commande${selectedOrderIds.length > 1 ? 's' : ''} programmée${selectedOrderIds.length > 1 ? 's' : ''})`
+                          getSelectedOrdersDeliveryType() === 'asap' 
+              ? `Assigner livreur (désactivé)`
+              : `Créer un batch de livraison (${selectedOrderIds.length} commande${selectedOrderIds.length > 1 ? 's' : ''} programmée${selectedOrderIds.length > 1 ? 's' : ''})`
             )}
           </Button>
         )}
 
         {/* Liste des commandes */}
         <Card>
-          <CardHeader>
-            <CardTitle>Commandes récentes</CardTitle>
-            <CardDescription>
-              Gérez les commandes de vos clients et mettez à jour leur statut.
-            </CardDescription>
-          </CardHeader>
+                     <CardHeader>
+             <CardTitle>Commandes payées récentes</CardTitle>
+             <CardDescription>
+               Gérez les commandes payées de vos clients et mettez à jour leur statut.
+             </CardDescription>
+           </CardHeader>
           <CardContent>
             {filteredOrders.length > 0 ? (
               <Table>
@@ -940,7 +1005,16 @@ const PartnerOrders = () => {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="font-medium">{order.order_number || order.id.slice(0, 8)}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span>{order.order_number || order.id.slice(0, 8)}</span>
+                          {order.is_grouped_delivery && (
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              Groupe
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{order.customer_name}</TableCell>
                       <TableCell>{formatDate(order.created_at)}</TableCell>
                       <TableCell className="max-w-[200px]">
@@ -1015,8 +1089,8 @@ const PartnerOrders = () => {
                                 </DropdownMenuItem>
                               )}
                               {order.status === 'ready' && (
-                                <DropdownMenuItem onClick={() => handleAssignDriver(order)}>
-                                  Assigner un livreur
+                                <DropdownMenuItem disabled>
+                                  Assigner un livreur (désactivé)
                                 </DropdownMenuItem>
                               )}
                               {(order.status === 'pending' || order.status === 'confirmed' || order.status === 'preparing') && (
@@ -1080,38 +1154,59 @@ const PartnerOrders = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedOrder.items?.map((item: any, index: number) => (
-                            <TableRow key={index}>
-                              <TableCell>
-                                <div className="flex items-center space-x-3">
-                                  {item.image ? (
-                                    <img 
-                                      src={item.image} 
-                                      alt={item.name}
-                                      className="w-10 h-10 object-cover rounded-md"
-                                    />
-                                  ) : (
-                                    <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
-                                      <Package className="h-5 w-5 text-gray-500" />
-                                    </div>
-                                  )}
-                                  <div>
-                                    <p className="font-medium">{item.name}</p>
-                                    {item.special_instructions && (
-                                      <p className="text-xs text-gray-500 mt-1">
-                                        📝 {item.special_instructions}
-                                      </p>
+                          {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                            selectedOrder.items.map((item: any, index: number) => (
+                              <TableRow key={index}>
+                                <TableCell>
+                                  <div className="flex items-center space-x-3">
+                                    {item.image ? (
+                                      <img 
+                                        src={item.image} 
+                                        alt={item.name}
+                                        className="w-10 h-10 object-cover rounded-md"
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
+                                        <Package className="h-5 w-5 text-gray-500" />
+                                      </div>
                                     )}
+                                    <div>
+                                      <p className="font-medium">{item.name}</p>
+                                      {item.special_instructions && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          📝 {item.special_instructions}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant="outline">{item.quantity}</Badge>
+                                </TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
+                                <TableCell className="text-right font-medium">{formatCurrency(item.price * item.quantity)}</TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center py-8">
+                                <div className="flex flex-col items-center space-y-2">
+                                  <Package className="h-8 w-8 text-gray-400" />
+                                  <p className="text-gray-500">
+                                    {selectedOrder.is_grouped_delivery 
+                                      ? "Aucun article trouvé pour cette commande groupée" 
+                                      : "Aucun article dans cette commande"
+                                    }
+                                  </p>
+                                  {selectedOrder.is_grouped_delivery && (
+                                    <p className="text-xs text-gray-400">
+                                      Les articles peuvent être dans d'autres commandes du même groupe
+                                    </p>
+                                  )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant="outline">{item.quantity}</Badge>
-                              </TableCell>
-                              <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
-                              <TableCell className="text-right font-medium">{formatCurrency(item.price * item.quantity)}</TableCell>
                             </TableRow>
-                          ))}
+                          )}
                         </TableBody>
                       </Table>
                     </ScrollArea>
@@ -1156,11 +1251,11 @@ const PartnerOrders = () => {
                     ))}
                     {selectedOrder.status === 'ready' && (
                       <Button
-                        onClick={() => handleAssignDriver(selectedOrder)}
+                        disabled
                         className="flex items-center gap-1"
                       >
                         <Truck className="h-4 w-4" />
-                        Assigner livreur
+                        Assigner livreur (désactivé)
                       </Button>
                     )}
                   </div>
@@ -1459,44 +1554,89 @@ const PartnerOrders = () => {
                   </div>
                 )}
 
+                {/* Informations du groupe de livraison pour les commandes groupées */}
+                {selectedOrder.is_grouped_delivery && selectedOrder.delivery_group_id && (
+                  <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2 text-blue-700">
+                      <Package className="h-4 w-4" />
+                      Groupe de livraison #{selectedOrder.delivery_group_id}
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <p className="text-blue-600">
+                        Cette commande fait partie d'un groupe de livraison. 
+                        Les articles peuvent être répartis entre plusieurs commandes du même groupe.
+                      </p>
+                      <div className="flex items-center gap-2 text-blue-600">
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                          Groupe #{selectedOrder.delivery_group_id}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Articles de la commande détaillés */}
                 <div className="border rounded-lg p-4 bg-white">
                   <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
                     <Package className="h-4 w-4" />
                     Articles ({selectedOrder.items?.length || 0})
+                    {selectedOrder.is_grouped_delivery && (
+                      <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                        Groupe
+                      </Badge>
+                    )}
                   </h3>
                   <div className="space-y-3">
-                    {selectedOrder.items?.map((item: any, index: number) => (
-                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                        {item.image ? (
-                          <img 
-                            src={item.image} 
-                            alt={item.name}
-                            className="w-12 h-12 object-cover rounded-md"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
-                            <Package className="h-5 w-5 text-gray-500" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{item.name}</p>
-                          {item.special_instructions && (
-                            <p className="text-xs text-gray-600 mt-1">
-                              📝 {item.special_instructions}
-                            </p>
+                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                      selectedOrder.items.map((item: any, index: number) => (
+                        <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                          {item.image ? (
+                            <img 
+                              src={item.image} 
+                              alt={item.name}
+                              className="w-12 h-12 object-cover rounded-md"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 rounded-md flex items-center justify-center">
+                              <Package className="h-5 w-5 text-gray-500" />
+                            </div>
                           )}
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs text-gray-500">
-                              Qté: {item.quantity}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {formatCurrency(item.price * item.quantity)}
-                            </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{item.name}</p>
+                            {item.special_instructions && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                📝 {item.special_instructions}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-xs text-gray-500">
+                                Qté: {item.quantity}
+                              </span>
+                              <span className="text-sm font-medium">
+                                {formatCurrency(item.price * item.quantity)}
+                              </span>
+                            </div>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="flex flex-col items-center space-y-2">
+                          <Package className="h-8 w-8 text-gray-400" />
+                          <p className="text-gray-500 text-sm">
+                            {selectedOrder.is_grouped_delivery 
+                              ? "Aucun article trouvé pour cette commande groupée" 
+                              : "Aucun article dans cette commande"
+                            }
+                          </p>
+                          {selectedOrder.is_grouped_delivery && (
+                            <p className="text-xs text-gray-400">
+                              Les articles peuvent être dans d'autres commandes du même groupe
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                   
                   {/* Résumé des coûts */}
@@ -1551,8 +1691,8 @@ const PartnerOrders = () => {
         </Dialog>
       )}
 
-      {/* Dialogue d'assignation de livreur */}
-      {orderToAssign && (
+      {/* Dialogue d'assignation de livreur - DÉSACTIVÉ */}
+      {/* {orderToAssign && (
         <AssignDriverDialog
           isOpen={isAssignDriverOpen}
           onClose={() => {
@@ -1564,142 +1704,10 @@ const PartnerOrders = () => {
           businessId={business.id}
           onDriverAssigned={handleDriverAssigned}
         />
-      )}
+      )} */}
 
-      {/* Dialogue d'assignation multiple de livreur */}
-      {ordersToAssign.length > 0 && (
-        <Dialog open={isMultipleAssignOpen} onOpenChange={setIsMultipleAssignOpen}>
-          <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-            <DialogHeader className="flex-shrink-0">
-              <DialogTitle className="flex items-center gap-2">
-                <Truck className="h-5 w-5" />
-                Assigner un livreur à {ordersToAssign.length} commande(s) ASAP
-              </DialogTitle>
-              <DialogDescription>
-                Sélectionnez un livreur pour prendre en charge toutes ces commandes de livraison rapide.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-              {/* Liste des commandes à assigner */}
-              <div className="space-y-4 flex flex-col">
-                <h3 className="text-lg font-medium flex-shrink-0">Commandes à assigner</h3>
-                <ScrollArea className="flex-1">
-                  <div className="space-y-3 pr-4">
-                    {ordersToAssign.map((order) => (
-                      <Card key={order.id} className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h4 className="font-medium">#{order.order_number || order.id.slice(0, 8)}</h4>
-                            <p className="text-sm text-gray-600">{order.customer_name}</p>
-                            <p className="text-sm text-gray-500">{order.delivery_address}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge className="bg-green-100 text-green-800">
-                                <Zap className="h-3 w-3 mr-1" />
-                                ASAP
-                              </Badge>
-                              <span className="text-sm font-medium">{formatCurrency(order.grand_total)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-              
-              {/* Sélection du livreur */}
-              <div className="space-y-4 flex flex-col flex-1 min-h-0">
-                <h3 className="text-lg font-medium flex-shrink-0">Sélectionner un livreur</h3>
-                
-                {isLoadingDrivers ? (
-                  <div className="space-y-3 flex-1">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center space-x-3 p-3 border rounded-lg">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-4 w-3/4" />
-                          <Skeleton className="h-3 w-1/2" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : availableDrivers.length === 0 ? (
-                  <div className="text-center py-8 flex-1 flex items-center justify-center">
-                    <p className="text-gray-500">Aucun livreur disponible</p>
-                  </div>
-                ) : (
-                  <div className="flex-1 flex flex-col min-h-0">
-                    <ScrollArea className="flex-1">
-                      <div className="space-y-3 pr-4">
-                        {availableDrivers.map((driver) => (
-                          <Card 
-                            key={driver.id} 
-                            className={`p-4 cursor-pointer transition-colors ${
-                              selectedDriverId === driver.id 
-                                ? 'border-blue-500 bg-blue-50' 
-                                : 'hover:border-gray-300'
-                            }`}
-                            onClick={() => setSelectedDriverId(driver.id)}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className="flex-shrink-0">
-                                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                                  <User className="h-5 w-5 text-gray-600" />
-                                </div>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">{driver.name}</p>
-                                <p className="text-sm text-gray-500">{driver.phone}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {driver.active_orders_count || 0} commande{(driver.active_orders_count || 0) > 1 ? 's' : ''}
-                                  </Badge>
-                                  {driver.vehicle_type && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {driver.vehicle_type}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              {selectedDriverId === driver.id && (
-                                <div className="flex-shrink-0">
-                                  <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                                    <Check className="h-3 w-3 text-white" />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
-                
-                {selectedDriverId && (
-                  <div className="pt-4 border-t flex-shrink-0">
-                    <Button 
-                      onClick={handleMultipleDriverAssigned}
-                      className="w-full"
-                      disabled={isBatchLoading}
-                    >
-                      {isBatchLoading ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Assignation en cours...
-                        </>
-                      ) : (
-                        `Assigner ${ordersToAssign.length} commande(s) au livreur`
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Dialogue d'assignation multiple de livreur - DÉSACTIVÉ */}
+      {/* Le dialogue d'assignation multiple a été complètement supprimé pour éviter les erreurs de variables non définies */}
     </DashboardLayout>
   );
 };

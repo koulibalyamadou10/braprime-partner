@@ -1,3 +1,4 @@
+import { ChangePlanModal } from '@/components/dashboard/ChangePlanModal';
 import { CreateSubscriptionModal } from '@/components/dashboard/CreateSubscriptionModal';
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +12,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import { subscriptionUtils, useCreateSubscription, useCurrentUserSubscription, useCurrentUserSubscriptionHistory, useSubscriptionPlans, useUpdateBillingInfo } from '@/hooks/use-subscription';
+import { subscriptionService } from '@/lib/services/subscription';
 import { SubscriptionManagementService } from '@/lib/services/subscription-management';
+import { supabase } from '@/lib/supabase';
 import {
     AlertCircle,
     Calendar,
@@ -27,13 +30,16 @@ import {
     Settings,
     X
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const PartnerBilling: React.FC = () => {
   const { currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateSubscriptionModal, setShowCreateSubscriptionModal] = useState(false);
+  const [showChangePlanModal, setShowChangePlanModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<{
     id: string;
     name: string;
@@ -43,6 +49,7 @@ const PartnerBilling: React.FC = () => {
     features: string[];
     savings_percentage: number;
   } | null>(null);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
   
   // États pour la désactivation
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
@@ -64,6 +71,71 @@ const PartnerBilling: React.FC = () => {
   console.log('  - currentSubscription:', currentSubscription);
   console.log('  - subscriptionLoading:', subscriptionLoading);
 
+  // Intercepter les paramètres de retour de paiement
+  useEffect(() => {
+    const subscriptionId = searchParams.get('subscription_id');
+    const payId = searchParams.get('pay_id');
+    
+    if (subscriptionId && payId) {
+      console.log('🔍 [PartnerBilling] Paramètres de retour de paiement détectés:', { subscriptionId, payId });
+      
+      // Vérifier le statut du paiement
+      checkPaymentStatus(payId, subscriptionId);
+      
+      // Nettoyer les paramètres URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('subscription_id');
+      newUrl.searchParams.delete('pay_id');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [searchParams]);
+
+  const checkPaymentStatus = async (payId: string, subscriptionId: string) => {
+    try {
+      // Vérifier directement dans la base de données via Supabase
+      const { data: payment, error } = await supabase
+        .from('subscription_payments')
+        .select('status, amount, payment_method, created_at')
+        .eq('transaction_reference', payId)
+        .eq('subscription_id', subscriptionId)
+        .single();
+
+      if (error) {
+        console.error('Erreur lors de la vérification du paiement:', error);
+        toast.error('❌ Erreur lors de la vérification du paiement');
+        return;
+      }
+
+      if (payment) {
+        switch (payment.status) {
+          case 'success':
+            toast.success('🎉 Paiement d\'abonnement confirmé ! Votre compte est maintenant actif.');
+            // Recharger les données d'abonnement
+            window.location.reload();
+            break;
+            
+          case 'failed':
+            toast.error('❌ Le paiement d\'abonnement a échoué. Veuillez réessayer.');
+            break;
+            
+          case 'pending':
+            toast.info('⏳ Paiement en cours de traitement...');
+            // Polling pour vérifier le statut
+            setTimeout(() => checkPaymentStatus(payId, subscriptionId), 5000);
+            break;
+            
+          default:
+            toast.warning('⚠️ Statut de paiement inconnu');
+        }
+      } else {
+        toast.error('❌ Paiement non trouvé dans la base de données');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du statut de paiement:', error);
+      toast.error('❌ Erreur de connexion lors de la vérification du paiement');
+    }
+  };
+
   const handleSelectPlan = async (planId: string) => {
     try {
       const plan = subscriptionPlans?.find(p => p.id === planId);
@@ -74,27 +146,24 @@ const PartnerBilling: React.FC = () => {
 
       // Vérifier si l'utilisateur a déjà un abonnement actif
       if (currentSubscription && currentSubscription.status === 'active') {
-        // Demander confirmation pour changer de plan
-        const confirmed = window.confirm(
-          `Vous avez déjà un abonnement actif (${currentSubscription.plan?.name}). Voulez-vous le remplacer par ${plan.name} ?`
-        );
-        
-        if (confirmed) {
-          // Logique pour changer de plan
-          const success = await createSubscription.mutateAsync({
-            partnerId: business?.id || 0,
-            planId: plan.id,
-            billingInfo: {
-              email: business?.email || '',
-              phone: business?.phone || '',
-              address: business?.address || ''
-            }
-          });
-          
-          if (success) {
-            toast.success('Plan changé avec succès');
-          }
+        // Vérifier si c'est un upgrade (plan plus cher)
+        const priceDifference = plan.price - currentSubscription.total_paid;
+        const isUpgrade = priceDifference > 0;
+        const isSamePrice = priceDifference === 0;
+
+        if (isSamePrice) {
+          toast.error('Vous avez déjà ce plan d\'abonnement');
+          return;
         }
+
+        if (!isUpgrade) {
+          toast.error('Seuls les upgrades vers des plans supérieurs sont autorisés');
+          return;
+        }
+
+        // Ouvrir le modal de changement de plan (upgrade uniquement)
+        setSelectedPlan(plan);
+        setShowChangePlanModal(true);
       } else {
         // Ouvrir le modal de création d'abonnement
         setSelectedPlan(plan);
@@ -103,6 +172,35 @@ const PartnerBilling: React.FC = () => {
     } catch (error) {
       console.error('Erreur lors de la sélection du plan:', error);
       toast.error('Erreur lors de la sélection du plan');
+    }
+  };
+
+  const handleConfirmPlanChange = async () => {
+    if (!selectedPlan || !currentSubscription) {
+      toast.error('Données manquantes pour le changement de plan');
+      return;
+    }
+
+    setIsChangingPlan(true);
+    try {
+      // Utiliser la fonction de renouvellement pour changer de plan
+      const success = await subscriptionService.renewSubscription(
+        currentSubscription.id,
+        selectedPlan.id
+      );
+      
+      if (success) {
+        toast.success('Plan changé avec succès');
+        setShowChangePlanModal(false);
+        setSelectedPlan(null);
+        // Recharger les données d'abonnement
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Erreur lors du changement de plan:', error);
+      toast.error('Erreur lors du changement de plan');
+    } finally {
+      setIsChangingPlan(false);
     }
   };
 
@@ -563,41 +661,66 @@ const PartnerBilling: React.FC = () => {
                                   {subscriptionUtils.formatPrice(plan.monthly_price)}/mois
                                 </p>
                                 
-                                {/* Bouton différent selon le statut */}
-                                {isCurrentPlan ? (
-                                  <Button 
-                                    disabled
-                                    className="w-full bg-green-500 hover:bg-green-600 text-white"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Plan actuel
-                                  </Button>
-                                ) : isPendingPlan ? (
-                                  <Button 
-                                    onClick={() => handlePayment(currentSubscription.id)}
-                                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
-                                  >
-                                    <CreditCard className="h-4 w-4 mr-2" />
-                                    Payer maintenant
-                                  </Button>
-                                ) : (
-                                  <Button 
-                                    onClick={() => handleSelectPlan(plan.id)}
-                                    className="w-full bg-guinea-red hover:bg-guinea-red/90"
-                                  >
-                                    {currentSubscription && currentSubscription.status === 'active' ? (
-                                      <>
-                                        <Settings className="h-4 w-4 mr-2" />
-                                        Changer de plan
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Choisir ce plan
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
+                                                                 {/* Bouton différent selon le statut */}
+                                 {isCurrentPlan ? (
+                                   <Button 
+                                     disabled
+                                     className="w-full bg-green-500 hover:bg-green-600 text-white"
+                                   >
+                                     <CheckCircle className="h-4 w-4 mr-2" />
+                                     Plan actuel
+                                   </Button>
+                                 ) : isPendingPlan ? (
+                                   <Button 
+                                     onClick={() => handlePayment(currentSubscription.id)}
+                                     className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                                   >
+                                     <CreditCard className="h-4 w-4 mr-2" />
+                                     Payer maintenant
+                                   </Button>
+                                 ) : (
+                                   (() => {
+                                     // Vérifier si c'est un upgrade possible
+                                     const priceDifference = plan.price - (currentSubscription?.total_paid || 0);
+                                     const isUpgrade = priceDifference > 0;
+                                     const isDowngrade = priceDifference < 0;
+                                     
+                                     if (currentSubscription && currentSubscription.status === 'active' && isDowngrade) {
+                                       return (
+                                         <Button 
+                                           disabled
+                                           className="w-full bg-gray-300 text-gray-500 cursor-not-allowed"
+                                         >
+                                           <X className="h-4 w-4 mr-2" />
+                                           Downgrade non autorisé
+                                         </Button>
+                                       );
+                                     }
+                                     
+                                     return (
+                                       <Button 
+                                         onClick={() => handleSelectPlan(plan.id)}
+                                         className={`w-full ${
+                                           currentSubscription && currentSubscription.status === 'active' && isUpgrade
+                                             ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                                             : 'bg-guinea-red hover:bg-guinea-red/90'
+                                         }`}
+                                       >
+                                         {currentSubscription && currentSubscription.status === 'active' ? (
+                                           <>
+                                             <Settings className="h-4 w-4 mr-2" />
+                                             {isUpgrade ? 'Upgrade' : 'Changer de plan'}
+                                           </>
+                                         ) : (
+                                           <>
+                                             <Plus className="h-4 w-4 mr-2" />
+                                             Choisir ce plan
+                                           </>
+                                         )}
+                                       </Button>
+                                     );
+                                   })()
+                                 )}
                               </div>
                             </CardContent>
                           </Card>
@@ -698,19 +821,46 @@ const PartnerBilling: React.FC = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Modal de création d'abonnement */}
-        {showCreateSubscriptionModal && selectedPlan && (
-          <CreateSubscriptionModal
-            isOpen={showCreateSubscriptionModal}
-            onClose={() => {
-              setShowCreateSubscriptionModal(false);
-              setSelectedPlan(null);
-            }}
-            selectedPlan={selectedPlan as any}
-            partnerId={business?.id || 0}
-            onSubscriptionCreated={handleSubscriptionCreated}
-          />
-        )}
+                 {/* Modal de création d'abonnement */}
+         {showCreateSubscriptionModal && selectedPlan && (
+           <CreateSubscriptionModal
+             isOpen={showCreateSubscriptionModal}
+             onClose={() => {
+               setShowCreateSubscriptionModal(false);
+               setSelectedPlan(null);
+             }}
+             selectedPlan={selectedPlan as any}
+             partnerId={business?.id || 0}
+             onSubscriptionCreated={handleSubscriptionCreated}
+           />
+         )}
+
+         {/* Modal de changement de plan */}
+         {showChangePlanModal && selectedPlan && currentSubscription && currentSubscription.plan && (
+           <ChangePlanModal
+             isOpen={showChangePlanModal}
+             onClose={() => {
+               setShowChangePlanModal(false);
+               setSelectedPlan(null);
+             }}
+             onConfirm={handleConfirmPlanChange}
+             currentPlan={{
+               name: currentSubscription.plan.name,
+               price: currentSubscription.total_paid,
+               monthly_price: currentSubscription.monthly_amount,
+               duration_months: currentSubscription.plan.duration_months,
+               savings_percentage: currentSubscription.plan.savings_percentage || 0
+             }}
+             newPlan={{
+               name: selectedPlan.name,
+               price: selectedPlan.price,
+               monthly_price: selectedPlan.monthly_price,
+               duration_months: selectedPlan.duration_months,
+               savings_percentage: selectedPlan.savings_percentage
+             }}
+             isLoading={isChangingPlan}
+           />
+         )}
 
         {/* Dialog de confirmation pour la désactivation */}
         <Dialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>

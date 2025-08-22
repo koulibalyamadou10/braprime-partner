@@ -3,27 +3,17 @@ import PreloadManager from '@/components/PreloadManager';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { createQueryClient } from "@/config/query-client";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { DriverAuthProvider } from "@/contexts/DriverAuthContext";
 import { OrderProvider } from "@/contexts/OrderContext";
 import { UserRoleProvider } from '@/contexts/UserRoleContext';
-import AdminAnalytics from '@/pages/dashboard/AdminAnalytics';
-import AdminBusinesses from '@/pages/dashboard/AdminBusinesses';
-import AdminContent from '@/pages/dashboard/AdminContent';
-import AdminDrivers from '@/pages/dashboard/AdminDrivers';
-import AdminEmailTest from '@/pages/dashboard/AdminEmailTest';
-import AdminRequests from '@/pages/dashboard/AdminRequests';
-import AdminSubscriptions from '@/pages/dashboard/AdminSubscriptions';
-import AdminSystem from '@/pages/dashboard/AdminSystem';
-import AdminUsers from '@/pages/dashboard/AdminUsers';
-import DriverRegistrationPage from '@/pages/DriverRegistrationPage';
 import { QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
-import { createQueryClient } from "@/config/query-client";
 
 // Use dynamic imports for page components
 const Index = lazy(() => import("./pages/Index"));
@@ -47,7 +37,7 @@ const PartnerDashboard = lazy(() => import("./pages/dashboard/PartnerDashboard")
 const PartnerOrders = lazy(() => import("./pages/dashboard/PartnerOrders"));
 const PartnerMenu = lazy(() => import("./pages/dashboard/PartnerMenu"));
 const PartnerReservations = lazy(() => import("./pages/dashboard/PartnerReservations"));
-const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers"));
+// const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers")); // Supprimé - drivers indépendants
 const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
 const PartnerBilling = lazy(() => import("./pages/dashboard/PartnerBilling"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
@@ -145,16 +135,7 @@ const App = () => (
                     <PartnerReservations />
                   </ProtectedRoute>
                 } />
-                <Route path="/partner-dashboard/drivers" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerDrivers />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/drivers/:id" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerDrivers />
-                  </ProtectedRoute>
-                } />
+                {/* Routes drivers supprimées pour les partenaires - les drivers sont maintenant indépendants */}
                 <Route path="/partner-dashboard/revenue" element={
                   <ProtectedRoute allowedRoles={["partner"]}>
                     <PartnerRevenue />
@@ -202,11 +183,7 @@ const App = () => (
                     <PartnerReservations />
                   </ProtectedRoute>
                 } />
-                <Route path="/dashboard/partner/drivers" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerDrivers />
-                  </ProtectedRoute>
-                } />
+                {/* Route drivers supprimée pour les partenaires - les drivers sont maintenant indépendants */}
                 <Route path="/dashboard/partner/revenue" element={
                   <ProtectedRoute allowedRoles={["partner"]}>
                     <PartnerRevenue />
