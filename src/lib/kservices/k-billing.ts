@@ -1,6 +1,7 @@
 import { supabase } from "../supabase";
 
 // Types pour les données de revenus
+
 export interface RevenueStats {
   totalRevenue: number;
   totalOrders: number;
