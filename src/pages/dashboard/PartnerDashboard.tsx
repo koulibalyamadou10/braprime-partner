@@ -740,7 +740,7 @@ const PartnerDashboard = () => {
             </Card>
             
             {/* Notifications */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Notifications Récentes</CardTitle>
                 <CardDescription>
@@ -767,7 +767,7 @@ const PartnerDashboard = () => {
                   Voir toutes les notifications
                 </Button>
               </CardFooter>
-            </Card>
+            </Card> */}
 
         {/* Menu */}
         <Card>
