@@ -33,6 +33,180 @@ import { formatCurrency } from '@/lib/utils';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import RealTimeStats from '@/components/dashboard/RealTimeStats';
 
+// Revenue data types
+type RevenueStats = {
+  totalRevenue: number;
+  totalOrders: number;
+  averageOrder: number;
+  growth: number;
+  topItems: {
+    name: string;
+    count: number;
+    revenue: number;
+  }[];
+  dailyData: {
+    date: string;
+    revenue: number;
+    orders: number;
+  }[];
+  categories: {
+    name: string;
+    revenue: number;
+    percentage: number;
+  }[];
+  paymentMethods: {
+    method: string;
+    count: number;
+    amount: number;
+  }[];
+};
+
+// Mock revenue data
+const mockRevenueData: Record<'daily' | 'weekly' | 'monthly' | 'yearly', RevenueStats> = {
+  daily: {
+    totalRevenue: 245000,
+    totalOrders: 35,
+    averageOrder: 7000,
+    growth: 12.5,
+    topItems: [
+      { name: 'Chicken Yassa', count: 15, revenue: 90000 },
+      { name: 'Thieboudienne', count: 12, revenue: 66000 },
+      { name: 'Mafe', count: 8, revenue: 40000 },
+      { name: 'Bissap Juice', count: 18, revenue: 27000 },
+      { name: 'Attieke with Fish', count: 4, revenue: 26000 }
+    ],
+    dailyData: [
+      { date: '08:00', revenue: 21000, orders: 3 },
+      { date: '10:00', revenue: 35000, orders: 5 },
+      { date: '12:00', revenue: 70000, orders: 10 },
+      { date: '14:00', revenue: 42000, orders: 6 },
+      { date: '16:00', revenue: 28000, orders: 4 },
+      { date: '18:00', revenue: 49000, orders: 7 }
+    ],
+    categories: [
+      { name: 'Main Dishes', revenue: 180000, percentage: 73.5 },
+      { name: 'Beverages', revenue: 35000, percentage: 14.3 },
+      { name: 'Appetizers', revenue: 15000, percentage: 6.1 },
+      { name: 'Desserts', revenue: 10000, percentage: 4.1 },
+      { name: 'Sides', revenue: 5000, percentage: 2 }
+    ],
+    paymentMethods: [
+      { method: 'Mobile Money', count: 18, amount: 126000 },
+      { method: 'Cash', count: 10, amount: 70000 },
+      { method: 'Credit Card', count: 7, amount: 49000 }
+    ]
+  },
+  weekly: {
+    totalRevenue: 1650000,
+    totalOrders: 236,
+    averageOrder: 6992,
+    growth: 8.2,
+    topItems: [
+      { name: 'Chicken Yassa', count: 76, revenue: 456000 },
+      { name: 'Thieboudienne', count: 68, revenue: 374000 },
+      { name: 'Mafe', count: 42, revenue: 210000 },
+      { name: 'Attieke with Fish', count: 28, revenue: 182000 },
+      { name: 'Bissap Juice', count: 112, revenue: 168000 }
+    ],
+    dailyData: [
+      { date: 'Mon', revenue: 220000, orders: 31 },
+      { date: 'Tue', revenue: 185000, orders: 26 },
+      { date: 'Wed', revenue: 200000, orders: 29 },
+      { date: 'Thu', revenue: 245000, orders: 35 },
+      { date: 'Fri', revenue: 310000, orders: 44 },
+      { date: 'Sat', revenue: 350000, orders: 50 },
+      { date: 'Sun', revenue: 140000, orders: 21 }
+    ],
+    categories: [
+      { name: 'Main Dishes', revenue: 1200000, percentage: 72.7 },
+      { name: 'Beverages', revenue: 220000, percentage: 13.3 },
+      { name: 'Appetizers', revenue: 105000, percentage: 6.4 },
+      { name: 'Desserts', revenue: 75000, percentage: 4.5 },
+      { name: 'Sides', revenue: 50000, percentage: 3.1 }
+    ],
+    paymentMethods: [
+      { method: 'Mobile Money', count: 118, amount: 825000 },
+      { method: 'Cash', count: 71, amount: 495000 },
+      { method: 'Credit Card', count: 47, amount: 330000 }
+    ]
+  },
+  monthly: {
+    totalRevenue: 7200000,
+    totalOrders: 1015,
+    averageOrder: 7094,
+    growth: 15.3,
+    topItems: [
+      { name: 'Chicken Yassa', count: 312, revenue: 1872000 },
+      { name: 'Thieboudienne', count: 275, revenue: 1512500 },
+      { name: 'Mafe', count: 180, revenue: 900000 },
+      { name: 'Attieke with Fish', count: 126, revenue: 819000 },
+      { name: 'Dibi Lamb', count: 98, revenue: 686000 }
+    ],
+    dailyData: [
+      { date: 'Week 1', revenue: 1500000, orders: 210 },
+      { date: 'Week 2', revenue: 1650000, orders: 236 },
+      { date: 'Week 3', revenue: 1800000, orders: 254 },
+      { date: 'Week 4', revenue: 2250000, orders: 315 }
+    ],
+    categories: [
+      { name: 'Main Dishes', revenue: 5256000, percentage: 73 },
+      { name: 'Beverages', revenue: 960000, percentage: 13.3 },
+      { name: 'Appetizers', revenue: 456000, percentage: 6.3 },
+      { name: 'Desserts', revenue: 312000, percentage: 4.3 },
+      { name: 'Sides', revenue: 216000, percentage: 3 }
+    ],
+    paymentMethods: [
+      { method: 'Mobile Money', count: 518, amount: 3672000 },
+      { method: 'Cash', count: 304, amount: 2160000 },
+      { method: 'Credit Card', count: 193, amount: 1368000 }
+    ]
+  },
+  yearly: {
+    totalRevenue: 83520000,
+    totalOrders: 11872,
+    averageOrder: 7037,
+    growth: 22.5,
+    topItems: [
+      { name: 'Chicken Yassa', count: 3605, revenue: 21630000 },
+      { name: 'Thieboudienne', count: 3256, revenue: 17908000 },
+      { name: 'Mafe', count: 2148, revenue: 10740000 },
+      { name: 'Attieke with Fish', count: 1520, revenue: 9880000 },
+      { name: 'Dibi Lamb', count: 1205, revenue: 8435000 }
+    ],
+    dailyData: [
+      { date: 'Jan', revenue: 6200000, orders: 870 },
+      { date: 'Feb', revenue: 5800000, orders: 810 },
+      { date: 'Mar', revenue: 6500000, orders: 910 },
+      { date: 'Apr', revenue: 6800000, orders: 950 },
+      { date: 'May', revenue: 7100000, orders: 990 },
+      { date: 'Jun', revenue: 7200000, orders: 1015 },
+      { date: 'Jul', revenue: 7500000, orders: 1050 },
+      { date: 'Aug', revenue: 7600000, orders: 1070 },
+      { date: 'Sep', revenue: 7400000, orders: 1030 },
+      { date: 'Oct', revenue: 7200000, orders: 1020 },
+      { date: 'Nov', revenue: 7000000, orders: 980 },
+      { date: 'Dec', revenue: 7220000, orders: 1010 }
+    ],
+    categories: [
+      { name: 'Main Dishes', revenue: 60970000, percentage: 73 },
+      { name: 'Beverages', revenue: 11190000, percentage: 13.4 },
+      { name: 'Appetizers', revenue: 5260000, percentage: 6.3 },
+      { name: 'Desserts', revenue: 3590000, percentage: 4.3 },
+      { name: 'Sides', revenue: 2510000, percentage: 3 }
+    ],
+    paymentMethods: [
+      { method: 'Mobile Money', count: 6032, amount: 42460000 },
+      { method: 'Cash', count: 3560, amount: 25060000 },
+      { method: 'Credit Card', count: 2280, amount: 16000000 }
+    ]
+  }
+};
+
+// Helper function for percentage
+const formatPercentage = (value: number) => {
+  return `${value.toFixed(1)}%`;
+};
+
 const PartnerRevenue = () => {
   const { currentUser } = useAuth();
   
@@ -67,61 +241,47 @@ const PartnerRevenue = () => {
   const periodRevenue = stats?.periodRevenue || 0;
   const periodOrders = stats?.periodOrders || 0;
 
+  // Get current stats based on selected period
+  const currentStats = mockRevenueData[period];
+
+  // Optional: Replace with actual chart component if available
+  const renderBarChart = (data: { date: string; revenue: number; orders: number }[]) => {
+    const maxRevenue = Math.max(...data.map(d => d.revenue));
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Revenue</span>
+          <span>Orders</span>
+        </div>
+        
+        <div className="space-y-2">
+          {data.map((item, index) => (
+            <div key={index} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>{item.date}</span>
+                <span className="text-gray-500">{item.orders} orders</span>
+              </div>
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary rounded-full" 
+                  style={{ width: `${(item.revenue / maxRevenue) * 100}%` }} 
+                />
+              </div>
+              <div className="text-right text-sm font-medium">
+                {formatCurrency(item.revenue)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  
+
   return (
     <DashboardLayout navItems={partnerNavItems} title="Analyses des Revenus">
       <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Analyses des Revenus</h2>
-            <p className="text-gray-500">Suivez vos performances financières en temps réel.</p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <Select value={period} onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') => setPeriod(value)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Sélectionner la période" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Aujourd'hui</SelectItem>
-                <SelectItem value="weekly">Cette Semaine</SelectItem>
-                <SelectItem value="monthly">Ce Mois</SelectItem>
-                <SelectItem value="yearly">Cette Année</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2"
-              onClick={() => refetch()}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              {isLoading ? 'Chargement...' : 'Actualiser'}
-            </Button>
-            
-            <Button variant="outline" className="flex items-center gap-2">
-              <Download className="h-4 w-4" /> Exporter
-            </Button>
-          </div>
-        </div>
-        
-        {/* Statistiques en temps réel */}
-        <RealTimeStats 
-          period={period === 'yearly' ? 'year' : period === 'monthly' ? 'month' : period === 'weekly' ? 'week' : 'today'}
-          onPeriodChange={(newPeriod) => {
-            const periodMap = {
-              'today': 'daily',
-              'week': 'weekly', 
-              'month': 'monthly',
-              'year': 'yearly'
-            } as const;
-            setPeriod(periodMap[newPeriod]);
-          }}
-        />
 
         {/* Affichage des erreurs */}
         {error && (
@@ -143,187 +303,224 @@ const PartnerRevenue = () => {
             </CardContent>
           </Card>
         )}
-        
-        <Tabs defaultValue="revenue" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="revenue">Évolution des Revenus</TabsTrigger>
-            <TabsTrigger value="top-items">Articles Populaires</TabsTrigger>
-            <TabsTrigger value="analytics">Analyses Détaillées</TabsTrigger>
-          </TabsList>
+
+        {/* Contenue  */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Revenue & Sales</h2>
+            <p className="text-gray-500">Track your restaurant's financial performance.</p>
+          </div>
           
-          <TabsContent value="revenue" className="space-y-4">
-            {isLoading ? (
-              <Card>
-                <CardContent className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-muted-foreground">Chargement des données de revenus...</span>
-                </CardContent>
-              </Card>
-            ) : (
-              <RevenueChart 
-                period={period === 'yearly' ? 'monthly' : period}
-                onPeriodChange={(newPeriod) => {
-                  const periodMap = {
-                    'daily': 'daily',
-                    'weekly': 'weekly',
-                    'monthly': 'monthly'
-                  } as const;
-                  setPeriod(periodMap[newPeriod]);
-                }}
-              />
-            )}
-          </TabsContent>
-          
-          <TabsContent value="top-items" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Articles les Plus Populaires</CardTitle>
-                <CardDescription>
-                  Vos articles les plus commandés et leurs performances
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="space-y-4">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : topItems && topItems.length > 0 ? (
-                  <div className="space-y-4">
-                    {topItems.map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-semibold">{item.name}</h4>
-                            <span className="text-sm text-gray-500">
-                              {item.percentage.toFixed(1)}% des commandes
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span>{item.count} commandes</span>
-                            <span>•</span>
-                            <span>{formatCurrencyDisplay(item.revenue)}</span>
-                          </div>
-                          <Progress value={item.percentage} className="mt-2" />
-                        </div>
-                      </div>
-                    ))}
+          <div className="flex items-center gap-4">
+            <Select value={period} onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') => setPeriod(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Today</SelectItem>
+                <SelectItem value="weekly">This Week</SelectItem>
+                <SelectItem value="monthly">This Month</SelectItem>
+                <SelectItem value="yearly">This Year</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button variant="outline" className="flex items-center gap-2">
+              <Download className="h-4 w-4" /> Export
+            </Button>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-primary" />
+                </div>
+                {currentStats.growth > 0 ? (
+                  <div className="flex items-center text-green-600">
+                    <ArrowUpRight className="h-4 w-4 mr-1" />
+                    <span>+{currentStats.growth}%</span>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Aucun article populaire</h3>
-                    <p className="text-muted-foreground">
-                      Les articles populaires apparaîtront ici une fois que vous aurez des commandes
-                    </p>
+                  <div className="flex items-center text-red-600">
+                    <ArrowDownRight className="h-4 w-4 mr-1" />
+                    <span>{currentStats.growth}%</span>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500">Total Revenue</p>
+                <h3 className="text-2xl font-bold mt-1">{formatCurrency(currentStats.totalRevenue)}</h3>
+              </div>
+            </CardContent>
+          </Card>
           
-          <TabsContent value="analytics" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Analyse des tendances */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Analyse des Tendances</CardTitle>
-                  <CardDescription>
-                    Évolution de vos performances sur différentes périodes
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium text-green-700">Revenus de la période</p>
-                        <p className="text-xs text-green-600">Revenus générés cette période</p>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+                  <ShoppingCart className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500">Total Orders</p>
+                <h3 className="text-2xl font-bold mt-1">{currentStats.totalOrders}</h3>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500">Average Order</p>
+                <h3 className="text-2xl font-bold mt-1">{formatCurrency(currentStats.averageOrder)}</h3>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-full bg-purple-50 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-gray-500">
+                  {period === 'daily' 
+                    ? 'Orders per Hour' 
+                    : period === 'weekly' 
+                      ? 'Orders per Day' 
+                      : period === 'monthly' 
+                        ? 'Orders per Week' 
+                        : 'Orders per Month'}
+                </p>
+                <h3 className="text-2xl font-bold mt-1">
+                  {(currentStats.totalOrders / currentStats.dailyData.length).toFixed(1)}
+                </h3>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Revenue Chart */}
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Revenue Overview</CardTitle>
+              <CardDescription>
+                {period === 'daily' 
+                  ? 'Today\'s revenue by hour' 
+                  : period === 'weekly' 
+                    ? 'This week\'s revenue by day' 
+                    : period === 'monthly' 
+                      ? 'This month\'s revenue by week' 
+                      : 'This year\'s revenue by month'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderBarChart(currentStats.dailyData)}
+            </CardContent>
+          </Card>
+          
+          {/* Top Items */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Menu Items</CardTitle>
+              <CardDescription>
+                Best-selling items by revenue
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-4">
+                  {currentStats.topItems.map((item, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex justify-between">
+                        <div>
+                          <span className="font-medium">{item.name}</span>
+                          <div className="text-sm text-gray-500">{item.count} orders</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">{formatCurrency(item.revenue)}</div>
+                          <div className="text-sm text-gray-500">
+                            {formatPercentage((item.revenue / currentStats.totalRevenue) * 100)}
+                          </div>
+                        </div>
                       </div>
+                      <Progress value={(item.revenue / currentStats.totalRevenue) * 100} className="h-2" />
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Analytics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Category Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales by Category</CardTitle>
+              <CardDescription>
+                Revenue breakdown by menu category
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {currentStats.categories.map((category, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="font-medium">{category.name}</span>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-green-700">{formatCurrencyDisplay(periodRevenue)}</p>
-                        <TrendingUp className="h-4 w-4 text-green-600 ml-auto" />
+                        <div className="font-medium">{formatCurrency(category.revenue)}</div>
+                        <div className="text-sm text-gray-500">{formatPercentage(category.percentage)}</div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium text-blue-700">Commandes de la période</p>
-                        <p className="text-xs text-blue-600">Nombre de commandes cette période</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-blue-700">{periodOrders}</p>
-                        <ArrowUpRight className="h-4 w-4 text-blue-600 ml-auto" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium text-yellow-700">Valeur moyenne</p>
-                        <p className="text-xs text-yellow-600">Par commande</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-yellow-700">{formatCurrencyDisplay(averageOrderValue)}</p>
-                        <DollarSign className="h-4 w-4 text-yellow-600 ml-auto" />
-                      </div>
-                    </div>
+                    <Progress value={category.percentage} className="h-2" />
                   </div>
-                </CardContent>
-              </Card>
-              
-              {/* Métriques de performance */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Métriques de Performance</CardTitle>
-                  <CardDescription>
-                    Indicateurs clés de performance
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-900">{totalOrders}</p>
-                        <p className="text-xs text-gray-600">Total Commandes</p>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-900">{formatCurrencyDisplay(totalRevenue)}</p>
-                        <p className="text-xs text-gray-600">Revenus Totaux</p>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Payment Methods */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Methods</CardTitle>
+              <CardDescription>
+                Revenue breakdown by payment type
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {currentStats.paymentMethods.map((method, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="font-medium">{method.method}</span>
+                      <div className="text-right">
+                        <div className="font-medium">{formatCurrency(method.amount)}</div>
+                        <div className="text-sm text-gray-500">
+                          {method.count} orders ({formatPercentage((method.amount / currentStats.totalRevenue) * 100)})
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Taux de conversion</span>
-                        <span className="font-semibold">85%</span>
-                      </div>
-                      <Progress value={85} className="h-2" />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Satisfaction client</span>
-                        <span className="font-semibold">4.8★</span>
-                      </div>
-                      <Progress value={96} className="h-2" />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Temps de préparation</span>
-                        <span className="font-semibold">25 min</span>
-                      </div>
-                      <Progress value={75} className="h-2" />
-                    </div>
+                    <Progress value={(method.amount / currentStats.totalRevenue) * 100} className="h-2" />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );
