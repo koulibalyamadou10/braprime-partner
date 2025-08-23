@@ -82,6 +82,21 @@ export const usePartnerDashboard = () => {
     }
   })
 
+  // Récupérer les données hebdomadaires
+  const weeklyDataQuery = useQuery({
+    queryKey: ['partner-weekly-data', business?.id],
+    queryFn: () => PartnerDashboardService.getWeeklyData(business!.id),
+    enabled: !!business?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: 10 * 60 * 1000, // 10 minutes
+    retry: (failureCount, error: any) => {
+      if (error?.code === 'PGRST116' || error?.status === 401) {
+        return false
+      }
+      return failureCount < 2
+    }
+  })
+
   // Mutations pour les actions
   const updateOrderStatusMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
@@ -271,18 +286,19 @@ export const usePartnerDashboard = () => {
   const isOrdersLoading = recentOrdersQuery.isLoading
   const isMenuLoading = menuQuery.isLoading
   const isDriversLoading = driversQuery.isLoading
+  const isWeeklyDataLoading = weeklyDataQuery.isLoading
 
   // Chargement principal - seulement si le business n'est pas encore chargé
   const isLoading = isBusinessLoading && !business
   
   // Chargement des données secondaires - seulement si le business est chargé mais pas les autres données
-  const isSecondaryDataLoading = business && (isStatsLoading || isOrdersLoading || isMenuLoading || isDriversLoading)
+  const isSecondaryDataLoading = business && (isStatsLoading || isOrdersLoading || isMenuLoading || isDriversLoading || isWeeklyDataLoading)
   
   // Chargement global - pour l'état initial
   const isInitialLoading = isBusinessLoading || (business && isSecondaryDataLoading)
 
   // Erreurs
-  const error = businessError || statsQuery.data?.error || recentOrdersQuery.data?.error || menuQuery.data?.error || driversQuery.data?.error
+  const error = businessError || statsQuery.data?.error || recentOrdersQuery.data?.error || menuQuery.data?.error || driversQuery.data?.error || weeklyDataQuery.data?.error
 
   return {
     // Données
@@ -291,6 +307,7 @@ export const usePartnerDashboard = () => {
     recentOrders: recentOrdersQuery.data?.orders || [],
     menu: menuQuery.data?.menu || [],
     drivers: driversQuery.data?.drivers || [],
+    weeklyData: weeklyDataQuery.data?.data || [],
     
     // États de chargement améliorés
     isLoading: isInitialLoading,
@@ -299,6 +316,7 @@ export const usePartnerDashboard = () => {
     isOrdersLoading,
     isMenuLoading,
     isDriversLoading,
+    isWeeklyDataLoading,
     isSecondaryDataLoading,
     
     // États de mutation
@@ -316,6 +334,7 @@ export const usePartnerDashboard = () => {
     ordersError: recentOrdersQuery.data?.error,
     menuError: menuQuery.data?.error,
     driversError: driversQuery.data?.error,
+    weeklyDataError: weeklyDataQuery.data?.error,
     
     // Authentification
     isAuthenticated,

@@ -46,18 +46,7 @@ import { toast } from 'sonner';
 
 // Composant de chargement - remplacé par PartnerDashboardSkeleton
 
-// Mock restaurant data for Guinea Conakry
-const restaurantData = {
-  name: "Le Petit Conakry Restaurant",
-  image: "/placeholder-restaurant.jpg",
-  address: "15 Rue du Port, Kaloum, Conakry",
-  cuisine: "Cuisine Guinéenne & Africaine",
-  rating: 4.7,
-  totalOrders: 1253,
-  totalEarnings: 45850000, // in GNF
-  pendingOrders: 5,
-  menuItems: 38
-};
+// Données mock supprimées - remplacées par des données dynamiques
 
   // Recent notifications
   const notifications = [
@@ -78,16 +67,7 @@ const restaurantData = {
     }
   ];
 
-// Mock weekly orders
-const weeklyOrders = [
-  { day: "Lundi", orders: 42, revenue: 1680000 },
-  { day: "Mardi", orders: 38, revenue: 1520000 },
-  { day: "Mercredi", orders: 45, revenue: 1800000 },
-  { day: "Jeudi", orders: 52, revenue: 2080000 },
-  { day: "Vendredi", orders: 58, revenue: 2320000 },
-  { day: "Samedi", orders: 64, revenue: 2560000 },
-  { day: "Dimanche", orders: 50, revenue: 2000000 }
-];
+// Données mock hebdomadaires supprimées - remplacées par des données dynamiques
 
 // Fonction pour obtenir la couleur du statut
 const getStatusColor = (status: string) => {
@@ -227,22 +207,19 @@ const PartnerDashboard = () => {
   // Vérifier l'accès partenaire et les besoins d'abonnement
   const { data: accessCheck, isLoading: accessLoading } = usePartnerAccessCheck();
 
-  // Find the highest revenue day
-  const highestRevenueDay = weeklyOrders.reduce((prev, current) => {
-    return (prev.revenue > current.revenue) ? prev : current;
-  }, weeklyOrders[0]);
-
   // Utiliser le hook pour les données dynamiques
   const { 
     business,
     stats,
     recentOrders,
     menu,
+    weeklyData,
     isLoading,
     isBusinessLoading,
     isStatsLoading,
     isOrdersLoading,
     isMenuLoading,
+    isWeeklyDataLoading,
     error,
     isAuthenticated,
     currentUser: partnerCurrentUser,
@@ -251,13 +228,18 @@ const PartnerDashboard = () => {
     refresh
   } = usePartnerDashboard();
 
-  // Données du restaurant (à remplacer par des données dynamiques)
+  // Calculer le jour avec le plus de revenus à partir des données dynamiques
+  const highestRevenueDay = weeklyData.length > 0 ? weeklyData.reduce((prev, current) => {
+    return (prev.revenue > current.revenue) ? prev : current;
+  }, weeklyData[0]) : { day: 'Aucun', orders: 0, revenue: 0 };
+
+  // Données du restaurant dynamiques (utilisées pour l'affichage)
   const restaurantData = {
-    name: "Le Petit Conakry Restaurant",
-    image: "/placeholder-restaurant.jpg",
-    address: "15 Rue du Port, Kaloum, Conakry",
-    cuisine: "Cuisine Guinéenne & Africaine",
-    rating: 4.7,
+    name: business?.name || "Restaurant",
+    image: "/placeholder-restaurant.jpg", // Pas de cover_image dans l'interface actuelle
+    address: business?.address || "Adresse non définie",
+    cuisine: business?.cuisine_type || "Cuisine",
+    rating: business?.rating || 0,
   };
 
   // Formater les montants
@@ -414,7 +396,7 @@ const PartnerDashboard = () => {
   }
 
   // Afficher le chargement progressif une fois que le business est chargé
-  if (business && (isStatsLoading || isOrdersLoading || isMenuLoading)) {
+  if (business && (isStatsLoading || isOrdersLoading || isMenuLoading || isWeeklyDataLoading)) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
         <PartnerDashboardProgressiveSkeleton
@@ -422,10 +404,12 @@ const PartnerDashboard = () => {
           stats={stats}
           recentOrders={recentOrders}
           menu={menu}
+          weeklyData={weeklyData}
           isBusinessLoading={false}
           isStatsLoading={isStatsLoading}
           isOrdersLoading={isOrdersLoading}
           isMenuLoading={isMenuLoading}
+          isWeeklyDataLoading={isWeeklyDataLoading}
         />
       </DashboardLayout>
     );
@@ -704,42 +688,54 @@ const PartnerDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col">
-                  <div className="flex justify-between items-center mb-4">
-                    <div>
-                      <p className="text-lg font-semibold">
-                        {(restaurantData.totalEarnings / 1000000).toFixed(2)} M GNF
-                      </p>
-                      <p className="text-sm text-muted-foreground">Revenus hebdomadaires</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-semibold">
-                        {highestRevenueDay.orders} commandes
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Meilleur jour: {highestRevenueDay.day}
-                      </p>
-                    </div>
+                {isWeeklyDataLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    <span className="ml-2 text-sm text-muted-foreground">Chargement des données...</span>
                   </div>
-                  
-                  <div className="grid grid-cols-7 gap-2 mt-4">
-                    {weeklyOrders.map((day, index) => (
-                      <div key={index} className="flex flex-col items-center">
-                        <div className="h-28 w-full bg-muted rounded-md flex flex-col items-center justify-end p-1">
-                          <div 
-                            className="w-full bg-green-500 rounded-sm" 
-                            style={{ 
-                              height: `${(day.revenue / highestRevenueDay.revenue) * 100}%`,
-                              minHeight: '4px'
-                            }}
-                          ></div>
-                        </div>
-                        <span className="text-xs mt-1 font-medium">{day.day}</span>
-                        <span className="text-xs text-muted-foreground">{day.orders}</span>
+                ) : weeklyData.length > 0 ? (
+                  <div className="flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <p className="text-lg font-semibold">
+                          {formatCurrency(weeklyData.reduce((sum, day) => sum + day.revenue, 0))}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Revenus hebdomadaires</p>
                       </div>
-                    ))}
+                      <div className="text-right">
+                        <p className="text-lg font-semibold">
+                          {highestRevenueDay.orders} commandes
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Meilleur jour: {highestRevenueDay.day}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-7 gap-2 mt-4">
+                      {weeklyData.map((day, index) => (
+                        <div key={index} className="flex flex-col items-center">
+                          <div className="h-28 w-full bg-muted rounded-md flex flex-col items-center justify-end p-1">
+                            <div 
+                              className="w-full bg-green-500 rounded-sm" 
+                              style={{ 
+                                height: `${highestRevenueDay.revenue > 0 ? (day.revenue / highestRevenueDay.revenue) * 100 : 0}%`,
+                                minHeight: '4px'
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-xs mt-1 font-medium">{day.day}</span>
+                          <span className="text-xs text-muted-foreground">{day.orders}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">Aucune donnée disponible pour cette semaine</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
             

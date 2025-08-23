@@ -822,19 +822,23 @@ export const PartnerDashboardProgressiveSkeleton = ({
   stats, 
   recentOrders, 
   menu,
+  weeklyData,
   isBusinessLoading,
   isStatsLoading,
   isOrdersLoading,
-  isMenuLoading
+  isMenuLoading,
+  isWeeklyDataLoading
 }: {
   business: any;
   stats: any;
   recentOrders: any[];
   menu: any[];
+  weeklyData: any[];
   isBusinessLoading: boolean;
   isStatsLoading: boolean;
   isOrdersLoading: boolean;
   isMenuLoading: boolean;
+  isWeeklyDataLoading: boolean;
 }) => {
   return (
     <div className="space-y-6">
@@ -980,6 +984,71 @@ export const PartnerDashboardProgressiveSkeleton = ({
           ))
         )}
       </div>
+
+      {/* Données hebdomadaires */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Activité Hebdomadaire</CardTitle>
+          <CardDescription>
+            Commandes et revenus cette semaine
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {weeklyData && weeklyData.length > 0 ? (
+            <div className="flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <p className="text-lg font-semibold">
+                    {(weeklyData.reduce((sum, day) => sum + day.revenue, 0) / 1000000).toFixed(2)} M GNF
+                  </p>
+                  <p className="text-sm text-muted-foreground">Revenus hebdomadaires</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-semibold">
+                    {Math.max(...weeklyData.map(d => d.orders))} commandes
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Meilleur jour: {weeklyData.reduce((prev, current) => 
+                      prev.revenue > current.revenue ? prev : current
+                    ).day}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-7 gap-2 mt-4">
+                {weeklyData.map((day, index) => {
+                  const maxRevenue = Math.max(...weeklyData.map(d => d.revenue));
+                  return (
+                    <div key={index} className="flex flex-col items-center">
+                      <div className="h-28 w-full bg-muted rounded-md flex flex-col items-center justify-end p-1">
+                        <div 
+                          className="w-full bg-green-500 rounded-sm" 
+                          style={{ 
+                            height: `${maxRevenue > 0 ? (day.revenue / maxRevenue) * 100 : 0}%`,
+                            minHeight: '4px'
+                          }}
+                        ></div>
+                      </div>
+                      <span className="text-xs mt-1 font-medium">{day.day}</span>
+                      <span className="text-xs text-muted-foreground">{day.orders}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : isWeeklyDataLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <span className="ml-2 text-sm text-muted-foreground">Chargement des données...</span>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Aucune donnée disponible pour cette semaine</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Commandes récentes */}
       <Card>

@@ -109,6 +109,13 @@ export interface PartnerDriver {
   updated_at: string
 }
 
+export interface WeeklyData {
+  day: string
+  orders: number
+  revenue: number
+  date: string
+}
+
 export class PartnerDashboardService {
   // Récupérer le business du partenaire connecté (optimisé)
   static async getPartnerBusiness(): Promise<{ business: PartnerBusiness | null; error: string | null }> {
@@ -227,6 +234,56 @@ export class PartnerDashboardService {
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error)
       return { stats: null, error: 'Erreur lors de la récupération des statistiques' }
+    }
+  }
+
+  // Récupérer les données hebdomadaires pour le graphique
+  static async getWeeklyData(businessId: number): Promise<{ data: WeeklyData[] | null; error: string | null }> {
+    try {
+      // Calculer le début de la semaine (lundi)
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysToMonday)
+      weekStart.setHours(0, 0, 0, 0)
+
+      // Créer un tableau pour les 7 jours de la semaine
+      const weekDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+      const weeklyData: WeeklyData[] = []
+
+      for (let i = 0; i < 7; i++) {
+        const currentDate = new Date(weekStart.getTime() + i * 24 * 60 * 60 * 1000)
+        const nextDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
+
+        // Récupérer les commandes pour ce jour
+        const { data: orders, error } = await supabase
+          .from('orders')
+          .select('grand_total, status')
+          .eq('business_id', businessId)
+          .gte('created_at', currentDate.toISOString())
+          .lt('created_at', nextDate.toISOString())
+          .in('status', ['delivered', 'completed', 'out_for_delivery'])
+
+        if (error) {
+          console.error(`Erreur récupération commandes pour ${weekDays[i]}:`, error)
+          continue
+        }
+
+        const dayOrders = orders?.length || 0
+        const dayRevenue = orders?.reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0
+
+        weeklyData.push({
+          day: weekDays[i],
+          orders: dayOrders,
+          revenue: dayRevenue,
+          date: currentDate.toISOString().split('T')[0]
+        })
+      }
+
+      return { data: weeklyData, error: null }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des données hebdomadaires:', error)
+      return { data: null, error: 'Erreur lors de la récupération des données hebdomadaires' }
     }
   }
 
