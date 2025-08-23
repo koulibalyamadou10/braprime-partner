@@ -3,7 +3,7 @@ import { PartnerDashboardSkeleton, PartnerDashboardProgressiveSkeleton } from '@
 import { SubscriptionStatus } from '@/components/dashboard/SubscriptionStatus';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
@@ -37,6 +37,7 @@ import {
     Users,
     XCircle,
     CreditCard,
+    Bell,
     Settings
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -44,6 +45,49 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 // Composant de chargement - remplacé par PartnerDashboardSkeleton
+
+// Mock restaurant data for Guinea Conakry
+const restaurantData = {
+  name: "Le Petit Conakry Restaurant",
+  image: "/placeholder-restaurant.jpg",
+  address: "15 Rue du Port, Kaloum, Conakry",
+  cuisine: "Cuisine Guinéenne & Africaine",
+  rating: 4.7,
+  totalOrders: 1253,
+  totalEarnings: 45850000, // in GNF
+  pendingOrders: 5,
+  menuItems: 38
+};
+
+  // Recent notifications
+  const notifications = [
+    {
+      id: 1,
+      message: 'Nouvelle commande reçue: ORD-002',
+      time: '15 minutes'
+    },
+    {
+      id: 2,
+      message: 'Un client a donné une note de 5 étoiles à votre restaurant',
+      time: '2 heures'
+    },
+    {
+      id: 3,
+      message: 'Paiement reçu: 1,250,000 GNF a été versé sur votre compte',
+      time: '1 jour'
+    }
+  ];
+
+// Mock weekly orders
+const weeklyOrders = [
+  { day: "Lundi", orders: 42, revenue: 1680000 },
+  { day: "Mardi", orders: 38, revenue: 1520000 },
+  { day: "Mercredi", orders: 45, revenue: 1800000 },
+  { day: "Jeudi", orders: 52, revenue: 2080000 },
+  { day: "Vendredi", orders: 58, revenue: 2320000 },
+  { day: "Samedi", orders: 64, revenue: 2560000 },
+  { day: "Dimanche", orders: 50, revenue: 2000000 }
+];
 
 // Fonction pour obtenir la couleur du statut
 const getStatusColor = (status: string) => {
@@ -182,6 +226,11 @@ const PartnerDashboard = () => {
 
   // Vérifier l'accès partenaire et les besoins d'abonnement
   const { data: accessCheck, isLoading: accessLoading } = usePartnerAccessCheck();
+
+  // Find the highest revenue day
+  const highestRevenueDay = weeklyOrders.reduce((prev, current) => {
+    return (prev.revenue > current.revenue) ? prev : current;
+  }, weeklyOrders[0]);
 
   // Utiliser le hook pour les données dynamiques
   const { 
@@ -645,6 +694,84 @@ const PartnerDashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Weekly Orders Stats */}
+        <Card>
+              <CardHeader>
+                <CardTitle>Activité Hebdomadaire</CardTitle>
+                <CardDescription>
+                  Commandes et revenus cette semaine
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <p className="text-lg font-semibold">
+                        {(restaurantData.totalEarnings / 1000000).toFixed(2)} M GNF
+                      </p>
+                      <p className="text-sm text-muted-foreground">Revenus hebdomadaires</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold">
+                        {highestRevenueDay.orders} commandes
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Meilleur jour: {highestRevenueDay.day}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-7 gap-2 mt-4">
+                    {weeklyOrders.map((day, index) => (
+                      <div key={index} className="flex flex-col items-center">
+                        <div className="h-28 w-full bg-muted rounded-md flex flex-col items-center justify-end p-1">
+                          <div 
+                            className="w-full bg-green-500 rounded-sm" 
+                            style={{ 
+                              height: `${(day.revenue / highestRevenueDay.revenue) * 100}%`,
+                              minHeight: '4px'
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-xs mt-1 font-medium">{day.day}</span>
+                        <span className="text-xs text-muted-foreground">{day.orders}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Notifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Notifications Récentes</CardTitle>
+                <CardDescription>
+                  Mises à jour et alertes importantes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {notifications.map(notification => (
+                    <div key={notification.id} className="flex items-start border-b pb-4">
+                      <div className="mr-4 mt-1">
+                        <Bell className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p>{notification.message}</p>
+                        <p className="text-sm text-muted-foreground mt-1">il y a {notification.time}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full">
+                  Voir toutes les notifications
+                </Button>
+              </CardFooter>
+            </Card>
 
         {/* Menu */}
         <Card>
