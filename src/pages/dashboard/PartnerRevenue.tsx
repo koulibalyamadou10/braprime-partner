@@ -33,175 +33,6 @@ import { formatCurrency } from '@/lib/utils';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import RealTimeStats from '@/components/dashboard/RealTimeStats';
 
-// Revenue data types
-type RevenueStats = {
-  totalRevenue: number;
-  totalOrders: number;
-  averageOrder: number;
-  growth: number;
-  topItems: {
-    name: string;
-    count: number;
-    revenue: number;
-  }[];
-  dailyData: {
-    date: string;
-    revenue: number;
-    orders: number;
-  }[];
-  categories: {
-    name: string;
-    revenue: number;
-    percentage: number;
-  }[];
-  paymentMethods: {
-    method: string;
-    count: number;
-    amount: number;
-  }[];
-};
-
-// Mock revenue data
-const mockRevenueData: Record<'daily' | 'weekly' | 'monthly' | 'yearly', RevenueStats> = {
-  daily: {
-    totalRevenue: 245000,
-    totalOrders: 35,
-    averageOrder: 7000,
-    growth: 12.5,
-    topItems: [
-      { name: 'Chicken Yassa', count: 15, revenue: 90000 },
-      { name: 'Thieboudienne', count: 12, revenue: 66000 },
-      { name: 'Mafe', count: 8, revenue: 40000 },
-      { name: 'Bissap Juice', count: 18, revenue: 27000 },
-      { name: 'Attieke with Fish', count: 4, revenue: 26000 }
-    ],
-    dailyData: [
-      { date: '08:00', revenue: 21000, orders: 3 },
-      { date: '10:00', revenue: 35000, orders: 5 },
-      { date: '12:00', revenue: 70000, orders: 10 },
-      { date: '14:00', revenue: 42000, orders: 6 },
-      { date: '16:00', revenue: 28000, orders: 4 },
-      { date: '18:00', revenue: 49000, orders: 7 }
-    ],
-    categories: [
-      { name: 'Main Dishes', revenue: 180000, percentage: 73.5 },
-      { name: 'Beverages', revenue: 35000, percentage: 14.3 },
-      { name: 'Appetizers', revenue: 15000, percentage: 6.1 },
-      { name: 'Desserts', revenue: 10000, percentage: 4.1 },
-      { name: 'Sides', revenue: 5000, percentage: 2 }
-    ],
-    paymentMethods: [
-      { method: 'Mobile Money', count: 18, amount: 126000 },
-      { method: 'Cash', count: 10, amount: 70000 },
-      { method: 'Credit Card', count: 7, amount: 49000 }
-    ]
-  },
-  weekly: {
-    totalRevenue: 1650000,
-    totalOrders: 236,
-    averageOrder: 6992,
-    growth: 8.2,
-    topItems: [
-      { name: 'Chicken Yassa', count: 76, revenue: 456000 },
-      { name: 'Thieboudienne', count: 68, revenue: 374000 },
-      { name: 'Mafe', count: 42, revenue: 210000 },
-      { name: 'Attieke with Fish', count: 28, revenue: 182000 },
-      { name: 'Bissap Juice', count: 112, revenue: 168000 }
-    ],
-    dailyData: [
-      { date: 'Mon', revenue: 220000, orders: 31 },
-      { date: 'Tue', revenue: 185000, orders: 26 },
-      { date: 'Wed', revenue: 200000, orders: 29 },
-      { date: 'Thu', revenue: 245000, orders: 35 },
-      { date: 'Fri', revenue: 310000, orders: 44 },
-      { date: 'Sat', revenue: 350000, orders: 50 },
-      { date: 'Sun', revenue: 140000, orders: 21 }
-    ],
-    categories: [
-      { name: 'Main Dishes', revenue: 1200000, percentage: 72.7 },
-      { name: 'Beverages', revenue: 220000, percentage: 13.3 },
-      { name: 'Appetizers', revenue: 105000, percentage: 6.4 },
-      { name: 'Desserts', revenue: 75000, percentage: 4.5 },
-      { name: 'Sides', revenue: 50000, percentage: 3.1 }
-    ],
-    paymentMethods: [
-      { method: 'Mobile Money', count: 118, amount: 825000 },
-      { method: 'Cash', count: 71, amount: 495000 },
-      { method: 'Credit Card', count: 47, amount: 330000 }
-    ]
-  },
-  monthly: {
-    totalRevenue: 7200000,
-    totalOrders: 1015,
-    averageOrder: 7094,
-    growth: 15.3,
-    topItems: [
-      { name: 'Chicken Yassa', count: 312, revenue: 1872000 },
-      { name: 'Thieboudienne', count: 275, revenue: 1512500 },
-      { name: 'Mafe', count: 180, revenue: 900000 },
-      { name: 'Attieke with Fish', count: 126, revenue: 819000 },
-      { name: 'Dibi Lamb', count: 98, revenue: 686000 }
-    ],
-    dailyData: [
-      { date: 'Week 1', revenue: 1500000, orders: 210 },
-      { date: 'Week 2', revenue: 1650000, orders: 236 },
-      { date: 'Week 3', revenue: 1800000, orders: 254 },
-      { date: 'Week 4', revenue: 2250000, orders: 315 }
-    ],
-    categories: [
-      { name: 'Main Dishes', revenue: 5256000, percentage: 73 },
-      { name: 'Beverages', revenue: 960000, percentage: 13.3 },
-      { name: 'Appetizers', revenue: 456000, percentage: 6.3 },
-      { name: 'Desserts', revenue: 312000, percentage: 4.3 },
-      { name: 'Sides', revenue: 216000, percentage: 3 }
-    ],
-    paymentMethods: [
-      { method: 'Mobile Money', count: 518, amount: 3672000 },
-      { method: 'Cash', count: 304, amount: 2160000 },
-      { method: 'Credit Card', count: 193, amount: 1368000 }
-    ]
-  },
-  yearly: {
-    totalRevenue: 83520000,
-    totalOrders: 11872,
-    averageOrder: 7037,
-    growth: 22.5,
-    topItems: [
-      { name: 'Chicken Yassa', count: 3605, revenue: 21630000 },
-      { name: 'Thieboudienne', count: 3256, revenue: 17908000 },
-      { name: 'Mafe', count: 2148, revenue: 10740000 },
-      { name: 'Attieke with Fish', count: 1520, revenue: 9880000 },
-      { name: 'Dibi Lamb', count: 1205, revenue: 8435000 }
-    ],
-    dailyData: [
-      { date: 'Jan', revenue: 6200000, orders: 870 },
-      { date: 'Feb', revenue: 5800000, orders: 810 },
-      { date: 'Mar', revenue: 6500000, orders: 910 },
-      { date: 'Apr', revenue: 6800000, orders: 950 },
-      { date: 'May', revenue: 7100000, orders: 990 },
-      { date: 'Jun', revenue: 7200000, orders: 1015 },
-      { date: 'Jul', revenue: 7500000, orders: 1050 },
-      { date: 'Aug', revenue: 7600000, orders: 1070 },
-      { date: 'Sep', revenue: 7400000, orders: 1030 },
-      { date: 'Oct', revenue: 7200000, orders: 1020 },
-      { date: 'Nov', revenue: 7000000, orders: 980 },
-      { date: 'Dec', revenue: 7220000, orders: 1010 }
-    ],
-    categories: [
-      { name: 'Main Dishes', revenue: 60970000, percentage: 73 },
-      { name: 'Beverages', revenue: 11190000, percentage: 13.4 },
-      { name: 'Appetizers', revenue: 5260000, percentage: 6.3 },
-      { name: 'Desserts', revenue: 3590000, percentage: 4.3 },
-      { name: 'Sides', revenue: 2510000, percentage: 3 }
-    ],
-    paymentMethods: [
-      { method: 'Mobile Money', count: 6032, amount: 42460000 },
-      { method: 'Cash', count: 3560, amount: 25060000 },
-      { method: 'Credit Card', count: 2280, amount: 16000000 }
-    ]
-  }
-};
-
 // Helper function for percentage
 const formatPercentage = (value: number) => {
   return `${value.toFixed(1)}%`;
@@ -212,7 +43,6 @@ const PartnerRevenue = () => {
   
   // State for time period selection
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
-  const [compareEnabled, setCompareEnabled] = useState(false);
   
   // Utiliser les hooks pour les données dynamiques
   const { 
@@ -227,11 +57,11 @@ const PartnerRevenue = () => {
   // Formater les montants
   const formatCurrencyDisplay = (amount: number) => {
     if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(1)}M GNF`;
+      return `${(amount / 1000000).toFixed(1)}M FCFA`;
     } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(0)}k GNF`;
+      return `${(amount / 1000).toFixed(0)}k FCFA`;
     }
-    return `${amount} GNF`;
+    return `${amount} FCFA`;
   };
 
   // Calculer les statistiques globales
@@ -241,11 +71,16 @@ const PartnerRevenue = () => {
   const periodRevenue = stats?.periodRevenue || 0;
   const periodOrders = stats?.periodOrders || 0;
 
-  // Get current stats based on selected period
-  const currentStats = mockRevenueData[period];
-
   // Optional: Replace with actual chart component if available
   const renderBarChart = (data: { date: string; revenue: number; orders: number }[]) => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-500">
+          Aucune donnée disponible pour cette période
+        </div>
+      );
+    }
+
     const maxRevenue = Math.max(...data.map(d => d.revenue));
     
     return (
@@ -269,7 +104,7 @@ const PartnerRevenue = () => {
                 />
               </div>
               <div className="text-right text-sm font-medium">
-                {formatCurrency(item.revenue)}
+                {formatCurrencyDisplay(item.revenue)}
               </div>
             </div>
           ))}
@@ -338,21 +173,27 @@ const PartnerRevenue = () => {
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-primary" />
                 </div>
-                {currentStats.growth > 0 ? (
+                {revenueData?.growth && revenueData.growth > 0 ? (
                   <div className="flex items-center text-green-600">
                     <ArrowUpRight className="h-4 w-4 mr-1" />
-                    <span>+{currentStats.growth}%</span>
+                    <span>+{revenueData.growth.toFixed(1)}%</span>
                   </div>
-                ) : (
+                ) : revenueData?.growth && revenueData.growth < 0 ? (
                   <div className="flex items-center text-red-600">
                     <ArrowDownRight className="h-4 w-4 mr-1" />
-                    <span>{currentStats.growth}%</span>
+                    <span>{revenueData.growth.toFixed(1)}%</span>
                   </div>
-                )}
+                ) : null}
               </div>
               <div className="mt-4">
                 <p className="text-sm text-gray-500">Total Revenue</p>
-                <h3 className="text-2xl font-bold mt-1">{formatCurrency(currentStats.totalRevenue)}</h3>
+                <h3 className="text-2xl font-bold mt-1">
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : (
+                    formatCurrencyDisplay(totalRevenue)
+                  )}
+                </h3>
               </div>
             </CardContent>
           </Card>
@@ -366,7 +207,13 @@ const PartnerRevenue = () => {
               </div>
               <div className="mt-4">
                 <p className="text-sm text-gray-500">Total Orders</p>
-                <h3 className="text-2xl font-bold mt-1">{currentStats.totalOrders}</h3>
+                <h3 className="text-2xl font-bold mt-1">
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : (
+                    totalOrders.toLocaleString()
+                  )}
+                </h3>
               </div>
             </CardContent>
           </Card>
@@ -380,7 +227,13 @@ const PartnerRevenue = () => {
               </div>
               <div className="mt-4">
                 <p className="text-sm text-gray-500">Average Order</p>
-                <h3 className="text-2xl font-bold mt-1">{formatCurrency(currentStats.averageOrder)}</h3>
+                <h3 className="text-2xl font-bold mt-1">
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : (
+                    formatCurrencyDisplay(averageOrderValue)
+                  )}
+                </h3>
               </div>
             </CardContent>
           </Card>
@@ -403,7 +256,13 @@ const PartnerRevenue = () => {
                         : 'Orders per Month'}
                 </p>
                 <h3 className="text-2xl font-bold mt-1">
-                  {(currentStats.totalOrders / currentStats.dailyData.length).toFixed(1)}
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : revenueData?.dailyData && revenueData.dailyData.length > 0 ? (
+                    (totalOrders / revenueData.dailyData.length).toFixed(1)
+                  ) : (
+                    '0'
+                  )}
                 </h3>
               </div>
             </CardContent>
@@ -427,7 +286,22 @@ const PartnerRevenue = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {renderBarChart(currentStats.dailyData)}
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between">
+                        <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full animate-pulse"></div>
+                      <div className="h-4 bg-gray-200 rounded w-24 animate-pulse ml-auto"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                renderBarChart(revenueData?.dailyData || [])
+              )}
             </CardContent>
           </Card>
           
@@ -441,25 +315,49 @@ const PartnerRevenue = () => {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[300px]">
-                <div className="space-y-4">
-                  {currentStats.topItems.map((item, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex justify-between">
-                        <div>
-                          <span className="font-medium">{item.name}</span>
-                          <div className="text-sm text-gray-500">{item.count} orders</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">{formatCurrency(item.revenue)}</div>
-                          <div className="text-sm text-gray-500">
-                            {formatPercentage((item.revenue / currentStats.totalRevenue) * 100)}
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="space-y-2">
+                        <div className="flex justify-between">
+                          <div className="space-y-1">
+                            <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                            <div className="h-3 bg-gray-200 rounded w-16 animate-pulse"></div>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                            <div className="h-3 bg-gray-200 rounded w-12 animate-pulse"></div>
                           </div>
                         </div>
+                        <div className="w-full h-2 bg-gray-200 rounded-full animate-pulse"></div>
                       </div>
-                      <Progress value={(item.revenue / currentStats.totalRevenue) * 100} className="h-2" />
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : revenueData?.topItems && revenueData.topItems.length > 0 ? (
+                  <div className="space-y-4">
+                    {revenueData.topItems.map((item, index) => (
+                      <div key={index} className="space-y-2">
+                        <div className="flex justify-between">
+                          <div>
+                            <span className="font-medium">{item.name}</span>
+                            <div className="text-sm text-gray-500">{item.count} orders</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">{formatCurrencyDisplay(item.revenue)}</div>
+                            <div className="text-sm text-gray-500">
+                              {formatPercentage((item.revenue / totalRevenue) * 100)}
+                            </div>
+                          </div>
+                        </div>
+                        <Progress value={(item.revenue / totalRevenue) * 100} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucun article vendu pour cette période
+                  </div>
+                )}
               </ScrollArea>
             </CardContent>
           </Card>
@@ -476,20 +374,41 @@ const PartnerRevenue = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {currentStats.categories.map((category, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="font-medium">{category.name}</span>
-                      <div className="text-right">
-                        <div className="font-medium">{formatCurrency(category.revenue)}</div>
-                        <div className="text-sm text-gray-500">{formatPercentage(category.percentage)}</div>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between">
+                        <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                        <div className="text-right space-y-1">
+                          <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                          <div className="h-3 bg-gray-200 rounded w-16 animate-pulse"></div>
+                        </div>
                       </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full animate-pulse"></div>
                     </div>
-                    <Progress value={category.percentage} className="h-2" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : revenueData?.categories && revenueData.categories.length > 0 ? (
+                <div className="space-y-4">
+                  {revenueData.categories.map((category, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{category.name}</span>
+                        <div className="text-right">
+                          <div className="font-medium">{formatCurrencyDisplay(category.revenue)}</div>
+                          <div className="text-sm text-gray-500">{formatPercentage(category.percentage)}</div>
+                        </div>
+                      </div>
+                      <Progress value={category.percentage} className="h-2" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Aucune donnée de catégorie disponible
+                </div>
+              )}
             </CardContent>
           </Card>
           
@@ -502,22 +421,43 @@ const PartnerRevenue = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {currentStats.paymentMethods.map((method, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="font-medium">{method.method}</span>
-                      <div className="text-right">
-                        <div className="font-medium">{formatCurrency(method.amount)}</div>
-                        <div className="text-sm text-gray-500">
-                          {method.count} orders ({formatPercentage((method.amount / currentStats.totalRevenue) * 100)})
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between">
+                        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                        <div className="text-right space-y-1">
+                          <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20 animate-pulse"></div>
                         </div>
                       </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full animate-pulse"></div>
                     </div>
-                    <Progress value={(method.amount / currentStats.totalRevenue) * 100} className="h-2" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : revenueData?.paymentMethods && revenueData.paymentMethods.length > 0 ? (
+                <div className="space-y-4">
+                  {revenueData.paymentMethods.map((method, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{method.method}</span>
+                        <div className="text-right">
+                          <div className="font-medium">{formatCurrencyDisplay(method.amount)}</div>
+                          <div className="text-sm text-gray-500">
+                            {method.count} orders ({formatPercentage(method.percentage)})
+                          </div>
+                        </div>
+                      </div>
+                      <Progress value={method.percentage} className="h-2" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Aucune donnée de méthode de paiement disponible
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
