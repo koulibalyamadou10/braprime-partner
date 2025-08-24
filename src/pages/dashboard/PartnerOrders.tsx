@@ -787,14 +787,14 @@ const PartnerOrders = () => {
             <CardContent className="flex flex-col items-center justify-center py-12">
               <p className="text-red-500 mb-4">{error}</p>
               <div className="flex gap-2">
-                <Button onClick={preloadData} variant="outline">
+                {/* <Button onClick={preloadData} variant="outline">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Précharger
                 </Button>
                 <Button onClick={() => business && loadOrders(business.id)}>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Réessayer
-                </Button>
+                </Button> */}
               </div>
             </CardContent>
           </Card>

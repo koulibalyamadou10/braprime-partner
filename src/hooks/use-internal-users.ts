@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { InternalUsersService, CreateInternalUserData, UpdateInternalUserData, InternalUser } from '@/lib/services/internal-users';
+import { supabase } from '@/lib/supabase';
 
 export const useInternalUsers = (businessId: number, currentUserId?: string) => {
   const queryClient = useQueryClient();
@@ -128,3 +129,30 @@ export const useInternalUsers = (businessId: number, currentUserId?: string) => 
     deleteError: deleteUserMutation.error
   };
 };
+
+// verifier si l'utilisateur est interne ou pas
+export async function isInternalUser(): Promise<{isInternal: boolean, data: InternalUser | null, user: {}}> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('Utilisateur non connecté');
+    }
+
+    const { data, error } = await supabase
+      .from('profile_internal_user')
+      .select('*')
+      .eq('user_id', user.id)
+      .limit(1);
+
+
+    if (error) {
+      console.error('Erreur dans isInternalUser:', error);
+      throw new Error(error.message);
+    }
+
+    return data && data.length > 0 ? {isInternal: true, data: data[0], user: user} : {isInternal: false, data: null, user: user};
+  } catch (error) {
+    console.error('Erreur dans isInternalUser:', error);
+    throw error;
+  }
+}

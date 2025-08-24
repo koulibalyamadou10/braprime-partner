@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout, { partnerNavItems } from '../../components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
@@ -10,9 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { useToast } from '../../components/ui/use-toast';
-import { X, Upload, Edit, Check, Loader2 } from 'lucide-react';
+import { X, Upload, Edit, Check, Loader2, MapPin, Search } from 'lucide-react';
 import { usePartnerProfile } from '../../hooks/use-partner-profile';
 import { Skeleton } from '../../components/ui/skeleton';
+
+// Types pour Google Maps
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 const PartnerProfile = () => {
   const { toast } = useToast();
@@ -39,6 +46,97 @@ const PartnerProfile = () => {
     delivery_time: "",
   });
 
+  // États pour la carte Google Maps
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [marker, setMarker] = useState<google.maps.Marker | null>(null);
+  const [searchBox, setSearchBox] = useState<google.maps.places.SearchBox | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const mapRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Initialiser Google Maps
+  useEffect(() => {
+    const initMap = () => {
+      if (mapRef.current && window.google) {
+        const defaultLocation = { lat: 9.5370, lng: -13.6785 }; // Conakry, Guinée
+        
+        const mapInstance = new window.google.maps.Map(mapRef.current, {
+          center: defaultLocation,
+          zoom: 13,
+          mapTypeId: window.google.maps.MapTypeId.ROADMAP,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+
+        const markerInstance = new window.google.maps.Marker({
+          position: defaultLocation,
+          map: mapInstance,
+          draggable: true,
+          title: "Votre restaurant",
+        });
+
+        // Gérer le déplacement du marqueur
+        markerInstance.addListener('dragend', () => {
+          const position = markerInstance.getPosition();
+          if (position) {
+            reverseGeocode(position.lat(), position.lng());
+          }
+        });
+
+        // Gérer le clic sur la carte
+        mapInstance.addListener('click', (event: any) => {
+          const position = event.latLng;
+          markerInstance.setPosition(position);
+          reverseGeocode(position.lat(), position.lng());
+        });
+
+        setMap(mapInstance);
+        setMarker(markerInstance);
+
+        // Initialiser SearchBox
+        if (searchInputRef.current) {
+          const searchBoxInstance = new window.google.maps.places.SearchBox(searchInputRef.current);
+          setSearchBox(searchBoxInstance);
+
+          // Gérer les résultats de recherche
+          searchBoxInstance.addListener('places_changed', () => {
+            const places = searchBoxInstance.getPlaces();
+            if (places && places.length > 0) {
+              const place = places[0];
+              if (place.geometry && place.geometry.location) {
+                const position = place.geometry.location;
+                mapInstance.setCenter(position);
+                mapInstance.setZoom(16);
+                markerInstance.setPosition(position);
+                setFormData(prev => ({ ...prev, address: place.formatted_address || "" }));
+                setSearchQuery(place.formatted_address || "");
+              }
+            }
+          });
+        }
+      }
+    };
+
+    // Charger Google Maps API
+    const loadGoogleMapsAPI = () => {
+      if (!window.google) {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDIp_O6TQg33J4Z2M44Uj3SEJZfTq1EqZU&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.onload = initMap;
+        document.head.appendChild(script);
+      } else {
+        initMap();
+      }
+    };
+
+    loadGoogleMapsAPI();
+  }, []);
+
   // Initialiser les données du formulaire quand le profil est chargé
   React.useEffect(() => {
     if (profile) {
@@ -53,8 +151,15 @@ const PartnerProfile = () => {
         delivery_fee: profile.delivery_fee?.toString() || "",
         delivery_time: profile.delivery_time || "",
       });
+      
+      // Si on a une adresse, la rechercher sur la carte
+      if (profile.address && map && searchBox) {
+        setSearchQuery(profile.address);
+        searchBox.set('query', profile.address);
+        searchBox.trigger('places_changed');
+      }
     }
-  }, [profile]);
+  }, [profile, map, searchBox]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -80,6 +185,55 @@ const PartnerProfile = () => {
     const success = await updateProfile(updateData);
     if (success) {
       setIsEditing(false);
+    }
+  };
+
+  // Fonction pour obtenir l'adresse à partir des coordonnées
+  const reverseGeocode = (lat: number, lng: number) => {
+    if (window.google && window.google.maps) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const address = results[0].formatted_address;
+          setFormData(prev => ({ ...prev, address }));
+          setSearchQuery(address);
+        }
+      });
+    }
+  };
+
+  // Gérer la recherche d'adresse
+  const handleAddressSearch = (query: string) => {
+    setSearchQuery(query);
+    setShowSuggestions(query.length > 2);
+    
+    if (query.length > 2 && window.google && window.google.maps) {
+      const service = new window.google.maps.places.AutocompleteService();
+      service.getPlacePredictions(
+        { input: query, componentRestrictions: { country: 'gn' } }, // Restreindre à la Guinée
+        (predictions, status) => {
+          if (status === 'OK' && predictions) {
+            setSuggestions(predictions.map(p => p.description));
+          } else {
+            setSuggestions([]);
+          }
+        }
+      );
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  // Sélectionner une suggestion
+  const selectSuggestion = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    setFormData(prev => ({ ...prev, address: suggestion }));
+    setShowSuggestions(false);
+    
+    // Rechercher l'endroit et centrer la carte
+    if (searchBox) {
+      searchBox.set('query', suggestion);
+      searchBox.trigger('places_changed');
     }
   };
 
@@ -300,13 +454,80 @@ const PartnerProfile = () => {
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="address">Adresse</Label>
-                      <Input 
-                        id="address" 
-                        name="address" 
-                        value={formData.address} 
-                        onChange={handleInputChange} 
-                        disabled={!isEditing} 
-                      />
+                      <div className="space-y-3">
+                        {/* Barre de recherche avec suggestions */}
+                        <div className="relative">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input 
+                              ref={searchInputRef}
+                              id="address-search"
+                              placeholder="Rechercher une adresse..."
+                              value={searchQuery}
+                              onChange={(e) => handleAddressSearch(e.target.value)}
+                              disabled={!isEditing}
+                              className="pl-10"
+                            />
+                          </div>
+                          
+                          {/* Suggestions d'adresse */}
+                          {showSuggestions && suggestions.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                              {suggestions.map((suggestion, index) => (
+                                <div
+                                  key={index}
+                                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                  onClick={() => selectSuggestion(suggestion)}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-gray-400" />
+                                    <span className="text-sm">{suggestion}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Carte Google Maps */}
+                        {isEditing && (
+                          <div className="border rounded-lg overflow-hidden">
+                            <div 
+                              ref={mapRef} 
+                              className="w-full h-64 bg-gray-100"
+                              style={{ minHeight: '256px' }}
+                            />
+                            <div className="p-3 bg-gray-50 border-t">
+                              <p className="text-xs text-gray-600 text-center">
+                                Cliquez sur la carte ou déplacez le marqueur pour sélectionner votre adresse
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Champ d'adresse caché pour le formulaire */}
+                        <Input 
+                          id="address" 
+                          name="address" 
+                          value={formData.address} 
+                          onChange={handleInputChange} 
+                          disabled={!isEditing}
+                          className="sr-only"
+                        />
+                        
+                        {/* Affichage de l'adresse sélectionnée */}
+                        {formData.address && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                            <div className="flex items-start gap-2">
+                              <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-blue-900">Adresse sélectionnée :</p>
+                                <p className="text-sm text-blue-700">{formData.address}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="description">Description</Label>
