@@ -479,6 +479,7 @@ const PartnerDashboard = () => {
               onClick={handleToggleStatus}
               variant={business.is_open ? "destructive" : "default"}
               size="sm"
+              className={business.is_open ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
             >
               {business.is_open ? (
                 <>
