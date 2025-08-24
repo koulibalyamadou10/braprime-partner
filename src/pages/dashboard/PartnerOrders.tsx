@@ -73,6 +73,7 @@ const PartnerOrders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDeliveryType, setFilterDeliveryType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [addressFilter, setAddressFilter] = useState<string>("");
 
   // État pour l'assignation de livreur - DÉSACTIVÉ
   // const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
@@ -254,6 +255,13 @@ const PartnerOrders = () => {
       );
     }
 
+    // Filtrer par adresse
+    if (addressFilter) {
+      filtered = filtered.filter(order => 
+        order.delivery_address.toLowerCase().includes(addressFilter.toLowerCase())
+      );
+    }
+
     // Dédupliquer une dernière fois par sécurité
     const uniqueFiltered = filtered.reduce((acc: DashboardOrder[], order) => {
       const existingOrder = acc.find(o => o.id === order.id);
@@ -263,10 +271,8 @@ const PartnerOrders = () => {
       return acc;
     }, []);
 
-    
-
     setFilteredOrders(uniqueFiltered);
-  }, [orders, filterStatus, filterDeliveryType, searchQuery]);
+  }, [orders, filterStatus, filterDeliveryType, searchQuery, addressFilter]);
 
   // Charger les livreurs disponibles pour l'assignation multiple
   const loadAvailableDrivers = async () => {
@@ -852,6 +858,18 @@ const PartnerOrders = () => {
               />
             </div>
           </div>
+          <div className="flex-1">
+            <div className="relative">
+              <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input 
+                type="search" 
+                placeholder="Filtrer par adresse de livraison..." 
+                className="pl-8"
+                value={addressFilter}
+                onChange={(e) => setAddressFilter(e.target.value)}
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
             <Select 
@@ -990,7 +1008,7 @@ const PartnerOrders = () => {
                     <TableHead>Livraison</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Statut</TableHead>
-                                          <TableHead>Adresse</TableHead>
+                    <TableHead>Adresse</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1099,14 +1117,24 @@ const PartnerOrders = () => {
             ) : (
               <div className="flex flex-col items-center justify-center h-64">
                 <p className="text-gray-500 mb-2">Aucune commande trouvée</p>
-                {searchQuery && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setSearchQuery("")}
-                  >
-                    Effacer la recherche
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {searchQuery && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setSearchQuery("")}
+                    >
+                      Effacer la recherche
+                    </Button>
+                  )}
+                  {addressFilter && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setAddressFilter("")}
+                    >
+                      Effacer le filtre d'adresse
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
