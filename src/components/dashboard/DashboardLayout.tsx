@@ -201,4 +201,70 @@ export const partnerNavItems = [
   },
 ];
 
+export const userNavItems = [
+  {
+    href: '/dashboard',
+    label: 'Tableau de bord',
+    icon: <Home className="h-5 w-5" />,
+  },
+  {
+    href: '/dashboard/orders',
+    label: 'Mes commandes',
+    icon: <ShoppingBag className="h-5 w-5" />,
+  },
+  {
+    href: '/dashboard/favorites',
+    label: 'Favoris',
+    icon: <Heart className="h-5 w-5" />,
+  },
+  {
+    href: '/dashboard/profile',
+    label: 'Profil',
+    icon: <UserCircle className="h-5 w-5" />,
+  },
+  {
+    href: '/dashboard/settings',
+    label: 'Paramètres',
+    icon: <Settings className="h-5 w-5" />,
+  },
+];
+
+export const adminNavItems = [
+  {
+    href: '/admin-dashboard',
+    label: 'Tableau de bord',
+    icon: <Home className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/users',
+    label: 'Utilisateurs',
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/businesses',
+    label: 'Commerces',
+    icon: <Building2 className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/orders',
+    label: 'Commandes',
+    icon: <ShoppingBag className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/drivers',
+    label: 'Livreurs',
+    icon: <Truck className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/analytics',
+    label: 'Analyses',
+    icon: <BarChart3 className="h-5 w-5" />,
+  },
+  {
+    href: '/admin-dashboard/settings',
+    label: 'Paramètres',
+    icon: <Settings className="h-5 w-5" />,
+  },
+];
+
 export default DashboardLayout; 
