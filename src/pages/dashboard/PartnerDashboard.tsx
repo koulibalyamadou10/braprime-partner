@@ -475,14 +475,6 @@ const PartnerDashboard = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={preloadData} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Précharger
-            </Button>
-            <Button onClick={refresh} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Actualiser
-            </Button>
             <Button 
               onClick={handleToggleStatus}
               variant={business.is_open ? "destructive" : "default"}
