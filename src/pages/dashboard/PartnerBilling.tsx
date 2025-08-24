@@ -408,7 +408,7 @@ const PartnerBilling: React.FC = () => {
         {/* Graphiques et analyses */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Vue d'ensemble des revenus */}
-          <Card className="bg-white shadow-sm">
+          {/* <Card className="bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Vue d'ensemble des revenus</CardTitle>
               <CardDescription>Revenus de ce mois par semaine</CardDescription>
@@ -436,10 +436,10 @@ const PartnerBilling: React.FC = () => {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Articles de menu les plus vendus */}
-          <Card className="bg-white shadow-sm">
+          {/* <Card className="bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Articles de menu les plus vendus</CardTitle>
               <CardDescription>Meilleurs vendeurs par revenus</CardDescription>
@@ -466,7 +466,7 @@ const PartnerBilling: React.FC = () => {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
 
         {/* Section Abonnement */}
