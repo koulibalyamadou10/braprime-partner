@@ -990,7 +990,7 @@ const PartnerOrders = () => {
                     <TableHead>Livraison</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Disponible</TableHead>
+                                          <TableHead>Adresse</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1039,19 +1039,9 @@ const PartnerOrders = () => {
                           <span className="capitalize">{getStatusLabel(order.status)}</span>
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            checked={order.available_for_drivers || false}
-                            onCheckedChange={(checked) => handleAvailabilityChange(order.id, checked as boolean)}
-                            disabled={order.status === 'delivered' || order.status === 'cancelled' || order.status === 'out_for_delivery'}
-                          />
-                          <span className="text-xs text-gray-500">
-                            {order.status === 'delivered' || order.status === 'cancelled' || order.status === 'out_for_delivery'
-                              ? 'N/A' 
-                              : order.available_for_drivers ? 'Disponible' : 'Non disponible'
-                            }
-                          </span>
+                      <TableCell className="max-w-[200px]">
+                        <div className="truncate" title={order.delivery_address}>
+                          {order.delivery_address}
                         </div>
                       </TableCell>
                       <TableCell>
