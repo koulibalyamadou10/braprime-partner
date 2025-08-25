@@ -1011,6 +1011,7 @@ const PartnerOrders = () => {
                     <TableHead>Adresse</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
+                  
                 </TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => (
