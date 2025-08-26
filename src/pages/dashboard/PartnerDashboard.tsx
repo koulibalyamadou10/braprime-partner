@@ -43,29 +43,12 @@ import {
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { isInternalUser } from '@/hooks/use-internal-users';
 
 // Composant de chargement - remplacé par PartnerDashboardSkeleton
 
 // Données mock supprimées - remplacées par des données dynamiques
 
-  // Recent notifications
-  const notifications = [
-    {
-      id: 1,
-      message: 'Nouvelle commande reçue: ORD-002',
-      time: '15 minutes'
-    },
-    {
-      id: 2,
-      message: 'Un client a donné une note de 5 étoiles à votre restaurant',
-      time: '2 heures'
-    },
-    {
-      id: 3,
-      message: 'Paiement reçu: 1,250,000 GNF a été versé sur votre compte',
-      time: '1 jour'
-    }
-  ];
 
 // Données mock hebdomadaires supprimées - remplacées par des données dynamiques
 
@@ -111,93 +94,9 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-// Composant pour afficher les statistiques
-const StatsCard = ({ 
-  title, 
-  value, 
-  icon: Icon, 
-  trend, 
-  trendValue, 
-  subtitle 
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  trend?: 'up' | 'down' | 'neutral';
-  trendValue?: string;
-  subtitle?: string;
-}) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      <Icon className="h-4 w-4 text-muted-foreground" />
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-      {trend && trendValue && (
-        <div className={`flex items-center text-xs ${
-          trend === 'up' ? 'text-green-500' : 
-          trend === 'down' ? 'text-red-500' : 
-          'text-muted-foreground'
-        }`}>
-          {trend === 'up' && <ArrowUpRight className="h-3 w-3 mr-1" />}
-          {trend === 'down' && <TrendingUp className="h-3 w-3 mr-1" />}
-          <span>{trendValue}</span>
-        </div>
-      )}
-      {subtitle && (
-        <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-      )}
-    </CardContent>
-  </Card>
-);
-
-// Composant pour afficher les commandes récentes
-const RecentOrdersTable = ({ orders }: { orders: any[] }) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <h3 className="text-lg font-semibold">Commandes Récentes</h3>
-      <Button variant="outline" size="sm" asChild>
-        <Link to="/partner-dashboard/orders">
-          Voir toutes
-          <ChevronRightIcon className="h-4 w-4 ml-1" />
-        </Link>
-      </Button>
-    </div>
-    
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Client</TableHead>
-            <TableHead>Montant</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead>Date</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {orders.slice(0, 5).map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className="font-medium">{order.customer_name}</TableCell>
-              <TableCell>{(order.total / 1000).toFixed(0)}k GNF</TableCell>
-              <TableCell>
-                <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1`}>
-                  {getStatusIcon(order.status)}
-                  <span className="capitalize">{getStatusLabel(order.status)}</span>
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {format(new Date(order.created_at), 'dd/MM HH:mm', { locale: fr })}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  </div>
-);
 
 const PartnerDashboard = () => {
+  isInternalUser();
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isOpen, setIsOpen] = useState(true);
