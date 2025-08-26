@@ -60,7 +60,17 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { UserCredentials } from '@/components/mails/UserCredentials';
 import { client } from '@/lib/kservices/k-wontan';
 
+import { INTERNAL_ROLES } from '@/lib/kservices/k-constant';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
+import Unauthorized from '@/components/Unauthorized';
+
 const PartnerUsers = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes('admin')) {
+    return <Unauthorized />;
+  }
+
   const { currentUser } = useAuth();
   const { isPartner } = useUserRole();
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,19 +110,7 @@ const PartnerUsers = () => {
   } | null>(null);
 
   // Récupérer les données du business
-  const { business } = usePartnerDashboard();
-
-  // Rôles disponibles
-  const INTERNAL_ROLES = [
-    { value: 'admin', label: 'Administrateur', description: 'Accès complet à toutes les fonctionnalités' },
-    { value: 'commandes', label: 'Commandes', description: 'Gestion des commandes et suivi' },
-    { value: 'menu', label: 'Menu', description: 'Gestion du menu et des articles' },
-    { value: 'reservations', label: 'Réservations', description: 'Gestion des réservations' },
-    { value: 'livreurs', label: 'Livreurs', description: 'Gestion des livreurs et affectations' },
-    { value: 'revenu', label: 'Revenus', description: 'Suivi des revenus et analytics' },
-    { value: 'user', label: 'Utilisateurs', description: 'Gestion des utilisateurs clients' },
-    { value: 'facturation', label: 'Facturation', description: 'Gestion des abonnements et factures' }
-  ];
+  const { business } = usePartnerDashboard();   
 
   // Charger les utilisateurs internes
   const loadInternalUsers = async () => {
