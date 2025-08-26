@@ -14,6 +14,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
+import { CurrencyRoleProvider, useCurrencyRole } from './contexts/UseRoleContext';
 
 // Use dynamic imports for page components
 const Index = lazy(() => import("./pages/Index"));
@@ -71,147 +72,158 @@ const PageLoader = () => (
   </div>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <UserRoleProvider>
-          <DriverAuthProvider>
-            <CartProvider>
-              <OrderProvider>
-                <DashboardCacheProvider>
-                  <PreloadManager />
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
-                    <ScrollToTop />
-                    <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* <Route path="/" element={<Index />} /> */}
-                {/* <Route path="/restaurants" element={<RestaurantsPage />} /> */}
-                {/* <Route path="/services/:id" element={<RestaurantPage />} /> */}
-                {/* <Route path="/categories" element={<Categories />} /> */}
-                {/* <Route path="/categories/:categoryId" element={<CategoryDetail />} /> */}
-                <Route path="/" element={<LoginPage />} />
-                {/* <Route path="/reservations" element={<ReservationPage />} /> */}
-                {/* <Route path="/about" element={<AboutPage />} /> */}
-                {/* <Route path="/search" element={<SearchPage />} /> */}
-                {/* <Route path="/articles" element={<AllItemsPage />} /> */}
-                {/* <Route path="/cart" element={<CartPage />} /> */}
-                {/* <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} /> */}
-                {/* <Route path="/devenir-conducteur" element={<DriverRegistrationPage />} /> */}
-                {/* <Route path="/devenir-chauffeur" element={<DriverRegistrationPage />} /> */}
-                {/* <Route path="/request-confirmation" element={<RequestConfirmationPage />} /> */}
+const App = () => {
 
-                {/* <Route path="/requests" element={<RequestsPage />} /> */}
-                {/* <Route path="/checkout" element={<CheckoutPage />} /> */}
-                {/* <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} /> */}
-                {/* <Route path="/order-tracking/:id" element={<OrderTrackingPage />} /> */}
-                {/* <Route path="/payment-status" element={<PaymentStatusPage />} /> */}
-                {/* <Route path="/subscription-payment-status" element={<SubscriptionPaymentStatusPage />} /> */}
+  const { currencyRole, roles } = useCurrencyRole();
 
-                {/* <Route path="/orders" element={<OrdersHistoryPage />} /> */}
-                {/* <Route path="/driver/login" element={<DriverLoginPage />} /> */}
+  console.log(roles);
+  console.log("je suis la : ", roles)
+  console.log(roles.includes("reservations"))
 
-                
-                {/* Routes Partner Dashboard */}
-                <Route path="/partner-dashboard" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/orders" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerOrders />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/menu" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerMenu />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/reservations" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerReservations />
-                  </ProtectedRoute>
-                } />
-                {/* Routes drivers supprimées pour les partenaires - les drivers sont maintenant indépendants */}
-                <Route path="/partner-dashboard/revenue" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerRevenue />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/billing" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerBilling />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/profile" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerProfile />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/settings" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerSettings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/partner-dashboard/users" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerUsers />
-                  </ProtectedRoute>
-                } />
-                
-                {/* Routes Partner Dashboard (anciennes pour compatibilité) */}
-                <Route path="/dashboard/partner" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard/partner/orders" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerOrders />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard/partner/menu" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerMenu />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard/partner/reservations" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerReservations />
-                  </ProtectedRoute>
-                } />
-                {/* Route drivers supprimée pour les partenaires - les drivers sont maintenant indépendants */}
-                <Route path="/dashboard/partner/revenue" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerRevenue />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard/partner/profile" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerProfile />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard/partner/settings" element={
-                  <ProtectedRoute allowedRoles={["partner"]}>
-                    <PartnerSettings />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-                                </Suspense>
-                  </BrowserRouter>
-                </DashboardCacheProvider>
-              </OrderProvider>
-            </CartProvider>
-          </DriverAuthProvider>
-        </UserRoleProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <UserRoleProvider>
+            <DriverAuthProvider>
+              <CartProvider>
+                <OrderProvider>
+                  <DashboardCacheProvider>
+                    <PreloadManager />
+                    <Toaster />
+                    <Sonner />
+                    <BrowserRouter>
+                      <ScrollToTop />
+                      <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* <Route path="/" element={<Index />} /> */}
+                  {/* <Route path="/restaurants" element={<RestaurantsPage />} /> */}
+                  {/* <Route path="/services/:id" element={<RestaurantPage />} /> */}
+                  {/* <Route path="/categories" element={<Categories />} /> */}
+                  {/* <Route path="/categories/:categoryId" element={<CategoryDetail />} /> */}
+                  <Route path="/" element={<LoginPage />} />
+                  {/* <Route path="/reservations" element={<ReservationPage />} /> */}
+                  {/* <Route path="/about" element={<AboutPage />} /> */}
+                  {/* <Route path="/search" element={<SearchPage />} /> */}
+                  {/* <Route path="/articles" element={<AllItemsPage />} /> */}
+                  {/* <Route path="/cart" element={<CartPage />} /> */}
+                  {/* <Route path="/devenir-partenaire" element={<PartnerRegistrationPage />} /> */}
+                  {/* <Route path="/devenir-conducteur" element={<DriverRegistrationPage />} /> */}
+                  {/* <Route path="/devenir-chauffeur" element={<DriverRegistrationPage />} /> */}
+                  {/* <Route path="/request-confirmation" element={<RequestConfirmationPage />} /> */}
+  
+                  {/* <Route path="/requests" element={<RequestsPage />} /> */}
+                  {/* <Route path="/checkout" element={<CheckoutPage />} /> */}
+                  {/* <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} /> */}
+                  {/* <Route path="/order-tracking/:id" element={<OrderTrackingPage />} /> */}
+                  {/* <Route path="/payment-status" element={<PaymentStatusPage />} /> */}
+                  {/* <Route path="/subscription-payment-status" element={<SubscriptionPaymentStatusPage />} /> */}
+  
+                  {/* <Route path="/orders" element={<OrdersHistoryPage />} /> */}
+                  {/* <Route path="/driver/login" element={<DriverLoginPage />} /> */}
+  
+                  
+                  {/* Routes Partner Dashboard */}
+                  <Route path="/partner-dashboard" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/partner-dashboard/orders" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerOrders />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/partner-dashboard/menu" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerMenu />
+                    </ProtectedRoute>
+                  } />
+                  { (
+                    <Route path="/partner-dashboard/reservations" element={
+                      <ProtectedRoute allowedRoles={["partner"]}>
+                        <PartnerReservations />
+                      </ProtectedRoute>
+                    } />
+                  )}
+                  {/* Routes drivers supprimées pour les partenaires - les drivers sont maintenant indépendants */}
+                  <Route path="/partner-dashboard/revenue" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerRevenue />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/partner-dashboard/billing" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerBilling />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/partner-dashboard/profile" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerProfile />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/partner-dashboard/settings" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerSettings />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/partner-dashboard/users" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                        <PartnerUsers />
+                    </ProtectedRoute>
+                  } />
+                  
+                  {/* Routes Partner Dashboard (anciennes pour compatibilité) */}
+                  <Route path="/dashboard/partner" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/partner/orders" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerOrders />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/partner/menu" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerMenu />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/partner/reservations" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerReservations />
+                    </ProtectedRoute>
+                  } />
+                  {/* Route drivers supprimée pour les partenaires - les drivers sont maintenant indépendants */}
+                  <Route path="/dashboard/partner/revenue" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerRevenue />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/partner/profile" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerProfile />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/partner/settings" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerSettings />
+                    </ProtectedRoute>
+                  } />
+                  
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                                  </Suspense>
+                    </BrowserRouter>
+                  </DashboardCacheProvider>
+                </OrderProvider>
+              </CartProvider>
+            </DriverAuthProvider>
+          </UserRoleProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

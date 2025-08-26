@@ -10,18 +10,38 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Switch } from '../../components/ui/switch';
 import { useToast } from '../../components/ui/use-toast';
-import { X, Upload, Edit, Check, Loader2, MapPin, Search } from 'lucide-react';
+import { X, Upload, Edit, Check, Loader2, MapPin, Search, Navigation } from 'lucide-react';
 import { usePartnerProfile } from '../../hooks/use-partner-profile';
 import { Skeleton } from '../../components/ui/skeleton';
+import Unauthorized from '@/components/Unauthorized';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
 
 // Types pour Google Maps
 declare global {
   interface Window {
-    google: any;
+    google: {
+      maps: {
+        Map: any;
+        Marker: any;
+        places: {
+          SearchBox: any;
+          AutocompleteService: any;
+        };
+        Geocoder: any;
+        MapTypeId: any;
+        LatLng: any;
+      };
+    };
   }
 }
 
 const PartnerProfile = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const { 
@@ -47,9 +67,9 @@ const PartnerProfile = () => {
   });
 
   // États pour la carte Google Maps
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [marker, setMarker] = useState<google.maps.Marker | null>(null);
-  const [searchBox, setSearchBox] = useState<google.maps.places.SearchBox | null>(null);
+  const [map, setMap] = useState<any>(null);
+  const [marker, setMarker] = useState<any>(null);
+  const [searchBox, setSearchBox] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -198,6 +218,47 @@ const PartnerProfile = () => {
           setFormData(prev => ({ ...prev, address }));
           setSearchQuery(address);
         }
+      });
+    }
+  };
+
+  // Fonction pour géolocaliser l'utilisateur
+  const handleGeolocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Centrer la carte sur la position de l'utilisateur
+          if (map && marker) {
+            const userLocation = { lat: latitude, lng: longitude };
+            map.setCenter(userLocation);
+            map.setZoom(16);
+            marker.setPosition(userLocation);
+            
+            // Obtenir l'adresse correspondante
+            reverseGeocode(latitude, longitude);
+          }
+        },
+        (error) => {
+          console.error('Erreur de géolocalisation:', error);
+          toast({
+            title: "Erreur de géolocalisation",
+            description: "Impossible de récupérer votre position. Vérifiez que vous avez autorisé l'accès à votre localisation.",
+            variant: "destructive"
+          });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        }
+      );
+    } else {
+      toast({
+        title: "Géolocalisation non supportée",
+        description: "Votre navigateur ne supporte pas la géolocalisation.",
+        variant: "destructive"
       });
     }
   };
@@ -455,19 +516,34 @@ const PartnerProfile = () => {
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="address">Adresse</Label>
                       <div className="space-y-3">
-                        {/* Barre de recherche avec suggestions */}
+                        {/* Barre de recherche avec suggestions et bouton de géolocalisation */}
                         <div className="relative">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input 
-                              ref={searchInputRef}
-                              id="address-search"
-                              placeholder="Rechercher une adresse..."
-                              value={searchQuery}
-                              onChange={(e) => handleAddressSearch(e.target.value)}
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              <Input 
+                                ref={searchInputRef}
+                                id="address-search"
+                                placeholder="Rechercher une adresse..."
+                                value={searchQuery}
+                                onChange={(e) => handleAddressSearch(e.target.value)}
+                                disabled={!isEditing}
+                                className="pl-10"
+                              />
+                            </div>
+                            
+                            {/* Bouton de géolocalisation */}
+                            <Button
+                              type="button"
+                              onClick={handleGeolocation}
                               disabled={!isEditing}
-                              className="pl-10"
-                            />
+                              variant="outline"
+                              size="icon"
+                              className="shrink-0"
+                              title="Me localiser"
+                            >
+                              <Navigation className="h-4 w-4" />
+                            </Button>
                           </div>
                           
                           {/* Suggestions d'adresse */}
@@ -495,8 +571,21 @@ const PartnerProfile = () => {
                             <div 
                               ref={mapRef} 
                               className="w-full h-64 bg-gray-100"
-                              style={{ minHeight: '256px' }}
-                            />
+                              style={{ 
+                                minHeight: '256px',
+                                position: 'relative'
+                              }}
+                            >
+                              {/* Indicateur de chargement de la carte */}
+                              {!map && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                                  <div className="text-center">
+                                    <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-500">Chargement de la carte...</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                             <div className="p-3 bg-gray-50 border-t">
                               <p className="text-xs text-gray-600 text-center">
                                 Cliquez sur la carte ou déplacez le marqueur pour sélectionner votre adresse

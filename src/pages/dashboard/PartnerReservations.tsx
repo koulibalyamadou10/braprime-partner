@@ -54,6 +54,8 @@ import { usePartnerReservations, PartnerReservation } from '@/hooks/use-partner-
 import { AssignTableDialog } from '@/components/AssignTableDialog';
 import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
+import Unauthorized from '@/components/Unauthorized';
 
 // Helper function to get status color
 const getStatusColor = (status: PartnerReservation['status']) => {
@@ -109,6 +111,12 @@ const getStatusLabel = (status: PartnerReservation['status']) => {
 };
 
 const PartnerReservations = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes("reservations") && !roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   const { currentUser } = useAuth();
   const { toast } = useToast();
   

@@ -139,7 +139,7 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
     }
 
     const { data, error } = await supabase
-      .from('profile_internal_user')
+      .from('profil_internal_user')
       .select('*')
       .eq('user_id', user.id)
       .limit(1);

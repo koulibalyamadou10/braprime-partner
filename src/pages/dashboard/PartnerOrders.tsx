@@ -37,6 +37,8 @@ import { Label } from '../../components/ui/label';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import Unauthorized from '@/components/Unauthorized';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -59,6 +61,12 @@ interface Business {
 }
 
 const PartnerOrders = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if ( !roles.includes("commandes") && !roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   // États pour les données utilisateur et business
   const [userData, setUserData] = useState<UserWithBusiness | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
