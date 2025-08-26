@@ -13,6 +13,8 @@ import { useToast } from '../../components/ui/use-toast';
 import { X, Upload, Edit, Check, Loader2, MapPin, Search } from 'lucide-react';
 import { usePartnerProfile } from '../../hooks/use-partner-profile';
 import { Skeleton } from '../../components/ui/skeleton';
+import Unauthorized from '@/components/Unauthorized';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
 
 // Types pour Google Maps
 declare global {
@@ -22,6 +24,12 @@ declare global {
 }
 
 const PartnerProfile = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const { 

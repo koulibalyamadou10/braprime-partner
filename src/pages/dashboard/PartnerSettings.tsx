@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import Unauthorized from '@/components/Unauthorized';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
 
 interface BusinessSettings {
   // Informations de base
@@ -81,6 +83,12 @@ interface SecuritySettings {
 }
 
 const PartnerSettings: React.FC = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(true);
@@ -93,13 +101,6 @@ const PartnerSettings: React.FC = () => {
   const business = partnerProfile;
   const businessLoading = partnerLoading;
   
-  console.log('🔍 [PartnerSettings] Diagnostic des hooks:');
-  console.log('  - usePartnerProfile (business):', { business, businessLoading });
-  console.log('  - user:', user);
-  console.log('  - business?.id:', business?.id);
-  console.log('  - loading state:', loading);
-  console.log('  - businessLoading state:', businessLoading);
-
   const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
     // Informations de base
     name: '',
@@ -148,20 +149,15 @@ const PartnerSettings: React.FC = () => {
   });
 
   useEffect(() => {
-    console.log('🔄 [PartnerSettings] useEffect triggered:', { business, businessLoading });
     loadSettings();
   }, [business, businessLoading]);
 
   const loadSettings = async () => {
     try {
-      console.log('🔄 [PartnerSettings] Début du chargement des paramètres');
-      console.log('🔄 [PartnerSettings] businessLoading:', businessLoading);
-      console.log('🔄 [PartnerSettings] business:', business);
       setLoading(true);
       
       // Charger même si businessLoading est true, pour voir si ça débloque
       if (business) {
-        console.log('📊 [PartnerSettings] Chargement des vraies données du business:', business);
         
         setBusinessSettings({
           // Informations de base
@@ -191,9 +187,7 @@ const PartnerSettings: React.FC = () => {
           language: 'fr'
         });
         
-        console.log('✅ [PartnerSettings] Paramètres chargés avec succès');
       } else {
-        console.log('⚠️ [PartnerSettings] Aucun business trouvé');
         // Charger des données par défaut pour éviter le skeleton infini
         setBusinessSettings({
           name: 'Chargement...',
@@ -219,7 +213,6 @@ const PartnerSettings: React.FC = () => {
       console.error('❌ [PartnerSettings] Erreur lors du chargement des paramètres:', error);
       toast.error('Erreur lors du chargement des paramètres');
     } finally {
-      console.log('🏁 [PartnerSettings] Fin du chargement, setting loading = false');
       setLoading(false);
     }
   };
@@ -233,7 +226,6 @@ const PartnerSettings: React.FC = () => {
         return;
       }
       
-      console.log('💾 [PartnerSettings] Sauvegarde des paramètres du business:', businessSettings);
       
       // Mettre à jour la base de données
       const { error } = await supabase
@@ -257,19 +249,16 @@ const PartnerSettings: React.FC = () => {
         .eq('id', business.id);
       
       if (error) {
-        console.error('❌ [PartnerSettings] Erreur lors de la sauvegarde:', error);
         toast.error('Erreur lors de la sauvegarde: ' + error.message);
         return;
       }
       
-      console.log('✅ [PartnerSettings] Paramètres sauvegardés avec succès');
       toast.success('Paramètres sauvegardés avec succès');
       
       // Recharger les données pour s'assurer qu'elles sont à jour
       window.location.reload();
       
     } catch (error) {
-      console.error('❌ [PartnerSettings] Erreur lors de la sauvegarde:', error);
       toast.error('Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
@@ -299,16 +288,6 @@ const PartnerSettings: React.FC = () => {
       setSaving(false);
     }
   };
-
-
-
-  // Debug: Afficher l'état de chargement
-  console.log('🔍 [PartnerSettings] État de chargement:', {
-    loading,
-    businessLoading,
-    business: !!business,
-    businessData: business
-  });
 
   if (loading) {
     return (

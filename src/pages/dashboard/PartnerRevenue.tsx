@@ -32,6 +32,8 @@ import { usePartnerRevenue } from '@/hooks/use-partner-revenue';
 import { formatCurrency } from '@/lib/utils';
 import RevenueChart from '@/components/dashboard/RevenueChart';
 import RealTimeStats from '@/components/dashboard/RealTimeStats';
+import Unauthorized from '@/components/Unauthorized';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
 
 // Helper function for percentage
 const formatPercentage = (value: number) => {
@@ -39,6 +41,12 @@ const formatPercentage = (value: number) => {
 };
 
 const PartnerRevenue = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes("revenu") && !roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   const { currentUser } = useAuth();
   
   // State for time period selection

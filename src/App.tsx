@@ -14,7 +14,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
-import { CurrencyRoleProvider } from './contexts/UseRoleContext';
+import { CurrencyRoleProvider, useCurrencyRole } from './contexts/UseRoleContext';
 
 // Use dynamic imports for page components
 const Index = lazy(() => import("./pages/Index"));
@@ -73,7 +73,13 @@ const PageLoader = () => (
 );
 
 const App = () => {
-  
+
+  const { currencyRole, roles } = useCurrencyRole();
+
+  console.log(roles);
+  console.log("je suis la : ", roles)
+  console.log(roles.includes("reservations"))
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -82,7 +88,6 @@ const App = () => {
             <DriverAuthProvider>
               <CartProvider>
                 <OrderProvider>
-                  <CurrencyRoleProvider>
                   <DashboardCacheProvider>
                     <PreloadManager />
                     <Toaster />
@@ -134,11 +139,13 @@ const App = () => {
                       <PartnerMenu />
                     </ProtectedRoute>
                   } />
-                  <Route path="/partner-dashboard/reservations" element={
-                    <ProtectedRoute allowedRoles={["partner"]}>
-                      <PartnerReservations />
-                    </ProtectedRoute>
-                  } />
+                  { (
+                    <Route path="/partner-dashboard/reservations" element={
+                      <ProtectedRoute allowedRoles={["partner"]}>
+                        <PartnerReservations />
+                      </ProtectedRoute>
+                    } />
+                  )}
                   {/* Routes drivers supprimées pour les partenaires - les drivers sont maintenant indépendants */}
                   <Route path="/partner-dashboard/revenue" element={
                     <ProtectedRoute allowedRoles={["partner"]}>
@@ -209,7 +216,6 @@ const App = () => {
                                   </Suspense>
                     </BrowserRouter>
                   </DashboardCacheProvider>
-                  </CurrencyRoleProvider>
                 </OrderProvider>
               </CartProvider>
             </DriverAuthProvider>

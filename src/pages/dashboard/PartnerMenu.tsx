@@ -71,6 +71,8 @@ import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import { AddMenuItemDialog } from '@/components/dashboard/AddMenuItemDialog';
 import { useToast } from '@/hooks/use-toast';
 import { PartnerMenuSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
+import Unauthorized from '@/components/Unauthorized';
 
 // Le schema de validation est maintenant géré par le composant AddMenuItemDialog
 
@@ -83,6 +85,12 @@ const formatCurrency = (amount: number) => {
 };
 
 const PartnerMenu = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes("menu") && !roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'menu' | 'categories'>('menu');
   const [activeCategory, setActiveCategory] = useState<string>('all');

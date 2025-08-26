@@ -67,7 +67,7 @@ import Unauthorized from '@/components/Unauthorized';
 const PartnerUsers = () => {
   const { currencyRole, roles } = useCurrencyRole();
 
-  if (!roles.includes('admin')) {
+  if (!roles.includes('admin') && !roles.includes('user')) {
     return <Unauthorized />;
   }
 

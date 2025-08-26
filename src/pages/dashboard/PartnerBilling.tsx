@@ -33,8 +33,16 @@ import {
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import Unauthorized from '@/components/Unauthorized';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
 
 const PartnerBilling: React.FC = () => {
+  const { currencyRole, roles } = useCurrencyRole();
+
+  if (!roles.includes("facturation") && !roles.includes("admin")) {
+    return <Unauthorized />;
+  }
+
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [showCreateSubscriptionModal, setShowCreateSubscriptionModal] = useState(false);
@@ -313,97 +321,6 @@ const PartnerBilling: React.FC = () => {
   return (
     <DashboardLayout navItems={partnerNavItems} title="Revenus & Ventes">
       <div className="space-y-6">
-        {/* Header avec sélecteur de période et bouton d'export */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Revenus & Ventes</h1>
-            <p className="text-muted-foreground">
-              Suivez les performances financières de votre restaurant
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <select className="border rounded-lg px-3 py-2 text-sm">
-                <option>Ce mois</option>
-                <option>Le mois dernier</option>
-                <option>Les 3 derniers mois</option>
-                <option>Cette année</option>
-              </select>
-            </div>
-            <Button variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              Exporter
-            </Button>
-          </div>
-        </div>
-
-        {/* Cartes de métriques principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Total Revenue */}
-          <Card className="bg-white shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenueData.totalRevenue)}</p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600 font-medium">+15.3%</span>
-                  </div>
-                </div>
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Total Orders */}
-          <Card className="bg-white shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">Total Commandes</p>
-                  <p className="text-2xl font-bold text-gray-900">{revenueData.totalOrders.toLocaleString()}</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <ShoppingCart className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Average Order */}
-          <Card className="bg-white shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">Commande Moyenne</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(revenueData.averageOrder)}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Orders per Week */}
-          <Card className="bg-white shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">Commandes par Semaine</p>
-                  <p className="text-2xl font-bold text-gray-900">{revenueData.ordersPerWeek}</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Graphiques et analyses */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

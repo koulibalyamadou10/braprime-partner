@@ -16,7 +16,6 @@ export function CurrencyRoleProvider({ children }: { children: React.ReactNode }
         // si non c'est un utilisateur interne il est dans la table profile_internal_user
         // on recupere les roles de l'utilisateur
         supabase.from('profil_internal_user').select('roles').eq('user_id', user.id).then(({ data }) => {
-            alert("i am here ici : ")
           // verifier si c'est vide
           if( data && data.length > 0) {
             setRoles(data[0].roles);
