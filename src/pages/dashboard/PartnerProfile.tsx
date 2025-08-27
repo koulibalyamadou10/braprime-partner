@@ -30,6 +30,9 @@ declare global {
         Geocoder: any;
         MapTypeId: any;
         LatLng: any;
+        event: {
+          clearInstanceListeners: (instance: any) => void;
+        };
       };
     };
   }
@@ -41,6 +44,10 @@ const PartnerProfile = () => {
   if (!roles.includes("admin")) {
     return <Unauthorized />;
   }
+
+  // État pour suivre le chargement de l'API
+  const [isApiLoading, setIsApiLoading] = useState(false);
+  const [apiLoadError, setApiLoadError] = useState<string | null>(null);
 
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
@@ -78,84 +85,174 @@ const PartnerProfile = () => {
 
   // Initialiser Google Maps
   useEffect(() => {
+    let mapInstance: any = null;
+    let markerInstance: any = null;
+    let searchBoxInstance: any = null;
+
     const initMap = () => {
       if (mapRef.current && window.google) {
         const defaultLocation = { lat: 9.5370, lng: -13.6785 }; // Conakry, Guinée
         
-        const mapInstance = new window.google.maps.Map(mapRef.current, {
+        // Configuration optimisée de la carte
+        const mapOptions = {
           center: defaultLocation,
           zoom: 13,
           mapTypeId: window.google.maps.MapTypeId.ROADMAP,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: true,
-        });
+          // Optimisations de performance
+          disableDefaultUI: false,
+          gestureHandling: 'cooperative',
+          // Désactiver les fonctionnalités non essentielles pour améliorer les performances
+          tilt: 0,
+          heading: 0,
+          // Optimiser le rendu
+          backgroundColor: '#f5f5f5',
+          // Réduire la qualité initiale pour un chargement plus rapide
+          maxZoom: 18,
+          minZoom: 8
+        };
 
-        const markerInstance = new window.google.maps.Marker({
+        mapInstance = new window.google.maps.Map(mapRef.current, mapOptions);
+
+        // Créer le marqueur avec des options optimisées
+        markerInstance = new window.google.maps.Marker({
           position: defaultLocation,
           map: mapInstance,
           draggable: true,
           title: "Votre restaurant",
+          // Optimiser le marqueur
+          optimized: true,
+          zIndex: 1000
         });
 
-        // Gérer le déplacement du marqueur
+        // Gérer le déplacement du marqueur avec debounce
+        let dragTimeout: NodeJS.Timeout;
         markerInstance.addListener('dragend', () => {
-          const position = markerInstance.getPosition();
-          if (position) {
-            reverseGeocode(position.lat(), position.lng());
-          }
+          clearTimeout(dragTimeout);
+          dragTimeout = setTimeout(() => {
+            const position = markerInstance.getPosition();
+            if (position) {
+              reverseGeocode(position.lat(), position.lng());
+            }
+          }, 300); // Délai de 300ms pour éviter les appels répétés
         });
 
-        // Gérer le clic sur la carte
+        // Gérer le clic sur la carte avec debounce
+        let clickTimeout: NodeJS.Timeout;
         mapInstance.addListener('click', (event: any) => {
-          const position = event.latLng;
-          markerInstance.setPosition(position);
-          reverseGeocode(position.lat(), position.lng());
+          clearTimeout(clickTimeout);
+          clickTimeout = setTimeout(() => {
+            const position = event.latLng;
+            markerInstance.setPosition(position);
+            reverseGeocode(position.lat(), position.lng());
+          }, 100);
         });
 
+        // Initialiser SearchBox de manière asynchrone
+        setTimeout(() => {
+          if (searchInputRef.current) {
+            searchBoxInstance = new window.google.maps.places.SearchBox(searchInputRef.current);
+            setSearchBox(searchBoxInstance);
+
+            // Gérer les résultats de recherche
+            searchBoxInstance.addListener('places_changed', () => {
+              const places = searchBoxInstance.getPlaces();
+              if (places && places.length > 0) {
+                const place = places[0];
+                if (place.geometry && place.geometry.location) {
+                  const position = place.geometry.location;
+                  mapInstance.setCenter(position);
+                  mapInstance.setZoom(16);
+                  markerInstance.setPosition(position);
+                  setFormData(prev => ({ ...prev, address: place.formatted_address || "" }));
+                  setSearchQuery(place.formatted_address || "");
+                }
+              }
+            });
+          }
+        }, 100);
+
+        // Mettre à jour les états
         setMap(mapInstance);
         setMarker(markerInstance);
-
-        // Initialiser SearchBox
-        if (searchInputRef.current) {
-          const searchBoxInstance = new window.google.maps.places.SearchBox(searchInputRef.current);
-          setSearchBox(searchBoxInstance);
-
-          // Gérer les résultats de recherche
-          searchBoxInstance.addListener('places_changed', () => {
-            const places = searchBoxInstance.getPlaces();
-            if (places && places.length > 0) {
-              const place = places[0];
-              if (place.geometry && place.geometry.location) {
-                const position = place.geometry.location;
-                mapInstance.setCenter(position);
-                mapInstance.setZoom(16);
-                markerInstance.setPosition(position);
-                setFormData(prev => ({ ...prev, address: place.formatted_address || "" }));
-                setSearchQuery(place.formatted_address || "");
-              }
-            }
-          });
-        }
       }
     };
 
-    // Charger Google Maps API
+    // Charger Google Maps API avec optimisations
     const loadGoogleMapsAPI = () => {
       if (!window.google) {
+        // Vérifier si le script est déjà en cours de chargement
+        if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+          return;
+        }
+
+        setIsApiLoading(true);
+        setApiLoadError(null);
+
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDIp_O6TQg33J4Z2M44Uj3SEJZfTq1EqZU&libraries=places`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDIp_O6TQg33J4Z2M44Uj3SEJZfTq1EqZU&libraries=places&v=weekly`;
         script.async = true;
         script.defer = true;
-        script.onload = initMap;
+        
+        // Ajouter un timeout pour éviter les blocages
+        const timeoutId = setTimeout(() => {
+          console.warn('Google Maps API prend trop de temps à charger');
+          setIsApiLoading(false);
+          setApiLoadError('timeout');
+          // Afficher un message d'erreur à l'utilisateur
+          toast({
+            title: "Chargement de la carte",
+            description: "La carte prend plus de temps que prévu. Veuillez patienter ou rafraîchir la page.",
+            variant: "default"
+          });
+        }, 8000); // Réduit à 8 secondes
+
+        script.onload = () => {
+          clearTimeout(timeoutId);
+          setIsApiLoading(false);
+          setApiLoadError(null);
+          initMap();
+        };
+
+        script.onerror = () => {
+          clearTimeout(timeoutId);
+          setIsApiLoading(false);
+          setApiLoadError('network');
+          console.error('Erreur lors du chargement de Google Maps API');
+          toast({
+            title: "Erreur de chargement",
+            description: "Impossible de charger la carte Google Maps. Veuillez rafraîchir la page.",
+            variant: "destructive"
+          });
+        };
+
         document.head.appendChild(script);
       } else {
         initMap();
       }
     };
 
-    loadGoogleMapsAPI();
-  }, []);
+    // Charger l'API seulement quand l'utilisateur passe en mode édition
+    if (isEditing) {
+      loadGoogleMapsAPI();
+    }
+
+    // Cleanup function
+    return () => {
+      if (mapInstance) {
+        // Nettoyer les listeners pour éviter les fuites mémoire
+        window.google?.maps?.event?.clearInstanceListeners(mapInstance);
+      }
+      if (markerInstance) {
+        window.google?.maps?.event?.clearInstanceListeners(markerInstance);
+      }
+      if (searchBoxInstance) {
+        window.google?.maps?.event?.clearInstanceListeners(searchBoxInstance);
+      }
+    };
+  }, [isEditing]); // Dépendance à isEditing pour charger l'API seulement quand nécessaire
 
   // Initialiser les données du formulaire quand le profil est chargé
   React.useEffect(() => {
@@ -576,12 +673,64 @@ const PartnerProfile = () => {
                                 position: 'relative'
                               }}
                             >
-                              {/* Indicateur de chargement de la carte */}
+                              {/* Indicateur de chargement de la carte avec optimisations */}
                               {!map && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                                  <div className="text-center">
-                                    <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-2" />
-                                    <p className="text-sm text-gray-500">Chargement de la carte...</p>
+                                  <div className="text-center space-y-3">
+                                    {isApiLoading ? (
+                                      <>
+                                        <div className="relative">
+                                          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto" />
+                                          <div className="absolute inset-0 rounded-full border-2 border-gray-200"></div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-700">Chargement de la carte...</p>
+                                          <p className="text-xs text-gray-500 mt-1">Cela peut prendre quelques secondes</p>
+                                        </div>
+                                      </>
+                                    ) : apiLoadError ? (
+                                      <>
+                                        <div className="text-red-500 mb-2">
+                                          <svg className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                          </svg>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium text-red-700">
+                                            {apiLoadError === 'timeout' ? 'Chargement trop long' : 'Erreur de chargement'}
+                                          </p>
+                                          <p className="text-xs text-red-500 mt-1">
+                                            {apiLoadError === 'timeout' 
+                                              ? 'La carte prend trop de temps à charger' 
+                                              : 'Problème de connexion réseau'
+                                            }
+                                          </p>
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            setApiLoadError(null);
+                                            setIsApiLoading(false);
+                                            loadGoogleMapsAPI();
+                                          }}
+                                          className="text-xs"
+                                        >
+                                          Réessayer
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div className="relative">
+                                          <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto" />
+                                          <div className="absolute inset-0 rounded-full border-2 border-gray-200"></div>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-700">Initialisation de la carte...</p>
+                                          <p className="text-xs text-gray-500 mt-1">Préparation de l\'interface</p>
+                                        </div>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               )}

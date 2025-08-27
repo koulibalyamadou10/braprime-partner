@@ -61,7 +61,7 @@ interface Business {
 }
 
 const PartnerOrders = () => {
-  const { currencyRole, roles } = useCurrencyRole();
+  const { currencyRole, roles, businessId, isInternalUser } = useCurrencyRole();
 
   if ( !roles.includes("commandes") && !roles.includes("admin")) {
     return <Unauthorized />;
@@ -112,7 +112,7 @@ const PartnerOrders = () => {
         setBusiness(userData.business);
         
         // Charger les commandes après avoir récupéré le business
-        await loadOrders(userData.business.id);
+        await loadOrders( isInternalUser ? businessId : userData.business.id);
       } else {
         setError('Aucun business associé à votre compte partenaire');
       }
