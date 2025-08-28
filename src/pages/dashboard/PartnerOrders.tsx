@@ -81,7 +81,7 @@ const PartnerOrders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDeliveryType, setFilterDeliveryType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [addressFilter, setAddressFilter] = useState<string>("");
+  const [zoneFilter, setZoneFilter] = useState<string>("");
 
   // État pour l'assignation de livreur - DÉSACTIVÉ
   // const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
@@ -263,10 +263,10 @@ const PartnerOrders = () => {
       );
     }
 
-    // Filtrer par adresse
-    if (addressFilter) {
+    // Filtrer par zone
+    if (zoneFilter) {
       filtered = filtered.filter(order => 
-        order.delivery_address.toLowerCase().includes(addressFilter.toLowerCase())
+        order.zone && order.zone.toLowerCase().includes(zoneFilter.toLowerCase())
       );
     }
 
@@ -280,36 +280,36 @@ const PartnerOrders = () => {
     }, []);
 
     setFilteredOrders(uniqueFiltered);
-  }, [orders, filterStatus, filterDeliveryType, searchQuery, addressFilter]);
+  }, [orders, filterStatus, filterDeliveryType, searchQuery, zoneFilter]);
 
-  // Charger les livreurs disponibles pour l'assignation multiple
-  const loadAvailableDrivers = async () => {
-    if (!business) return;
-    
-    try {
-      setIsLoadingDrivers(true);
-      const { drivers, error } = await DriverService.getBusinessDrivers(business.id);
-      
-      if (error) {
-        toast.error('Erreur lors du chargement des livreurs');
-        return;
-      }
-      
-      // Filtrer les livreurs disponibles (max 5 commandes pour l'assignation multiple)
-      const available = drivers.filter(driver => 
-        driver.is_active && 
-        driver.is_available && 
-        (driver.active_orders_count || 0) < 5
-      );
-      
-      setAvailableDrivers(available);
-    } catch (err) {
-      console.error('Erreur chargement livreurs:', err);
-      toast.error('Erreur lors du chargement des livreurs');
-    } finally {
-      setIsLoadingDrivers(false);
-    }
-  };
+  // Charger les livreurs disponibles pour l'assignation multiple - DÉSACTIVÉ
+  // const loadAvailableDrivers = async () => {
+  //   if (!business) return;
+  //   
+  //   try {
+  //     setIsLoadingDrivers(true);
+  //     const { drivers, error } = await DriverService.getBusinessDrivers(business.id);
+  //     
+  //     if (error) {
+  //       toast.error('Erreur lors du chargement des livreurs');
+  //       return;
+  //     }
+  //     
+  //     // Filtrer les livreurs disponibles (max 5 commandes pour l'assignation multiple)
+  //       const available = drivers.filter(driver => 
+  //         driver.is_active && 
+  //         driver.is_available && 
+  //         (driver.active_orders_count || 0) < 5
+  //       );
+  //       
+  //       setAvailableDrivers(available);
+  //     } catch (err) {
+  //       console.error('Erreur chargement livreurs:', err);
+  //       toast.error('Erreur lors du chargement des livreurs');
+  //     } finally {
+  //       setIsLoadingDrivers(false);
+  //     }
+  //   };
 
   // Fonction pour mettre à jour le statut d'une commande
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus): Promise<boolean> => {
@@ -871,10 +871,10 @@ const PartnerOrders = () => {
               <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input 
                 type="search" 
-                placeholder="Filtrer par adresse de livraison..." 
+                placeholder="Filtrer par zone..." 
                 className="pl-8"
-                value={addressFilter}
-                onChange={(e) => setAddressFilter(e.target.value)}
+                value={zoneFilter}
+                onChange={(e) => setZoneFilter(e.target.value)}
               />
             </div>
           </div>
@@ -1016,7 +1016,7 @@ const PartnerOrders = () => {
                     <TableHead>Livraison</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Adresse</TableHead>
+                    <TableHead>Zone</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                   
@@ -1067,8 +1067,8 @@ const PartnerOrders = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[200px]">
-                        <div className="truncate" title={order.delivery_address}>
-                          {order.delivery_address}
+                        <div className="truncate" title={order.zone || 'Zone non définie'}>
+                          {order.zone || 'Zone non définie'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1135,12 +1135,12 @@ const PartnerOrders = () => {
                       Effacer la recherche
                     </Button>
                   )}
-                  {addressFilter && (
+                  {zoneFilter && (
                     <Button 
                       variant="outline" 
-                      onClick={() => setAddressFilter("")}
+                      onClick={() => setZoneFilter("")}
                     >
-                      Effacer le filtre d'adresse
+                      Effacer le filtre de zone
                     </Button>
                   )}
                 </div>

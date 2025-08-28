@@ -79,6 +79,11 @@ export interface PartnerOrder {
   service_fee?: number
   verification_code?: string
   assigned_at?: string
+  // Champs pour la zone de livraison
+  zone?: string
+  // Champs pour les commandes groupées
+  is_grouped_delivery?: boolean
+  delivery_group_id?: string
 }
 
 export interface PartnerMenuItem {
