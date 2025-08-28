@@ -515,28 +515,33 @@ const PartnerDashboard = () => {
             {recentOrders.length > 0 ? (
               <div className="space-y-4">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div>
+                  <div key={order.id} className="p-4 border rounded-lg">
+                    {/* Informations du client - toujours en haut */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
+                      <div className="flex-1">
                         <p className="font-medium">{order.customer_name}</p>
                         <p className="text-sm text-gray-500">{order.customer_phone}</p>
                         <p className="text-sm text-gray-500">{formatDate(order.created_at)}</p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
+                      <div className="text-right mt-2 sm:mt-0">
                         <p className="font-medium">{formatCurrency(order.grand_total)}</p>
                         <p className="text-sm text-gray-500">Articles de commande</p>
                       </div>
-                      <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1`}>
+                    </div>
+                    
+                    {/* Statut et boutons d'action - responsive */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <Badge className={`${getStatusColor(order.status)} flex w-fit items-center gap-1 self-start sm:self-center`}>
                         {getStatusIcon(order.status)}
                         <span className="capitalize">{getStatusLabel(order.status)}</span>
                       </Badge>
-                      <div className="flex gap-1">
+                      
+                      <div className="flex gap-2 self-start sm:self-center">
                         {order.status === 'pending' && (
                           <Button
                             size="sm"
                             onClick={() => handleOrderStatusChange(order.id, 'confirmed')}
+                            className="w-full sm:w-auto"
                           >
                             Confirmer
                           </Button>
@@ -545,6 +550,7 @@ const PartnerDashboard = () => {
                           <Button
                             size="sm"
                             onClick={() => handleOrderStatusChange(order.id, 'preparing')}
+                            className="w-full sm:w-auto"
                           >
                             Préparer
                           </Button>
@@ -553,6 +559,7 @@ const PartnerDashboard = () => {
                           <Button
                             size="sm"
                             onClick={() => handleOrderStatusChange(order.id, 'ready')}
+                            className="w-full sm:w-auto"
                           >
                             Prêt
                           </Button>
