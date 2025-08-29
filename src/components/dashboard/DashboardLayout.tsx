@@ -177,7 +177,7 @@ export const partnerNavItems = [
   {
     href: '/partner-dashboard/revenue',
     label: 'Revenus',
-    icon: <DollarSign className="h-5 w-5" />,
+    icon: <TrendingUp className="h-5 w-5" />,
   },
   {
     href: '/partner-dashboard/users',
