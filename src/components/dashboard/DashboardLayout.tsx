@@ -177,7 +177,7 @@ export const partnerNavItems = [
   {
     href: '/partner-dashboard/revenue',
     label: 'Revenus',
-    icon: <DollarSign className="h-5 w-5" />,
+    icon: <TrendingUp className="h-5 w-5" />,
   },
   {
     href: '/partner-dashboard/users',
@@ -224,44 +224,6 @@ export const userNavItems = [
   },
   {
     href: '/dashboard/settings',
-    label: 'Paramètres',
-    icon: <Settings className="h-5 w-5" />,
-  },
-];
-
-export const adminNavItems = [
-  {
-    href: '/admin-dashboard',
-    label: 'Tableau de bord',
-    icon: <Home className="h-5 w-5" />,
-  },
-  {
-    href: '/admin-dashboard/users',
-    label: 'Utilisateurs',
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
-    href: '/admin-dashboard/businesses',
-    label: 'Commerces',
-    icon: <Building2 className="h-5 w-5" />,
-  },
-  {
-    href: '/admin-dashboard/orders',
-    label: 'Commandes',
-    icon: <ShoppingBag className="h-5 w-5" />,
-  },
-  {
-    href: '/admin-dashboard/drivers',
-    label: 'Livreurs',
-    icon: <Truck className="h-5 w-5" />,
-  },
-  {
-    href: '/admin-dashboard/analytics',
-    label: 'Analyses',
-    icon: <BarChart3 className="h-5 w-5" />,
-  },
-  {
-    href: '/admin-dashboard/settings',
     label: 'Paramètres',
     icon: <Settings className="h-5 w-5" />,
   },

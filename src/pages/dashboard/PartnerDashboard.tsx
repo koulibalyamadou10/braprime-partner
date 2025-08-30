@@ -20,7 +20,7 @@ import {
     CheckCircle,
     ChevronRight as ChevronRightIcon,
     Clock,
-    DollarSign,
+    TrendingUp,
     Home,
     Mail,
     MapPin,
@@ -32,7 +32,6 @@ import {
     ShoppingBag,
     Star,
     Timer,
-    TrendingUp,
     Truck,
     Users,
     XCircle,
@@ -464,7 +463,7 @@ const PartnerDashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Revenus Totaux</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>

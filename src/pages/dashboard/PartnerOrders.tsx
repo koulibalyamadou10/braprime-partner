@@ -6,6 +6,7 @@ import { getUserWithManyInformationsForTheDashboard, UserWithBusiness } from '@/
 import { DriverNotificationService } from '@/lib/services/driver-notifications';
 import { DriverService } from '@/lib/services/drivers';
 import { PartnerOrder } from '@/lib/services/partner-dashboard';
+import { isInternalUser } from '@/hooks/use-internal-users';
 import { supabase } from '@/lib/supabase';
 import {
     AlertCircle,
@@ -61,7 +62,7 @@ interface Business {
 }
 
 const PartnerOrders = () => {
-  const { currencyRole, roles, businessId, isInternalUser } = useCurrencyRole();
+  const { currencyRole, roles, businessId } = useCurrencyRole();
 
   if ( !roles.includes("commandes") && !roles.includes("admin")) {
     return <Unauthorized />;
@@ -83,21 +84,9 @@ const PartnerOrders = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [zoneFilter, setZoneFilter] = useState<string>("");
 
-  // État pour l'assignation de livreur - DÉSACTIVÉ
-  // const [isAssignDriverOpen, setIsAssignDriverOpen] = useState(false);
-  // const [orderToAssign, setOrderToAssign] = useState<DashboardOrder | null>(null);
-
   // État pour la sélection multiple de commandes prêtes
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
-
-  // État pour l'assignation multiple de livreur - DÉSACTIVÉ
-  // const [isMultipleAssignOpen, setIsMultipleAssignOpen] = useState(false);
-  // const [ordersToAssign, setOrdersToAssign] = useState<DashboardOrder[]>([]);
-  // const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
-  // const [selectedDriverId, setSelectedDriverId] = useState<string>('');
-  // const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
-
 
   // Charger les données utilisateur et business
   const loadUserData = async () => {
@@ -105,14 +94,19 @@ const PartnerOrders = () => {
       setIsLoading(true);
       setError(null);
       
-      const userData = await getUserWithManyInformationsForTheDashboard();
+      const {
+        isInternal, 
+        data, 
+        user : userOrigin, 
+        businessId: businessIdOrigin,
+        businessData: businessDataOrigin
+      } = await isInternalUser()    
       
-      if (userData && userData.isInternalUser && userData.business) {
-        setUserData(userData);
-        setBusiness(userData.business);
+      if (businessIdOrigin !== null) {
+        setUserData(userOrigin as UserWithBusiness);
+        setBusiness(businessDataOrigin as Business);
         
-        // Charger les commandes après avoir récupéré le business
-        await loadOrders( isInternalUser ? businessId : userData.business.id);
+        await loadOrders(businessIdOrigin);
       } else {
         setError('Aucun business associé à votre compte partenaire');
       }

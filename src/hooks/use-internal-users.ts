@@ -131,7 +131,7 @@ export const useInternalUsers = (businessId: number, currentUserId?: string) => 
 };
 
 // verifier si l'utilisateur est interne ou pas
-export async function isInternalUser(): Promise<{isInternal: boolean, data: InternalUser | null, user: {}}> {
+export async function isInternalUser(): Promise<{isInternal: boolean, data: InternalUser | null, user: {}, businessId: number | null, businessData: {} | null}> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -150,7 +150,68 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
       throw new Error(error.message);
     }
 
-    return data && data.length > 0 ? {isInternal: true, data: data[0], user: user} : {isInternal: false, data: null, user: user};
+    if( data && data.length > 0 ) {
+      // recuperer le businesses dans la table businesses
+      const {data: businesses, error: businessesError} = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('owner_id', data[0].created_by)
+      .limit(1);
+
+    if( businessesError ) {
+      console.error('Erreur dans isInternalUser:', businessesError);
+      throw new Error(businessesError.message);
+    }
+
+    if( businesses && businesses.length > 0 ) {
+      return {
+        isInternal: true, 
+        data: data[0], 
+        user: user, 
+        businessId: businesses[0].id,
+        businessData: businesses[0]
+      }
+    }
+
+    
+      return {
+        isInternal: true, 
+        data: data[0], 
+        user: user, 
+        businessId: data[0].business_id,
+        businessData: data[0].business  
+      }
+    }
+
+    // recuperer le businesses dans la table businesses
+    const {data: businesses, error: businessesError} = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('owner_id', user.id)
+      .limit(1);
+
+    if( businessesError ) {
+      console.error('Erreur dans isInternalUser:', businessesError);
+      throw new Error(businessesError.message);
+    }
+
+    if( businesses && businesses.length > 0 ) {
+      return {
+        isInternal: false, 
+        data: null, 
+        user: user, 
+        businessId: businesses[0].id,
+        businessData: businesses[0]
+      }
+    }
+
+    return {
+      isInternal: false, 
+      data: null, 
+      user: user, 
+      businessId: null, 
+      businessData: null
+    }
   } catch (error) {
     console.error('Erreur dans isInternalUser:', error);
     throw error;
