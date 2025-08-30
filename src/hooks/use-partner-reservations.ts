@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Reservation } from '@/lib/services/reservations';
+import { isInternalUser } from './use-internal-users';
 
 export interface PartnerReservation extends Reservation {
   customer_name?: string;
@@ -20,6 +21,9 @@ export const usePartnerReservations = () => {
   const fetchPartnerReservations = async () => {
     if (!currentUser) return;
 
+    // recuperer le businessId avec isInternalUser
+    const { isInternal, businessId } = await isInternalUser();
+
     try {
       setLoading(true);
       setError(null);
@@ -28,7 +32,8 @@ export const usePartnerReservations = () => {
       const { data: businessData, error: businessError } = await supabase
         .from('businesses')
         .select('id, name')
-        .eq('owner_id', currentUser.id)
+        .eq('id', businessId)
+        // .eq('owner_id', currentUser.id)
         .single();
 
       if (businessError) {

@@ -697,12 +697,14 @@ const PartnerBilling: React.FC = () => {
               name: currentSubscription.plan.name,
               price: currentSubscription.total_paid,
               monthly_price: currentSubscription.monthly_amount,
+              duration_months: currentSubscription.plan.duration_months || 1,
               savings_percentage: currentSubscription.plan.savings_percentage || 0
             }}
             newPlan={{
               name: selectedPlan.name,
               price: selectedPlan.price,
               monthly_price: selectedPlan.monthly_price,
+              duration_months: selectedPlan.duration_months || 1,
               savings_percentage: selectedPlan.savings_percentage
             }}
             isLoading={isChangingPlan}

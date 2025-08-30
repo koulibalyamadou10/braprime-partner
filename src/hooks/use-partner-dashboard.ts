@@ -10,7 +10,9 @@ export const usePartnerDashboard = () => {
   const businessQuery = useQuery({
     queryKey: ['partner-business', currentUser?.id],
     queryFn: () => PartnerDashboardService.getPartnerBusiness(),
-    enabled: !!currentUser?.id && currentUser.role === 'partner' && isAuthenticated,
+    // enabled: !!currentUser?.id && currentUser.role === 'partner' && isAuthenticated,
+    // enabled: !!currentUser?.id && currentUser.role === 'partner' && isAuthenticated,
+    enabled: true,
     staleTime: 5 * 60 * 1000, // Réduit de 10 à 5 minutes
     gcTime: 15 * 60 * 1000, // Réduit de 30 à 15 minutes
     retry: (failureCount, error: any) => {
@@ -28,7 +30,8 @@ export const usePartnerDashboard = () => {
   const statsQuery = useQuery({
     queryKey: ['partner-stats', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerStats(business!.id),
-    enabled: !!business?.id,
+    // enabled: !!business?.id,
+    enabled: true,
     staleTime: 1 * 60 * 1000, // Réduit de 2 à 1 minute
     refetchInterval: 3 * 60 * 1000, // Réduit de 5 à 3 minutes
     retry: (failureCount, error: any) => {
@@ -43,7 +46,8 @@ export const usePartnerDashboard = () => {
   const recentOrdersQuery = useQuery({
     queryKey: ['partner-recent-orders', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerOrders(business!.id, 5),
-    enabled: !!business?.id,
+    // enabled: !!business?.id,
+    enabled: true,
     staleTime: 15 * 1000, // Réduit de 30 à 15 secondes
     refetchInterval: 1 * 60 * 1000, // Réduit de 2 à 1 minute
     retry: (failureCount, error: any) => {
@@ -58,7 +62,8 @@ export const usePartnerDashboard = () => {
   const menuQuery = useQuery({
     queryKey: ['partner-menu', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerMenu(business!.id, 50),
-    enabled: !!business?.id,
+    // enabled: !!business?.id,
+    enabled: true,
     staleTime: 3 * 60 * 1000, // Réduit de 5 à 3 minutes
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
@@ -72,7 +77,8 @@ export const usePartnerDashboard = () => {
   const driversQuery = useQuery({
     queryKey: ['partner-drivers', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerDrivers(business!.id, 20),
-    enabled: !!business?.id,
+    // enabled: !!business?.id,
+    enabled: true,
     staleTime: 1 * 60 * 1000, // Réduit de 2 à 1 minute
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
@@ -86,7 +92,8 @@ export const usePartnerDashboard = () => {
   const weeklyDataQuery = useQuery({
     queryKey: ['partner-weekly-data', business?.id],
     queryFn: () => PartnerDashboardService.getWeeklyData(business!.id),
-    enabled: !!business?.id,
+    // enabled: !!business?.id,
+    enabled: true,
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error: any) => {
