@@ -65,11 +65,11 @@ const PartnerRevenue = () => {
   // Formater les montants
   const formatCurrencyDisplay = (amount: number) => {
     if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(1)}M FCFA`;
+      return `${(amount / 1000000).toFixed(1)}M GNF`;
     } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(0)}k FCFA`;
+      return `${(amount / 1000).toFixed(0)}k GNF`;
     }
-    return `${amount} FCFA`;
+    return `${amount} GNF`;
   };
 
   // Calculer les statistiques globales

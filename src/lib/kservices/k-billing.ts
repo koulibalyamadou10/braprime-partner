@@ -85,7 +85,7 @@ class KBilling {
       // Calculer les dates de début et fin selon la période
       const { start, end } = this.calculateDateRange(period, startDate, endDate);
       
-      // Récupérer les commandes pour la période
+      // Récupérer les commandes pour la période avec les détails des articles
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -101,13 +101,15 @@ class KBilling {
           order_items (
             name,
             price,
-            quantity
+            quantity,
+            menu_item_id
           )
         `)
         .eq('business_id', businessId)
+        .eq('status', 'delivered')
         .gte('created_at', start)
         .lte('created_at', end)
-        .eq('status', 'delivered'); // Seulement les commandes livrées
+        .order('created_at', { ascending: true });
 
       if (ordersError) throw ordersError;
 
@@ -124,25 +126,26 @@ class KBilling {
 
       if (prevOrdersError) throw prevOrdersError;
 
-      // Calculer les statistiques
+      // Calculer les statistiques de base
       const totalRevenue = orders?.reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0;
       const totalOrders = orders?.length || 0;
       const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
       
+      // Calculer la croissance par rapport à la période précédente
       const prevRevenue = prevOrders?.reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0;
       const growth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
 
-      // Récupérer les articles les plus vendus
-      const topItems = await this.getTopMenuItems(businessId, start, end);
+      // Calculer les articles les plus vendus à partir des données des commandes
+      const topItems = this.calculateTopItemsFromOrders(orders || []);
       
-      // Récupérer les données par jour/semaine/mois
-      const dailyData = await this.getRevenueByPeriod(businessId, period, start, end);
+      // Calculer les données par période
+      const dailyData = this.calculateRevenueByPeriod(orders || [], period);
       
-      // Récupérer les revenus par catégorie
+      // Calculer les revenus par catégorie
       const categories = await this.getRevenueByCategory(businessId, start, end);
       
-      // Récupérer les revenus par méthode de paiement
-      const paymentMethods = await this.getRevenueByPaymentMethod(businessId, start, end);
+      // Calculer les revenus par méthode de paiement
+      const paymentMethods = this.calculatePaymentMethodsFromOrders(orders || []);
 
       return {
         totalRevenue,
@@ -161,7 +164,118 @@ class KBilling {
   }
 
   /**
-   * Récupère les articles de menu les plus vendus
+   * Calcule les articles les plus vendus à partir des données des commandes
+   */
+  private calculateTopItemsFromOrders(orders: any[]): { name: string; count: number; revenue: number }[] {
+    const itemStats = new Map<string, { count: number; revenue: number }>();
+    
+    orders.forEach(order => {
+      if (order.order_items) {
+        order.order_items.forEach((item: any) => {
+          const name = item.name;
+          const revenue = (item.price || 0) * (item.quantity || 1);
+          
+          if (itemStats.has(name)) {
+            const existing = itemStats.get(name)!;
+            existing.count += item.quantity || 1;
+            existing.revenue += revenue;
+          } else {
+            itemStats.set(name, { count: item.quantity || 1, revenue });
+          }
+        });
+      }
+    });
+    
+    return Array.from(itemStats.entries())
+      .map(([name, stats]) => ({
+        name,
+        count: stats.count,
+        revenue: stats.revenue
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+  }
+
+  /**
+   * Calcule les revenus par période à partir des données des commandes
+   */
+  private calculateRevenueByPeriod(orders: any[], period: 'daily' | 'weekly' | 'monthly' | 'yearly'): { date: string; revenue: number; orders: number }[] {
+    const periodData = new Map<string, { revenue: number; orders: number }>();
+    
+    orders.forEach(order => {
+      const date = new Date(order.created_at);
+      let periodKey: string;
+      
+      switch (period) {
+        case 'daily':
+          periodKey = date.toISOString().split('T')[0];
+          break;
+        case 'weekly':
+          const weekStart = new Date(date);
+          weekStart.setDate(date.getDate() - date.getDay());
+          periodKey = weekStart.toISOString().split('T')[0];
+          break;
+        case 'monthly':
+          periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          break;
+        case 'yearly':
+          periodKey = date.getFullYear().toString();
+          break;
+        default:
+          periodKey = date.toISOString().split('T')[0];
+      }
+      
+      if (periodData.has(periodKey)) {
+        const existing = periodData.get(periodKey)!;
+        existing.revenue += order.grand_total || 0;
+        existing.orders += 1;
+      } else {
+        periodData.set(periodKey, { revenue: order.grand_total || 0, orders: 1 });
+      }
+    });
+    
+    return Array.from(periodData.entries())
+      .map(([date, stats]) => ({
+        date,
+        revenue: stats.revenue,
+        orders: stats.orders
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  /**
+   * Calcule les revenus par méthode de paiement à partir des données des commandes
+   */
+  private calculatePaymentMethodsFromOrders(orders: any[]): { method: string; count: number; amount: number; percentage: number }[] {
+    const methodStats = new Map<string, { count: number; amount: number }>();
+    let totalAmount = 0;
+    
+    orders.forEach(order => {
+      const method = order.payment_method || 'unknown';
+      const amount = order.grand_total || 0;
+      totalAmount += amount;
+      
+      if (methodStats.has(method)) {
+        const existing = methodStats.get(method)!;
+        existing.count += 1;
+        existing.amount += amount;
+      } else {
+        methodStats.set(method, { count: 1, amount });
+      }
+    });
+    
+    return Array.from(methodStats.entries())
+      .map(([method, stats]) => ({
+        method,
+        count: stats.count,
+        amount: stats.amount,
+        percentage: totalAmount > 0 ? Math.round((stats.amount / totalAmount) * 100) : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }
+
+  /**
+   * Récupère les articles de menu les plus vendus (méthode legacy)
    */
   async getTopMenuItems(
     businessId: number, 

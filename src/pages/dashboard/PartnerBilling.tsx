@@ -308,6 +308,106 @@ const PartnerBilling: React.FC = () => {
     <DashboardLayout navItems={partnerNavItems} title="Revenus & Ventes">
       <div className="space-y-6">
 
+        {/* Graphiques et analyses */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Vue d'ensemble des revenus */}
+          <Card className="bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Vue d'ensemble des revenus</CardTitle>
+              <CardDescription>Revenus de cette période par semaine</CardDescription>
+              <div className="flex gap-2 mt-2">
+                {(['week', 'month', 'year'] as const).map((p) => (
+                  <Button
+                    key={p}
+                    variant={period === p ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPeriod(p)}
+                  >
+                    {p === 'week' ? 'Semaine' : p === 'month' ? 'Mois' : 'Année'}
+                  </Button>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {billingStatsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  <span className="ml-2 text-sm text-muted-foreground">Chargement des données...</span>
+                </div>
+              ) : billingStats && billingStats.weeklyData.length > 0 ? (
+              <div className="space-y-4">
+                  {billingStats.weeklyData.map((week) => (
+                  <div key={week.week} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">Semaine {week.week}</span>
+                      <div className="text-right">
+                        <p className="font-medium">{week.orders} commandes</p>
+                        <p className="text-gray-600">{formatCurrency(week.revenue)}</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                            width: `${(week.revenue / Math.max(...billingStats.weeklyData.map(w => w.revenue))) * 100}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              ) : (
+                <div className="text-center py-8">
+                  <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Aucune donnée disponible pour cette période</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Articles de menu les plus vendus */}
+          <Card className="bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Articles de menu les plus vendus</CardTitle>
+              <CardDescription>Meilleurs vendeurs par revenus</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {billingStatsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  <span className="ml-2 text-sm text-muted-foreground">Chargement des données...</span>
+                </div>
+              ) : billingStats && billingStats.topMenuItems.length > 0 ? (
+              <div className="space-y-4">
+                  {billingStats.topMenuItems.map((item, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{item.name}</span>
+                      <div className="text-right">
+                        <p className="font-medium">{item.orders} commandes</p>
+                        <p className="text-gray-600">{formatCurrency(item.revenue)}</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${item.percentage}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 text-right">{item.percentage}%</p>
+                  </div>
+                ))}
+              </div>
+              ) : (
+                <div className="text-center py-8">
+                  <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Aucun article vendu pour cette période</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Section Abonnement */}
         <Card className="bg-white shadow-sm">
           <CardHeader>

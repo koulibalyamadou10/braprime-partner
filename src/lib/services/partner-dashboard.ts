@@ -1,6 +1,7 @@
 import { useRole } from '@/contexts/RoleContext'
 import { useUserRole } from '@/contexts/UserRoleContext'
 import { supabase } from '@/lib/supabase'
+import { isInternalUser } from '@/hooks/use-internal-users'
 
 export interface PartnerBusiness {
   id: number
@@ -129,7 +130,10 @@ export class PartnerDashboardService {
       
       if (authError || !user) {
         return { business: null, error: 'Utilisateur non authentifié' }
-      }
+      }  
+
+      // recuperer les informations de l'utilisateur qui est connecté
+      const {isInternal, businessId} = await isInternalUser();  
 
       // Requête optimisée avec jointure et sélection ciblée
       const { data: businesses, error } = await supabase
@@ -155,7 +159,8 @@ export class PartnerDashboardService {
           updated_at,
           business_types(name)
         `)
-        .eq('owner_id', user.id)
+        .eq('id', businessId)
+        // .eq('owner_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
 
