@@ -7,6 +7,9 @@ export const usePartnerRevenue = (period: 'daily' | 'weekly' | 'monthly' | 'year
   const { currentUser } = useAuth();
   const { profile: business } = usePartnerProfile();
   
+  console.log('🔍 Debug - Current user:', currentUser?.id);
+  console.log('🔍 Debug - Business profile:', business);
+  
   const [revenueData, setRevenueData] = useState<RevenueStats | null>(null);
   const [topItems, setTopItems] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -14,13 +17,19 @@ export const usePartnerRevenue = (period: 'daily' | 'weekly' | 'monthly' | 'year
   const [error, setError] = useState<Error | null>(null);
 
   const fetchRevenueData = async () => {
-    if (!business?.id) return;
+    if (!business?.id) {
+      console.log('⚠️ Debug - No business ID available');
+      return;
+    }
 
     try {
       setIsLoading(true);
       setError(null);
 
+      console.log('🔍 Debug - Fetching revenue data for business:', business.id, 'period:', period);
       const data = await kBilling.getRevenueStats(business.id, period);
+      console.log('🔍 Debug - Revenue data received:', data);
+      
       setRevenueData(data);
       setTopItems(data.topItems);
       setStats({
@@ -31,6 +40,7 @@ export const usePartnerRevenue = (period: 'daily' | 'weekly' | 'monthly' | 'year
         periodOrders: data.totalOrders
       });
     } catch (err) {
+      console.error('❌ Debug - Error fetching revenue data:', err);
       setError(err instanceof Error ? err : new Error('Erreur lors du chargement des données'));
     } finally {
       setIsLoading(false);

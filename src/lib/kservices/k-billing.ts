@@ -85,7 +85,7 @@ class KBilling {
       // Calculer les dates de début et fin selon la période
       const { start, end } = this.calculateDateRange(period, startDate, endDate);
       
-      // Récupérer les commandes pour la période avec les détails des articles
+      // Récupérer les commandes pour la période
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -97,13 +97,7 @@ class KBilling {
           status,
           created_at,
           payment_method,
-          user_id,
-          order_items (
-            name,
-            price,
-            quantity,
-            menu_item_id
-          )
+          user_id
         `)
         .eq('business_id', businessId)
         .eq('status', 'delivered')
@@ -112,6 +106,10 @@ class KBilling {
         .order('created_at', { ascending: true });
 
       if (ordersError) throw ordersError;
+
+      console.log('🔍 Debug - Orders found:', orders?.length || 0);
+      console.log('🔍 Debug - Business ID:', businessId);
+      console.log('🔍 Debug - Date range:', { start, end });
 
       // Récupérer les données de la période précédente pour calculer la croissance
       const { start: prevStart, end: prevEnd } = this.calculateDateRange(period, start, end, true);
@@ -135,13 +133,13 @@ class KBilling {
       const prevRevenue = prevOrders?.reduce((sum, order) => sum + (order.grand_total || 0), 0) || 0;
       const growth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
 
-      // Calculer les articles les plus vendus à partir des données des commandes
-      const topItems = this.calculateTopItemsFromOrders(orders || []);
+      // Récupérer les articles les plus vendus
+      const topItems = await this.getTopMenuItems(businessId, start, end);
       
       // Calculer les données par période
       const dailyData = this.calculateRevenueByPeriod(orders || [], period);
       
-      // Calculer les revenus par catégorie
+      // Récupérer les revenus par catégorie
       const categories = await this.getRevenueByCategory(businessId, start, end);
       
       // Calculer les revenus par méthode de paiement
@@ -275,7 +273,7 @@ class KBilling {
   }
 
   /**
-   * Récupère les articles de menu les plus vendus (méthode legacy)
+   * Récupère les articles de menu les plus vendus
    */
   async getTopMenuItems(
     businessId: number, 
@@ -284,22 +282,32 @@ class KBilling {
     limit: number = 10
   ): Promise<{ name: string; count: number; revenue: number }[]> {
     try {
+      // D'abord récupérer les IDs des commandes du business
+      const { data: orderIds, error: orderIdsError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('business_id', businessId)
+        .eq('status', 'delivered')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+
+      if (orderIdsError) throw orderIdsError;
+
+      if (!orderIds || orderIds.length === 0) {
+        return [];
+      }
+
+      const orderIdList = orderIds.map(order => order.id);
+
+      // Ensuite récupérer les articles de ces commandes
       const { data, error } = await supabase
         .from('order_items')
         .select(`
           name,
           price,
-          quantity,
-          orders!inner (
-            business_id,
-            status,
-            created_at
-          )
+          quantity
         `)
-        .eq('orders.business_id', businessId)
-        .eq('orders.status', 'delivered')
-        .gte('orders.created_at', startDate)
-        .lte('orders.created_at', endDate);
+        .in('order_id', orderIdList);
 
       if (error) throw error;
 

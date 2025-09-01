@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { isInternalUser } from '@/hooks/use-internal-users';
 
 export interface Business {
   id: number;
@@ -341,11 +342,15 @@ export class BusinessService {
 
   // Récupérer le profil partenaire par user_id
   static async getPartnerProfile(userId: string): Promise<{ data: Business | null; error: string | null }> {
+    // recuperer le businessId avec isInternalUser²
+    const { isInternal, businessId } = await isInternalUser();
+
     try {
       const { data, error } = await supabase
         .from('businesses')
         .select('*')
-        .eq('owner_id', userId)
+        .eq('id', businessId)
+        // .eq('owner_id', userId)
         .single();
 
       if (error) {
