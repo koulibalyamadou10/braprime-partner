@@ -4,6 +4,7 @@ import { AuthModals } from '@/components/auth/AuthModals';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import Hero from '@/components/ui/Hero';
 
 const LoginPage = () => {
   const location = useLocation();
@@ -35,75 +36,10 @@ const LoginPage = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-2xl mx-auto text-center">
-          {!isAuthenticated ? (
-            <>
-              <h1 className="text-3xl font-bold mb-6">Bienvenue sur BraPrime</h1>
-              
-              <div className="flex flex-col md:flex-row gap-4 justify-center">
-                <Button 
-                  onClick={() => {
-                    setIsLoginOpen(true);
-                    setIsSignupOpen(false);
-                  }}
-                  className="bg-guinea-red hover:bg-guinea-red/90 text-white"
-                >
-                  Se connecter
-                </Button>
-                {/* <Button 
-                
-                  onClick={() => {
-                    setIsSignupOpen(true);
-                    setIsLoginOpen(false);
-                  }}
-                  variant="outline"
-                  className="border-guinea-green text-guinea-green hover:bg-guinea-green/10"
-                >
-                  Créer un compte
-                </Button> */}
-                
-              </div>
-            </>
-          ) : null}
-          
+      <div className="container mx-auto px-4">
+        <div className="mx-auto text-center">         
           <div className="mt-12 p-6 bg-gray-50 rounded-lg">
-            {isAuthenticated ? (
-              <>
-                <h2 className="text-xl font-semibold mb-4">Bienvenue !</h2>
-                <p className="text-gray-600 mb-4">
-                  Vous êtes maintenant connecté à votre compte BraPrime.
-                </p>
-                <Button 
-                  onClick={() => navigate('/')}
-                  className="bg-guinea-green hover:bg-guinea-green/90 text-white"
-                >
-                  Aller à l'accueil
-                </Button>
-              </>
-            ) : (
-              <>
-                <h2 className="text-xl font-semibold mb-4">Pourquoi créer un compte?</h2>
-                <ul className="text-left space-y-3">
-                  <li className="flex items-start">
-                    <span className="mr-2 text-guinea-green">✓</span>
-                    <span>Suivez vos commandes en temps réel</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2 text-guinea-green">✓</span>
-                    <span>Sauvegardez vos adresses de livraison</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2 text-guinea-green">✓</span>
-                    <span>Accédez à votre historique de commandes</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="mr-2 text-guinea-green">✓</span>
-                    <span>Profitez d'offres spéciales pour les membres</span>
-                  </li>
-                </ul>
-              </>
-            )}
+            <Hero />
           </div>
         </div>
       </div>

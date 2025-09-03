@@ -375,9 +375,9 @@ const PartnerDashboard = () => {
           <div className="flex items-center gap-2">
             <Button 
               onClick={handleToggleStatus}
-              variant={business.is_open ? "destructive" : "default"}
+              variant={business.is_open ? "default" : "destructive"}
               size="sm"
-              className={business.is_open ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
+              className={business.is_open ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
             >
               {business.is_open ? (
                 <>

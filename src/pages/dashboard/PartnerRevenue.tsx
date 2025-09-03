@@ -7,7 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  DollarSign,
+  Banknote,
   ArrowUpRight,
   ArrowDownRight,
   TrendingUp,
@@ -179,7 +179,7 @@ const PartnerRevenue = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-primary" />
+                  <Banknote className="h-6 w-6 text-primary" />
                 </div>
                 {revenueData?.growth && revenueData.growth > 0 ? (
                   <div className="flex items-center text-green-600">
