@@ -655,10 +655,12 @@ const PartnerReservations = () => {
                                       </DropdownMenuItem>
                                     </>
                                   )}
-                                  <DropdownMenuItem onClick={() => handleOpenAssignTable(reservation)}>
-                                    <TableIcon className="mr-2 h-4 w-4" />
-                                    {reservation.table_number ? 'Modifier la table' : 'Assigner une table'}
-                                  </DropdownMenuItem>
+                                  {(reservation.status !== 'cancelled' && reservation.status !== 'completed' && reservation.status !== 'no_show') && (
+                                    <DropdownMenuItem onClick={() => handleOpenAssignTable(reservation)}>
+                                      <TableIcon className="mr-2 h-4 w-4" />
+                                      {reservation.table_number ? 'Modifier la table' : 'Assigner une table'}
+                                    </DropdownMenuItem>
+                                  )}
                                   {reservation.status !== 'cancelled' && reservation.status !== 'completed' && reservation.status !== 'no_show' && (
                                     <DropdownMenuItem onClick={() => handleUpdateStatus(reservation.id, 'cancelled')}>
                                       <XCircle className="mr-2 h-4 w-4" />
@@ -752,16 +754,18 @@ const PartnerReservations = () => {
                       </Button>
                     </>
                   )}
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsDetailsOpen(false);
-                      handleOpenAssignTable(selectedReservation);
-                    }}
-                  >
-                    <TableIcon className="mr-2 h-4 w-4" />
-                    {selectedReservation.table_number ? 'Modifier la table' : 'Assigner une table'}
-                  </Button>
+                  {(selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && selectedReservation.status !== 'no_show') && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsDetailsOpen(false);
+                        handleOpenAssignTable(selectedReservation);
+                      }}
+                    >
+                      <TableIcon className="mr-2 h-4 w-4" />
+                      {selectedReservation.table_number ? 'Modifier la table' : 'Assigner une table'}
+                    </Button>
+                  )}
                   {selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && selectedReservation.status !== 'no_show' && (
                     <Button variant="destructive" onClick={() => handleUpdateStatus(selectedReservation.id, 'cancelled')}>
                       Annuler
