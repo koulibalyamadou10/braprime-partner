@@ -743,7 +743,7 @@ const PartnerOrders = () => {
   // Vérifier si l'utilisateur est authentifié et si le business est chargé
      if (!business && isLoading) {
      return (
-       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
+       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
         <PartnerOrdersSkeleton />
       </DashboardLayout>
     );
@@ -751,7 +751,7 @@ const PartnerOrders = () => {
 
      if (!business) {
      return (
-       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
+       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Aucun Business Trouvé</h3>
@@ -911,10 +911,12 @@ const PartnerOrders = () => {
 
         {/* Statistiques */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-                     <Card>
-             <CardContent className="p-4 flex flex-col items-center justify-center">
-               <p className="text-sm text-gray-500">Total commandes payées</p>
-               <h3 className="text-2xl font-bold mt-1">{stats.total}</h3>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500">Total commandes payées</p>
+                <h3 className="text-2xl font-bold">{stats.total}</h3>
+              </div>
               {stats.duplicates > 0 && (
                 <p className="text-xs text-yellow-600 mt-1">
                   {stats.duplicates} doublon(s)
@@ -923,33 +925,43 @@ const PartnerOrders = () => {
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex flex-col items-center justify-center">
-              <p className="text-sm text-gray-500">Nouvelles commandes</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.pending}</h3>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500">Nouvelles commandes</p>
+                <h3 className="text-2xl font-bold">{stats.pending}</h3>
+              </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex flex-col items-center justify-center">
-              <p className="text-sm text-gray-500">En préparation</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.preparing}</h3>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500">En préparation</p>
+                <h3 className="text-2xl font-bold">{stats.preparing}</h3>
+              </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex flex-col items-center justify-center">
-              <p className="text-sm text-gray-500">Prêtes</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.ready}</h3>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500">Prêtes</p>
+                <h3 className="text-2xl font-bold">{stats.ready}</h3>
+              </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex flex-col items-center justify-center">
-              <p className="text-sm text-gray-500">En livraison</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.delivering}</h3>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500">En livraison</p>
+                <h3 className="text-2xl font-bold">{stats.delivering}</h3>
+              </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex flex-col items-center justify-center">
-              <p className="text-sm text-gray-500">Commandes groupées</p>
-              <h3 className="text-2xl font-bold mt-1">{stats.grouped}</h3>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500">Commandes groupées</p>
+                <h3 className="text-2xl font-bold">{stats.grouped}</h3>
+              </div>
             </CardContent>
           </Card>
         </div>
