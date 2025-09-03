@@ -27,7 +27,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
 import { 
-  DollarSign, 
+  Banknote, 
   Clock, 
   Loader2, 
   Pill, 
@@ -486,7 +486,7 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
                       <FormLabel>Prix (GNF) *</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                          <Banknote className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                           <Input 
                             type="number" 
                             className="pl-9" 
