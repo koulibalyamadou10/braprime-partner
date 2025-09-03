@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { subscriptionUtils, useCurrentUserSubscription } from '@/hooks/use-subscription';
 import {
     AlertTriangle,
+    Banknote,
     Calendar,
     CheckCircle,
     Clock,
@@ -203,7 +204,7 @@ export const SubscriptionStatus: React.FC = () => {
                 Détails
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Détails de l'abonnement</DialogTitle>
                 <DialogDescription>
@@ -215,7 +216,7 @@ export const SubscriptionStatus: React.FC = () => {
           </Dialog>
 
           <Button className="flex-1">
-            <DollarSign className="h-4 w-4 mr-2" />
+            <Banknote className="h-4 w-4 mr-2" />
             Renouveler
           </Button>
         </div>
