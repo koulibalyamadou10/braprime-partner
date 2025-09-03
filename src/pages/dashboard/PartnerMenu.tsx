@@ -364,7 +364,7 @@ const PartnerMenu = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <DollarSign className="h-4 w-4 text-orange-600" />
+                <Star className="h-4 w-4 text-orange-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Populaires</p>
                   <p className="text-2xl font-bold">{popularItems}</p>
