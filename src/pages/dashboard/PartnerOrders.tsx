@@ -835,14 +835,6 @@ const PartnerOrders = () => {
                 🧹 Nettoyer doublons
               </Button>
             )}
-                         <Button onClick={preloadData} variant="outline" size="sm">
-               <RefreshCw className="h-4 w-4 mr-2" />
-               Précharger
-             </Button>
-             <Button onClick={() => business && loadOrders(business.id)} variant="outline">
-               <RefreshCw className="h-4 w-4 mr-2" />
-               Actualiser
-             </Button>
           </div>
         </div>
 

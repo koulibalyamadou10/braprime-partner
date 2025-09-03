@@ -26,7 +26,7 @@ import {
   MoreHorizontal,
   Filter,
   Image as ImageIcon,
-  DollarSign,
+  Star,
   Clock,
   Check,
   X,
