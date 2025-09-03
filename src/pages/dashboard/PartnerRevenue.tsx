@@ -89,65 +89,88 @@ const PartnerRevenue = () => {
     setIsExporting(true);
     
     try {
-      // Créer le contenu CSV
+      // Créer le contenu CSV avec un style amélioré
       let csvContent = '';
+      
+      // En-tête principal
+      const periodLabels = {
+        daily: 'Aujourd\'hui',
+        weekly: 'Cette Semaine', 
+        monthly: 'Ce Mois',
+        yearly: 'Cette Année'
+      };
+      
+      csvContent += `RAPPORT DE REVENUS - ${periodLabels[period].toUpperCase()}\n`;
+      csvContent += `Généré le: ${new Date().toLocaleDateString('fr-FR')}\n`;
+      csvContent += `Restaurant: ${currentUser?.business_name || 'Restaurant'}\n`;
+      csvContent += '='.repeat(80) + '\n\n';
+      
+      // Statistiques globales en premier
+      csvContent += '📊 STATISTIQUES GLOBALES\n';
+      csvContent += '='.repeat(50) + '\n';
+      csvContent += 'Métrique,Valeur\n';
+      csvContent += `Revenus totaux,${formatCurrencyDisplay(totalRevenue)}\n`;
+      csvContent += `Commandes totales,${totalOrders.toLocaleString()}\n`;
+      csvContent += `Valeur moyenne par commande,${formatCurrencyDisplay(averageOrderValue)}\n`;
+      csvContent += `Revenus de la période,${formatCurrencyDisplay(periodRevenue)}\n`;
+      csvContent += `Commandes de la période,${periodOrders.toLocaleString()}\n`;
+      csvContent += '\n';
       
       // Données de revenus par période
       if (revenueData.dailyData && revenueData.dailyData.length > 0) {
-        csvContent += '=== REVENUS PAR PÉRIODE ===\n';
-        csvContent += 'Date,Revenus (GNF),Commandes\n';
+        csvContent += '📈 REVENUS PAR PÉRIODE\n';
+        csvContent += '='.repeat(50) + '\n';
+        csvContent += 'Date,Revenus (GNF),Commandes,Moyenne par commande\n';
         revenueData.dailyData.forEach(item => {
-          csvContent += `${item.date},${item.revenue},${item.orders}\n`;
+          const avgPerOrder = item.orders > 0 ? (item.revenue / item.orders) : 0;
+          csvContent += `${item.date},${item.revenue.toLocaleString()},${item.orders},${avgPerOrder.toFixed(0)}\n`;
         });
         csvContent += '\n';
       }
       
       // Articles populaires
       if (revenueData.topItems && revenueData.topItems.length > 0) {
-        csvContent += '=== ARTICLES POPULAIRES ===\n';
-        csvContent += 'Article,Revenus (GNF),Commandes,Pourcentage\n';
-        revenueData.topItems.forEach(item => {
-          csvContent += `${item.name},${item.revenue},${item.count},${((item.revenue / totalRevenue) * 100).toFixed(1)}%\n`;
+        csvContent += '🏆 ARTICLES POPULAIRES\n';
+        csvContent += '='.repeat(50) + '\n';
+        csvContent += 'Rang,Article,Revenus (GNF),Commandes,Pourcentage du total\n';
+        revenueData.topItems.forEach((item, index) => {
+          const percentage = ((item.revenue / totalRevenue) * 100).toFixed(1);
+          csvContent += `${index + 1},${item.name},${item.revenue.toLocaleString()},${item.count},${percentage}%\n`;
         });
         csvContent += '\n';
       }
       
       // Répartition par catégorie
       if (revenueData.categories && revenueData.categories.length > 0) {
-        csvContent += '=== RÉPARTITION PAR CATÉGORIE ===\n';
+        csvContent += '📂 RÉPARTITION PAR CATÉGORIE\n';
+        csvContent += '='.repeat(50) + '\n';
         csvContent += 'Catégorie,Revenus (GNF),Pourcentage\n';
         revenueData.categories.forEach(category => {
-          csvContent += `${category.name},${category.revenue},${category.percentage.toFixed(1)}%\n`;
+          csvContent += `${category.name},${category.revenue.toLocaleString()},${category.percentage.toFixed(1)}%\n`;
         });
         csvContent += '\n';
       }
       
       // Méthodes de paiement
       if (revenueData.paymentMethods && revenueData.paymentMethods.length > 0) {
-        csvContent += '=== MÉTHODES DE PAIEMENT ===\n';
+        csvContent += '💳 MÉTHODES DE PAIEMENT\n';
+        csvContent += '='.repeat(50) + '\n';
         csvContent += 'Méthode,Revenus (GNF),Commandes,Pourcentage\n';
         revenueData.paymentMethods.forEach(method => {
-          csvContent += `${method.method},${method.amount},${method.count},${method.percentage.toFixed(1)}%\n`;
+          csvContent += `${method.method},${method.amount.toLocaleString()},${method.count},${method.percentage.toFixed(1)}%\n`;
         });
         csvContent += '\n';
       }
       
-      // Statistiques globales
-      csvContent += '=== STATISTIQUES GLOBALES ===\n';
-      csvContent += 'Métrique,Valeur\n';
-      csvContent += `Revenus totaux,${totalRevenue}\n`;
-      csvContent += `Commandes totales,${totalOrders}\n`;
-      csvContent += `Valeur moyenne par commande,${averageOrderValue}\n`;
-      csvContent += `Revenus de la période,${periodRevenue}\n`;
-      csvContent += `Commandes de la période,${periodOrders}\n`;
+      // Pied de page
+      csvContent += '='.repeat(80) + '\n';
+      csvContent += '📋 NOTES:\n';
+      csvContent += '- Tous les montants sont en GNF (Franc Guinéen)\n';
+      csvContent += '- Les pourcentages sont calculés sur les revenus totaux\n';
+      csvContent += '- Les données sont basées sur les commandes payées uniquement\n';
+      csvContent += `- Rapport généré automatiquement le ${new Date().toLocaleString('fr-FR')}\n`;
       
       // Générer le nom du fichier
-      const periodLabels = {
-        daily: 'Aujourd\'hui',
-        weekly: 'Cette_Semaine', 
-        monthly: 'Ce_Mois',
-        yearly: 'Cette_Annee'
-      };
       const fileName = `Revenus_${periodLabels[period]}_${new Date().toISOString().split('T')[0]}.csv`;
       
       // Créer le blob et télécharger
