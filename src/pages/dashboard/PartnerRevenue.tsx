@@ -34,6 +34,7 @@ import RevenueChart from '@/components/dashboard/RevenueChart';
 import RealTimeStats from '@/components/dashboard/RealTimeStats';
 import Unauthorized from '@/components/Unauthorized';
 import { useCurrencyRole } from '@/contexts/UseRoleContext';
+import { useToast } from '@/components/ui/use-toast';
 
 // Helper function for percentage
 const formatPercentage = (value: number) => {
@@ -42,6 +43,7 @@ const formatPercentage = (value: number) => {
 
 const PartnerRevenue = () => {
   const { currencyRole, roles } = useCurrencyRole();
+  const { toast } = useToast();
 
   if (!roles.includes("revenu") && !roles.includes("admin")) {
     return <Unauthorized />;
@@ -51,6 +53,7 @@ const PartnerRevenue = () => {
   
   // State for time period selection
   const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [isExporting, setIsExporting] = useState(false);
   
   // Utiliser les hooks pour les données dynamiques
   const { 
@@ -70,6 +73,109 @@ const PartnerRevenue = () => {
       return `${(amount / 1000).toFixed(0)}k GNF`;
     }
     return `${amount} GNF`;
+  };
+
+  // Fonction pour exporter en Excel
+  const handleExportToExcel = async () => {
+    if (!revenueData) {
+      toast({
+        title: "Erreur",
+        description: "Aucune donnée disponible pour l'export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    
+    try {
+      // Créer le contenu CSV
+      let csvContent = '';
+      
+      // Données de revenus par période
+      if (revenueData.dailyData && revenueData.dailyData.length > 0) {
+        csvContent += '=== REVENUS PAR PÉRIODE ===\n';
+        csvContent += 'Date,Revenus (GNF),Commandes\n';
+        revenueData.dailyData.forEach(item => {
+          csvContent += `${item.date},${item.revenue},${item.orders}\n`;
+        });
+        csvContent += '\n';
+      }
+      
+      // Articles populaires
+      if (revenueData.topItems && revenueData.topItems.length > 0) {
+        csvContent += '=== ARTICLES POPULAIRES ===\n';
+        csvContent += 'Article,Revenus (GNF),Commandes,Pourcentage\n';
+        revenueData.topItems.forEach(item => {
+          csvContent += `${item.name},${item.revenue},${item.count},${((item.revenue / totalRevenue) * 100).toFixed(1)}%\n`;
+        });
+        csvContent += '\n';
+      }
+      
+      // Répartition par catégorie
+      if (revenueData.categories && revenueData.categories.length > 0) {
+        csvContent += '=== RÉPARTITION PAR CATÉGORIE ===\n';
+        csvContent += 'Catégorie,Revenus (GNF),Pourcentage\n';
+        revenueData.categories.forEach(category => {
+          csvContent += `${category.name},${category.revenue},${category.percentage.toFixed(1)}%\n`;
+        });
+        csvContent += '\n';
+      }
+      
+      // Méthodes de paiement
+      if (revenueData.paymentMethods && revenueData.paymentMethods.length > 0) {
+        csvContent += '=== MÉTHODES DE PAIEMENT ===\n';
+        csvContent += 'Méthode,Revenus (GNF),Commandes,Pourcentage\n';
+        revenueData.paymentMethods.forEach(method => {
+          csvContent += `${method.method},${method.amount},${method.count},${method.percentage.toFixed(1)}%\n`;
+        });
+        csvContent += '\n';
+      }
+      
+      // Statistiques globales
+      csvContent += '=== STATISTIQUES GLOBALES ===\n';
+      csvContent += 'Métrique,Valeur\n';
+      csvContent += `Revenus totaux,${totalRevenue}\n`;
+      csvContent += `Commandes totales,${totalOrders}\n`;
+      csvContent += `Valeur moyenne par commande,${averageOrderValue}\n`;
+      csvContent += `Revenus de la période,${periodRevenue}\n`;
+      csvContent += `Commandes de la période,${periodOrders}\n`;
+      
+      // Générer le nom du fichier
+      const periodLabels = {
+        daily: 'Aujourd\'hui',
+        weekly: 'Cette_Semaine', 
+        monthly: 'Ce_Mois',
+        yearly: 'Cette_Annee'
+      };
+      const fileName = `Revenus_${periodLabels[period]}_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      // Créer le blob et télécharger
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Export réussi",
+        description: `Le fichier ${fileName} a été téléchargé avec succès.`,
+      });
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'export:', error);
+      toast({
+        title: "Erreur d'export",
+        description: "Impossible d'exporter les données. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Calculer les statistiques globales
@@ -167,8 +273,18 @@ const PartnerRevenue = () => {
               </SelectContent>
             </Select>
             
-            <Button variant="outline" className="flex items-center gap-2">
-              <Download className="h-4 w-4" /> Export
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={handleExportToExcel}
+              disabled={isExporting || isLoading}
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {isExporting ? 'Export...' : 'Export'}
             </Button>
           </div>
         </div>
