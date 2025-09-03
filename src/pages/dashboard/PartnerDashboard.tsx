@@ -375,9 +375,9 @@ const PartnerDashboard = () => {
           <div className="flex items-center gap-2">
             <Button 
               onClick={handleToggleStatus}
-              variant={business.is_open ? "default" : "destructive"}
+              variant={business.is_open ? "destructive" : "default"}
               size="sm"
-              className={business.is_open ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
+              className={business.is_open ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
             >
               {business.is_open ? (
                 <>
@@ -433,10 +433,10 @@ const PartnerDashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-4">
-              <Badge variant={business.is_open ? "default" : "secondary"}>
-                {business.is_open ? "Ouvert" : "Fermé"}
-              </Badge>
+                         <div className="mt-4 flex items-center gap-4">
+               <Badge variant={business.is_open ? "default" : "secondary"} className={business.is_open ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                 {business.is_open ? "Ouvert" : "Fermé"}
+               </Badge>
               <Badge variant="outline">{business.business_type}</Badge>
               {business.cuisine_type && (
                 <Badge variant="outline">{business.cuisine_type}</Badge>
