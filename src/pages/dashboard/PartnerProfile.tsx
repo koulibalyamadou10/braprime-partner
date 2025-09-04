@@ -83,157 +83,183 @@ const PartnerProfile = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialiser Google Maps
-  useEffect(() => {
-    let mapInstance: any = null;
-    let markerInstance: any = null;
-    let searchBoxInstance: any = null;
-
-    const initMap = () => {
-      if (mapRef.current && window.google) {
-        const defaultLocation = { lat: 9.5370, lng: -13.6785 }; // Conakry, Guinée
-        
-        // Configuration optimisée de la carte
-        const mapOptions = {
-          center: defaultLocation,
-          zoom: 13,
-          mapTypeId: window.google.maps.MapTypeId.ROADMAP,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true,
-          // Optimisations de performance
-          disableDefaultUI: false,
-          gestureHandling: 'cooperative',
-          // Désactiver les fonctionnalités non essentielles pour améliorer les performances
-          tilt: 0,
-          heading: 0,
-          // Optimiser le rendu
-          backgroundColor: '#f5f5f5',
-          // Réduire la qualité initiale pour un chargement plus rapide
-          maxZoom: 18,
-          minZoom: 8
-        };
-
-        mapInstance = new window.google.maps.Map(mapRef.current, mapOptions);
-
-        // Créer le marqueur avec des options optimisées
-        markerInstance = new window.google.maps.Marker({
-          position: defaultLocation,
-          map: mapInstance,
-          draggable: true,
-          title: "Votre restaurant",
-          // Optimiser le marqueur
-          optimized: true,
-          zIndex: 1000
-        });
-
-        // Gérer le déplacement du marqueur avec debounce
-        let dragTimeout: NodeJS.Timeout;
-        markerInstance.addListener('dragend', () => {
-          clearTimeout(dragTimeout);
-          dragTimeout = setTimeout(() => {
-            const position = markerInstance.getPosition();
-            if (position) {
-              reverseGeocode(position.lat(), position.lng());
-            }
-          }, 300); // Délai de 300ms pour éviter les appels répétés
-        });
-
-        // Gérer le clic sur la carte avec debounce
-        let clickTimeout: NodeJS.Timeout;
-        mapInstance.addListener('click', (event: any) => {
-          clearTimeout(clickTimeout);
-          clickTimeout = setTimeout(() => {
-            const position = event.latLng;
-            markerInstance.setPosition(position);
-            reverseGeocode(position.lat(), position.lng());
-          }, 100);
-        });
-
-        // Initialiser SearchBox de manière asynchrone
-        setTimeout(() => {
-          if (searchInputRef.current) {
-            searchBoxInstance = new window.google.maps.places.SearchBox(searchInputRef.current);
-            setSearchBox(searchBoxInstance);
-
-            // Gérer les résultats de recherche
-            searchBoxInstance.addListener('places_changed', () => {
-              const places = searchBoxInstance.getPlaces();
-              if (places && places.length > 0) {
-                const place = places[0];
-                if (place.geometry && place.geometry.location) {
-                  const position = place.geometry.location;
-                  mapInstance.setCenter(position);
-                  mapInstance.setZoom(16);
-                  markerInstance.setPosition(position);
-                  setFormData(prev => ({ ...prev, address: place.formatted_address || "" }));
-                  setSearchQuery(place.formatted_address || "");
-                }
-              }
-            });
-          }
-        }, 100);
-
-        // Mettre à jour les états
-        setMap(mapInstance);
-        setMarker(markerInstance);
+  // Fonction pour charger Google Maps API
+  const loadGoogleMapsAPI = () => {
+    if (!window.google) {
+      // Vérifier si le script est déjà en cours de chargement
+      if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+        return;
       }
-    };
 
-    // Charger Google Maps API avec optimisations
-    const loadGoogleMapsAPI = () => {
-      if (!window.google) {
-        // Vérifier si le script est déjà en cours de chargement
-        if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-          return;
-        }
+      setIsApiLoading(true);
+      setApiLoadError(null);
 
-        setIsApiLoading(true);
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDIp_O6TQg33J4Z2M44Uj3SEJZfTq1EqZU&libraries=places&v=weekly`;
+      script.async = true;
+      script.defer = true;
+      
+      // Ajouter un timeout pour éviter les blocages
+      const timeoutId = setTimeout(() => {
+        console.warn('Google Maps API prend trop de temps à charger');
+        setIsApiLoading(false);
+        setApiLoadError('timeout');
+        // Afficher un message d'erreur à l'utilisateur
+        toast({
+          title: "Chargement de la carte",
+          description: "La carte prend plus de temps que prévu. Veuillez patienter ou rafraîchir la page.",
+          variant: "default"
+        });
+      }, 8000); // Réduit à 8 secondes
+
+      script.onload = () => {
+        clearTimeout(timeoutId);
+        setIsApiLoading(false);
         setApiLoadError(null);
-
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDIp_O6TQg33J4Z2M44Uj3SEJZfTq1EqZU&libraries=places&v=weekly`;
-        script.async = true;
-        script.defer = true;
-        
-        // Ajouter un timeout pour éviter les blocages
-        const timeoutId = setTimeout(() => {
-          console.warn('Google Maps API prend trop de temps à charger');
-          setIsApiLoading(false);
-          setApiLoadError('timeout');
-          // Afficher un message d'erreur à l'utilisateur
-          toast({
-            title: "Chargement de la carte",
-            description: "La carte prend plus de temps que prévu. Veuillez patienter ou rafraîchir la page.",
-            variant: "default"
-          });
-        }, 8000); // Réduit à 8 secondes
-
-        script.onload = () => {
-          clearTimeout(timeoutId);
-          setIsApiLoading(false);
-          setApiLoadError(null);
+        // Initialiser la carte après le chargement
+        if (mapRef.current && window.google) {
           initMap();
-        };
+        }
+      };
 
-        script.onerror = () => {
-          clearTimeout(timeoutId);
-          setIsApiLoading(false);
-          setApiLoadError('network');
-          console.error('Erreur lors du chargement de Google Maps API');
-          toast({
-            title: "Erreur de chargement",
-            description: "Impossible de charger la carte Google Maps. Veuillez rafraîchir la page.",
-            variant: "destructive"
-          });
-        };
+      script.onerror = () => {
+        clearTimeout(timeoutId);
+        setIsApiLoading(false);
+        setApiLoadError('network');
+        console.error('Erreur lors du chargement de Google Maps API');
+        toast({
+          title: "Erreur de chargement",
+          description: "Impossible de charger la carte Google Maps. Veuillez rafraîchir la page.",
+          variant: "destructive"
+        });
+      };
 
-        document.head.appendChild(script);
-      } else {
+      document.head.appendChild(script);
+    } else {
+      // Si l'API est déjà chargée, initialiser directement
+      if (mapRef.current) {
         initMap();
       }
-    };
+    }
+  };
 
+  // Fonction pour initialiser la carte
+  const initMap = () => {
+    if (mapRef.current && window.google) {
+      // Nettoyer les instances existantes avant d'en créer de nouvelles
+      if (map) {
+        try {
+          window.google.maps.event.clearInstanceListeners(map);
+        } catch (error) {
+          console.warn('Erreur lors du nettoyage de la carte existante:', error);
+        }
+      }
+      if (marker) {
+        try {
+          window.google.maps.event.clearInstanceListeners(marker);
+        } catch (error) {
+          console.warn('Erreur lors du nettoyage du marqueur existant:', error);
+        }
+      }
+      if (searchBox) {
+        try {
+          window.google.maps.event.clearInstanceListeners(searchBox);
+        } catch (error) {
+          console.warn('Erreur lors du nettoyage de la recherche existante:', error);
+        }
+      }
+
+      const defaultLocation = { lat: 9.5370, lng: -13.6785 }; // Conakry, Guinée
+      
+      // Configuration optimisée de la carte
+      const mapOptions = {
+        center: defaultLocation,
+        zoom: 13,
+        mapTypeId: window.google.maps.MapTypeId.ROADMAP,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        // Optimisations de performance
+        disableDefaultUI: false,
+        gestureHandling: 'cooperative',
+        // Désactiver les fonctionnalités non essentielles pour améliorer les performances
+        tilt: 0,
+        heading: 0,
+        // Optimiser le rendu
+        backgroundColor: '#f5f5f5',
+        // Réduire la qualité initiale pour un chargement plus rapide
+        maxZoom: 18,
+        minZoom: 8
+      };
+
+      const mapInstance = new window.google.maps.Map(mapRef.current, mapOptions);
+
+      // Créer le marqueur avec des options optimisées
+      const markerInstance = new window.google.maps.Marker({
+        position: defaultLocation,
+        map: mapInstance,
+        draggable: true,
+        title: "Votre restaurant",
+        // Optimiser le marqueur
+        optimized: true,
+        zIndex: 1000
+      });
+
+      // Gérer le déplacement du marqueur avec debounce
+      let dragTimeout: NodeJS.Timeout;
+      markerInstance.addListener('dragend', () => {
+        clearTimeout(dragTimeout);
+        dragTimeout = setTimeout(() => {
+          const position = markerInstance.getPosition();
+          if (position) {
+            reverseGeocode(position.lat(), position.lng());
+          }
+        }, 300); // Délai de 300ms pour éviter les appels répétés
+      });
+
+      // Gérer le clic sur la carte avec debounce
+      let clickTimeout: NodeJS.Timeout;
+      mapInstance.addListener('click', (event: any) => {
+        clearTimeout(clickTimeout);
+        clickTimeout = setTimeout(() => {
+          const position = event.latLng;
+          markerInstance.setPosition(position);
+          reverseGeocode(position.lat(), position.lng());
+        }, 100);
+      });
+
+      // Initialiser SearchBox de manière asynchrone
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          const searchBoxInstance = new window.google.maps.places.SearchBox(searchInputRef.current);
+          setSearchBox(searchBoxInstance);
+
+          // Gérer les résultats de recherche
+          searchBoxInstance.addListener('places_changed', () => {
+            const places = searchBoxInstance.getPlaces();
+            if (places && places.length > 0) {
+              const place = places[0];
+              if (place.geometry && place.geometry.location) {
+                const position = place.geometry.location;
+                mapInstance.setCenter(position);
+                mapInstance.setZoom(16);
+                markerInstance.setPosition(position);
+                setFormData(prev => ({ ...prev, address: place.formatted_address || "" }));
+                setSearchQuery(place.formatted_address || "");
+              }
+            }
+          });
+        }
+      }, 100);
+
+      // Mettre à jour les états
+      setMap(mapInstance);
+      setMarker(markerInstance);
+    }
+  };
+
+  // Initialiser Google Maps
+  useEffect(() => {
     // Charger l'API seulement quand l'utilisateur passe en mode édition
     if (isEditing) {
       loadGoogleMapsAPI();
@@ -241,18 +267,32 @@ const PartnerProfile = () => {
 
     // Cleanup function
     return () => {
-      if (mapInstance) {
-        // Nettoyer les listeners pour éviter les fuites mémoire
-        window.google?.maps?.event?.clearInstanceListeners(mapInstance);
+      // Nettoyer les listeners de manière sécurisée
+      try {
+        if (map && window.google?.maps?.event) {
+          window.google.maps.event.clearInstanceListeners(map);
+        }
+      } catch (error) {
+        console.warn('Erreur lors du nettoyage de la carte:', error);
       }
-      if (markerInstance) {
-        window.google?.maps?.event?.clearInstanceListeners(markerInstance);
+
+      try {
+        if (marker && window.google?.maps?.event) {
+          window.google.maps.event.clearInstanceListeners(marker);
+        }
+      } catch (error) {
+        console.warn('Erreur lors du nettoyage du marqueur:', error);
       }
-      if (searchBoxInstance) {
-        window.google?.maps?.event?.clearInstanceListeners(searchBoxInstance);
+
+      try {
+        if (searchBox && window.google?.maps?.event) {
+          window.google.maps.event.clearInstanceListeners(searchBox);
+        }
+      } catch (error) {
+        console.warn('Erreur lors du nettoyage de la recherche:', error);
       }
     };
-  }, [isEditing]); // Dépendance à isEditing pour charger l'API seulement quand nécessaire
+  }, [isEditing]); // Suppression des dépendances problématiques
 
   // Initialiser les données du formulaire quand le profil est chargé
   React.useEffect(() => {
