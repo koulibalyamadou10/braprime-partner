@@ -180,6 +180,11 @@ export const partnerNavItems = [
     icon: <TrendingUp className="h-5 w-5" />,
   },
   {
+    href: '/partner-dashboard/colis',
+    label: 'Colis',
+    icon: <Package className="h-5 w-5" />,
+  },
+  {
     href: '/partner-dashboard/users',
     label: 'Utilisateurs',
     icon: <Users className="h-5 w-5" />,
