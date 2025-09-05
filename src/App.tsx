@@ -40,6 +40,7 @@ const PartnerMenu = lazy(() => import("./pages/dashboard/PartnerMenu"));
 const PartnerReservations = lazy(() => import("./pages/dashboard/PartnerReservations"));
 // const PartnerDrivers = lazy(() => import("./pages/dashboard/PartnerDrivers")); // Supprimé - drivers indépendants
 const PartnerRevenue = lazy(() => import("./pages/dashboard/PartnerRevenue"));
+const PartnerColis = lazy(() => import("./pages/dashboard/PartnerColis"));
 const PartnerBilling = lazy(() => import("./pages/dashboard/PartnerBilling"));
 const PartnerProfile = lazy(() => import("./pages/dashboard/PartnerProfile"));
 const PartnerSettings = lazy(() => import("./pages/dashboard/PartnerSettings"));
@@ -150,6 +151,11 @@ const App = () => {
                   <Route path="/partner-dashboard/revenue" element={
                     <ProtectedRoute allowedRoles={["partner"]}>
                       <PartnerRevenue />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/partner-dashboard/colis" element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerColis />
                     </ProtectedRoute>
                   } />
                   <Route path="/partner-dashboard/billing" element={
