@@ -131,7 +131,7 @@ export const useInternalUsers = (businessId: number, currentUserId?: string) => 
 };
 
 // verifier si l'utilisateur est interne ou pas
-export async function isInternalUser(): Promise<{isInternal: boolean, data: InternalUser | null, user: {}, businessId: number | null, businessData: {} | null}> {
+export async function isInternalUser(): Promise<{isInternal: boolean, data: InternalUser | null, user: {}, businessId: number | null, businessData: {} | null, businessType: {} | null}> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -158,28 +158,36 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
       .eq('owner_id', data[0].created_by)
       .limit(1);
 
-    if( businessesError ) {
-      console.error('Erreur dans isInternalUser:', businessesError);
-      throw new Error(businessesError.message);
-    }
-
-    if( businesses && businesses.length > 0 ) {
-      return {
-        isInternal: true, 
-        data: data[0], 
-        user: user, 
-        businessId: businesses[0].id,
-        businessData: businesses[0]
+      if( businessesError ) {
+        console.error('Erreur dans isInternalUser:', businessesError);
+        throw new Error(businessesError.message);
       }
-    }
 
+      const {data: businessType, error: businessTypeError} = await supabase
+      .from('business_types')
+      .select('*')
+      .eq('id', businesses[0].business_type_id)
+      .limit(1);
+
+      if( businesses && businesses.length > 0 ) {
+
+        return {
+          isInternal: true, 
+          data: data[0], 
+          user: user, 
+          businessId: businesses[0].id,
+          businessData: businesses[0],
+          businessType: businessType[0]
+        }
+      }
     
       return {
         isInternal: true, 
         data: data[0], 
         user: user, 
         businessId: data[0].business_id,
-        businessData: data[0].business  
+        businessData: data[0].business,
+        businessType: businessType[0] || null
       }
     }
 
@@ -195,13 +203,20 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
       throw new Error(businessesError.message);
     }
 
+    const {data: businessType, error: businessTypeError} = await supabase
+    .from('business_types')
+    .select('*')
+    .eq('id', businesses[0].business_type_id)
+    .limit(1);
+
     if( businesses && businesses.length > 0 ) {
       return {
         isInternal: false, 
         data: null, 
         user: user, 
         businessId: businesses[0].id,
-        businessData: businesses[0]
+        businessData: businesses[0],
+        businessType: businessType[0]
       }
     }
 
@@ -210,7 +225,8 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
       data: null, 
       user: user, 
       businessId: null, 
-      businessData: null
+      businessData: null,
+      businessType: null
     }
   } catch (error) {
     console.error('Erreur dans isInternalUser:', error);
