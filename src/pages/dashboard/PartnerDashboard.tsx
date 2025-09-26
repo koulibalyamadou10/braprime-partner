@@ -1,27 +1,22 @@
-import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
-import { PartnerDashboardSkeleton, PartnerDashboardProgressiveSkeleton } from '@/components/dashboard/DashboardSkeletons';
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { PartnerDashboardProgressiveSkeleton, PartnerDashboardSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { SubscriptionStatus } from '@/components/dashboard/SubscriptionStatus';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/contexts/UserRoleContext';
+import { isInternalUser } from '@/hooks/use-internal-users';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
+import { usePartnerNavigation } from '@/hooks/use-partner-navigation';
 import { usePartnerAccessCheck } from '@/hooks/use-subscription';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import {
     AlertCircle,
-    ArrowUpRight,
     Banknote,
     Calendar,
     CheckCircle,
-    ChevronRight as ChevronRightIcon,
     Clock,
-    TrendingUp,
+    CreditCard,
     Home,
     Mail,
     MapPin,
@@ -30,20 +25,17 @@ import {
     Power,
     PowerOff,
     RefreshCw,
+    Settings,
     ShoppingBag,
     Star,
     Timer,
     Truck,
     Users,
-    XCircle,
-    CreditCard,
-    Bell,
-    Settings
+    XCircle
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { isInternalUser } from '@/hooks/use-internal-users';
 
 // Composant de chargement - remplacé par PartnerDashboardSkeleton
 
@@ -98,6 +90,7 @@ const getStatusLabel = (status: string) => {
 const PartnerDashboard = () => {
   isInternalUser();
   const { currentUser } = useAuth();
+  const { navItems, businessTypeId } = usePartnerNavigation();
   const [activeTab, setActiveTab] = useState('overview');
   const [isOpen, setIsOpen] = useState(true);
   const [period, setPeriod] = useState<'today' | 'week' | 'month' | 'year'>('month');
@@ -214,7 +207,7 @@ const PartnerDashboard = () => {
   // Vérifier si l'utilisateur est authentifié
   if (!isAuthenticated) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Authentification Requise</h3>
@@ -235,7 +228,7 @@ const PartnerDashboard = () => {
   // Vérifier si l'utilisateur est un partenaire
   if (!isPartner) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Accès Restreint</h3>
@@ -252,7 +245,7 @@ const PartnerDashboard = () => {
   // Vérifier si l'utilisateur a un abonnement actif
   if (accessCheck && !accessCheck.canAccess && accessCheck.requiresSubscription) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center max-w-md">
             <div className="mb-6">
@@ -288,7 +281,7 @@ const PartnerDashboard = () => {
   // Utiliser le chargement progressif au lieu du chargement simple
   if (isBusinessLoading && !business) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <PartnerDashboardSkeleton />
       </DashboardLayout>
     );
@@ -297,7 +290,7 @@ const PartnerDashboard = () => {
   // Afficher le chargement progressif une fois que le business est chargé
   if (business && (isStatsLoading || isOrdersLoading || isMenuLoading || isWeeklyDataLoading)) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <PartnerDashboardProgressiveSkeleton
           business={business}
           stats={stats}
@@ -316,7 +309,7 @@ const PartnerDashboard = () => {
 
   if (error) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -345,7 +338,7 @@ const PartnerDashboard = () => {
 
   if (!business) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Aucun Business Trouvé</h3>
@@ -363,7 +356,7 @@ const PartnerDashboard = () => {
   }
 
   return (
-    <DashboardLayout navItems={partnerNavItems} title="Tableau de bord">
+    <DashboardLayout navItems={navItems} title="Tableau de bord">
       <div className="space-y-6">
         {/* Header avec informations du business */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

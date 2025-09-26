@@ -2,11 +2,13 @@
 import { PartnerOrdersProgressiveSkeleton, PartnerOrdersSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { getUserWithManyInformationsForTheDashboard, UserWithBusiness } from '@/lib/kservices/k-helpers';
-import { DriverNotificationService } from '@/lib/services/driver-notifications';
-import { DriverService } from '@/lib/services/drivers';
-import { PartnerOrder } from '@/lib/services/partner-dashboard';
+import Unauthorized from '@/components/Unauthorized';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
 import { isInternalUser } from '@/hooks/use-internal-users';
+import { usePartnerNavigation } from '@/hooks/use-partner-navigation';
+import { UserWithBusiness } from '@/lib/kservices/k-helpers';
+import { DriverNotificationService } from '@/lib/services/driver-notifications';
+import { PartnerOrder } from '@/lib/services/partner-dashboard';
 import { supabase } from '@/lib/supabase';
 import {
     AlertCircle,
@@ -27,7 +29,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import DashboardLayout, { partnerNavItems } from '../../components/dashboard/DashboardLayout';
+import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
@@ -38,8 +40,6 @@ import { Label } from '../../components/ui/label';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import Unauthorized from '@/components/Unauthorized';
-import { useCurrencyRole } from '@/contexts/UseRoleContext';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
@@ -63,6 +63,7 @@ interface Business {
 
 const PartnerOrders = () => {
   const { currencyRole, roles, businessId } = useCurrencyRole();
+  const { navItems, businessTypeId } = usePartnerNavigation();
 
   if ( !roles.includes("commandes") && !roles.includes("admin")) {
     return <Unauthorized />;
@@ -743,7 +744,7 @@ const PartnerOrders = () => {
   // Vérifier si l'utilisateur est authentifié et si le business est chargé
      if (!business && isLoading) {
      return (
-       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+       <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
         <PartnerOrdersSkeleton />
       </DashboardLayout>
     );
@@ -751,7 +752,7 @@ const PartnerOrders = () => {
 
      if (!business) {
      return (
-       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes">
+       <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Aucun Business Trouvé</h3>
@@ -771,7 +772,7 @@ const PartnerOrders = () => {
      // Afficher le chargement progressif une fois que le business est chargé
    if (business && isLoading) {
      return (
-       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
+       <DashboardLayout navItems={navItems} title="Gestion des Commandes Payées" businessTypeId={businessTypeId}>
         <PartnerOrdersProgressiveSkeleton
           business={business}
           isBusinessLoading={false}
@@ -783,7 +784,7 @@ const PartnerOrders = () => {
 
      if (error) {
      return (
-       <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
+       <DashboardLayout navItems={navItems} title="Gestion des Commandes Payées" businessTypeId={businessTypeId}>
         <div className="space-y-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -812,7 +813,7 @@ const PartnerOrders = () => {
   }
 
      return (
-     <DashboardLayout navItems={partnerNavItems} title="Gestion des Commandes Payées">
+     <DashboardLayout navItems={navItems} title="Gestion des Commandes Payées" businessTypeId={businessTypeId}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

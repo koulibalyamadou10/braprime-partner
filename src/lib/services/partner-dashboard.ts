@@ -1,7 +1,5 @@
-import { useRole } from '@/contexts/RoleContext'
-import { useUserRole } from '@/contexts/UserRoleContext'
-import { supabase } from '@/lib/supabase'
 import { isInternalUser } from '@/hooks/use-internal-users'
+import { supabase } from '@/lib/supabase'
 
 export interface PartnerBusiness {
   id: number
@@ -205,42 +203,12 @@ export class PartnerDashboardService {
     }
   }
 
-  // Récupérer les statistiques du partenaire (optimisé avec requêtes agrégées)
+  // Récupérer les statistiques du partenaire (utilise directement le fallback)
   static async getPartnerStats(businessId: number): Promise<{ stats: PartnerStats | null; error: string | null }> {
     try {
-      // Requête agrégée pour toutes les statistiques en une fois
-      const { data: statsData, error: statsError } = await supabase
-        .rpc('get_partner_stats', { business_id: businessId })
-
-      if (statsError) {
-        console.error('Erreur récupération stats:', statsError)
-        // Fallback vers requête simple si la fonction RPC n'existe pas
-        return await this.getPartnerStatsFallback(businessId)
-      }
-
-      if (!statsData) {
-        return { stats: null, error: 'Aucune donnée statistique trouvée' }
-      }
-
-      const stats: PartnerStats = {
-        totalOrders: statsData.total_orders || 0,
-        totalRevenue: statsData.total_revenue || 0,
-        averageOrderValue: statsData.average_order_value || 0,
-        completedOrders: statsData.completed_orders || 0,
-        pendingOrders: statsData.pending_orders || 0,
-        cancelledOrders: statsData.cancelled_orders || 0,
-        totalCustomers: statsData.total_customers || 0,
-        rating: statsData.rating || 0,
-        reviewCount: statsData.review_count || 0,
-        todayOrders: statsData.today_orders || 0,
-        todayRevenue: statsData.today_revenue || 0,
-        weekOrders: statsData.week_orders || 0,
-        weekRevenue: statsData.week_revenue || 0,
-        monthOrders: statsData.month_orders || 0,
-        monthRevenue: statsData.month_revenue || 0
-      }
-
-      return { stats, error: null }
+      console.log('🔍 [getPartnerStats] Utilisation du fallback pour businessId:', businessId)
+      // Utiliser directement le fallback car la fonction RPC n'existe pas
+      return await this.getPartnerStatsFallback(businessId)
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error)
       return { stats: null, error: 'Erreur lors de la récupération des statistiques' }
@@ -300,6 +268,8 @@ export class PartnerDashboardService {
   // Fallback pour les statistiques si la fonction RPC n'existe pas
   private static async getPartnerStatsFallback(businessId: number): Promise<{ stats: PartnerStats | null; error: string | null }> {
     try {
+      console.log('🔍 [getPartnerStatsFallback] Début pour businessId:', businessId)
+      
       // Récupérer toutes les commandes pour calculer les statistiques
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
@@ -307,9 +277,11 @@ export class PartnerDashboardService {
         .eq('business_id', businessId)
 
       if (ordersError) {
-        console.error('Erreur récupération commandes:', ordersError)
+        console.error('❌ [getPartnerStatsFallback] Erreur récupération commandes:', ordersError)
         return { stats: null, error: ordersError.message }
       }
+
+      console.log('✅ [getPartnerStatsFallback] Commandes récupérées:', orders?.length || 0)
 
       // Calculer les statistiques globales
       const totalOrders = orders?.length || 0
@@ -373,6 +345,24 @@ export class PartnerDashboardService {
         monthOrders,
         monthRevenue
       }
+
+      console.log('✅ [getPartnerStatsFallback] Statistiques calculées:', {
+        totalOrders,
+        totalRevenue,
+        averageOrderValue,
+        completedOrders,
+        pendingOrders,
+        cancelledOrders,
+        totalCustomers: uniqueCustomers,
+        rating,
+        reviewCount: reviewsData?.length || 0,
+        todayOrders,
+        todayRevenue,
+        weekOrders,
+        weekRevenue,
+        monthOrders,
+        monthRevenue
+      })
 
       return { stats, error: null }
     } catch (error) {

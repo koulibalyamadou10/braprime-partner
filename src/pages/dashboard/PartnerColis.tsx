@@ -1,41 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import Unauthorized from '@/components/Unauthorized';
+import { ColisRestrictionNotice } from '@/components/dashboard/ColisRestrictionNotice';
+import { useCurrencyRole } from '@/contexts/UseRoleContext';
+import { isInternalUser } from '@/hooks/use-internal-users';
+import { Colis, ColisStatus, CreateColisData, usePartnerColis } from '@/hooks/use-partner-colis';
+import { UserWithBusiness } from '@/lib/kservices/k-helpers';
+import {
+    AlertCircle,
+    CheckCircle,
+    Clock,
+    Download,
+    Eye,
+    Loader2,
+    MapPin,
+    Package,
+    Phone,
+    Plus,
+    RefreshCw,
+    Search,
+    Trash2,
+    Truck,
+    User,
+    XCircle
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import DashboardLayout, { partnerNavItems } from '../../components/dashboard/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { ScrollArea } from '../../components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
-import { ScrollArea } from '../../components/ui/scroll-area';
-import { 
-  Package, 
-  Plus, 
-  Search, 
-  Filter, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  MapPin, 
-  Clock, 
-  User, 
-  Phone, 
-  Truck,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  RefreshCw,
-  Download,
-  Loader2
-} from 'lucide-react';
 import { useToast } from '../../components/ui/use-toast';
-import Unauthorized from '@/components/Unauthorized';
-import { useCurrencyRole } from '@/contexts/UseRoleContext';
-import { usePartnerColis, Colis, ColisStatus, CreateColisData } from '@/hooks/use-partner-colis';
-import { isInternalUser } from '@/hooks/use-internal-users';
-import { getUserWithManyInformationsForTheDashboard, UserWithBusiness } from '@/lib/kservices/k-helpers';
 
 // Interface pour le business
 interface Business {
@@ -143,6 +142,29 @@ const PartnerColis = () => {
   useEffect(() => {
     loadUserData();
   }, []);
+
+  // Vérifier si le business est de type "package" pour accéder aux colis
+  const isPackageBusiness = business?.business_type_id === 64; // ID du type "packages" dans la base
+
+  // Afficher un message si le business n'est pas de type "package"
+  if (!isLoadingUser && business && !isPackageBusiness) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} businessTypeId={business?.business_type_id}>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Gestion des Colis</h1>
+              <p className="text-muted-foreground">
+                Gérez vos services de livraison de colis
+              </p>
+            </div>
+          </div>
+          
+          <ColisRestrictionNotice businessType={business.business_type} />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Filtrer les colis
   const filteredColis = colis.filter(colis => {
@@ -300,7 +322,7 @@ const PartnerColis = () => {
   // Vérifier si l'utilisateur est authentifié et si le business est chargé
   if (!business && isLoadingUser) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire" businessTypeId={business?.business_type_id}>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-3xl font-bold tracking-tight">Gestion des Colis</h2>
@@ -324,7 +346,7 @@ const PartnerColis = () => {
 
   if (!business) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire" businessTypeId={business?.business_type_id}>
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Aucun Business Trouvé</h3>
@@ -343,7 +365,7 @@ const PartnerColis = () => {
 
   if (userError) {
     return (
-      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire" businessTypeId={business?.business_type_id}>
         <div className="space-y-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>

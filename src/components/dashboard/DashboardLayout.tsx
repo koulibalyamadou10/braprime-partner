@@ -3,24 +3,18 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
-    BarChart3,
     Bell,
-    Building2,
-    Calendar,
     ChevronRight,
     CreditCard,
-    DollarSign,
-    FileText, Heart,
+    Heart,
     Home,
     LogOut,
-    Mail,
     MapPin,
     Menu,
     Package,
-    Settings, Shield,
+    Settings,
     ShoppingBag,
     TrendingUp,
-    Truck,
     UserCircle,
     Users,
     X
@@ -55,15 +49,27 @@ interface DashboardLayoutProps {
     href: string;
     label: string;
     icon: ReactNode;
+    businessTypeRestriction?: number;
   }[];
   title: string;
+  businessTypeId?: number;
 }
 
-const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, navItems, title, businessTypeId }: DashboardLayoutProps) => {
   const { currentUser, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Filtrer les éléments de navigation en fonction du type de business
+  const filteredNavItems = navItems.filter(item => {
+    // Si l'item a une restriction de type de business, vérifier si l'utilisateur y a accès
+    if (item.businessTypeRestriction) {
+      return businessTypeId === item.businessTypeRestriction;
+    }
+    // Sinon, l'item est accessible à tous
+    return true;
+  });
 
   const handleLogout = () => {
     logout();
@@ -124,7 +130,7 @@ const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) =>
               {title}
             </h2>
             <div className="space-y-1">
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <NavItem
                   key={item.href}
                   href={item.href}
@@ -152,8 +158,8 @@ const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) =>
   );
 };
 
-// Define navigation items for each user type
-export const partnerNavItems = [
+// Define base navigation items for partners
+const basePartnerNavItems = [
   {
     href: '/partner-dashboard',
     label: 'Tableau de bord',
@@ -183,6 +189,7 @@ export const partnerNavItems = [
     href: '/partner-dashboard/colis',
     label: 'Colis',
     icon: <Package className="h-5 w-5" />,
+    businessTypeRestriction: 64, // ID du type "packages"
   },
   {
     href: '/partner-dashboard/users',
@@ -205,6 +212,28 @@ export const partnerNavItems = [
     icon: <MapPin className="h-5 w-5" />,
   },
 ];
+
+// Function to get navigation items based on business type
+export const getPartnerNavItems = (businessTypeId?: number) => {
+  console.log('🔍 [getPartnerNavItems] businessTypeId reçu:', businessTypeId);
+  
+  const filteredItems = basePartnerNavItems.filter(item => {
+    // Si l'item a une restriction de type de business, vérifier si l'utilisateur y a accès
+    if (item.businessTypeRestriction) {
+      const hasAccess = businessTypeId === item.businessTypeRestriction;
+      console.log(`🔍 [getPartnerNavItems] Item "${item.label}" (restriction: ${item.businessTypeRestriction}) - Accès: ${hasAccess}`);
+      return hasAccess;
+    }
+    // Sinon, l'item est accessible à tous
+    return true;
+  });
+  
+  console.log('🔍 [getPartnerNavItems] Items filtrés:', filteredItems.map(item => item.label));
+  return filteredItems;
+};
+
+// Export the default navigation items (for backward compatibility)
+export const partnerNavItems = basePartnerNavItems;
 
 export const userNavItems = [
   {
