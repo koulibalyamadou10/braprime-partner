@@ -69,6 +69,8 @@ const PartnerProfile = () => {
     phone: "",
     description: "",
     address: "",
+    latitude: "",
+    longitude: "",
     cuisine_type: "",
     opening_hours: "",
     delivery_fee: "",
@@ -309,6 +311,8 @@ const PartnerProfile = () => {
         phone: profile.phone || "",
         description: profile.description || "",
         address: profile.address || "",
+        latitude: profile.latitude?.toString() || "",
+        longitude: profile.longitude?.toString() || "",
         cuisine_type: profile.cuisine_type || "",
         opening_hours: profile.opening_hours || "",
         delivery_fee: profile.delivery_fee?.toString() || "",
@@ -330,7 +334,20 @@ const PartnerProfile = () => {
       ...prev,
       [name]: value
     }));
-  }, []);
+
+    // Si les coordonnées sont modifiées manuellement, mettre à jour la carte
+    if ((name === 'latitude' || name === 'longitude') && map && marker) {
+      const lat = name === 'latitude' ? parseFloat(value) : parseFloat(formData.latitude);
+      const lng = name === 'longitude' ? parseFloat(value) : parseFloat(formData.longitude);
+      
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        const newPosition = { lat, lng };
+        map.setCenter(newPosition);
+        map.setZoom(16);
+        marker.setPosition(newPosition);
+      }
+    }
+  }, [formData.latitude, formData.longitude, map, marker]);
 
   const handleSave = useCallback(async () => {
     const updateData = {
@@ -339,6 +356,8 @@ const PartnerProfile = () => {
       phone: formData.phone,
       description: formData.description,
       address: formData.address,
+      latitude: parseFloat(formData.latitude) || null,
+      longitude: parseFloat(formData.longitude) || null,
       cuisine_type: formData.cuisine_type,
       opening_hours: formData.opening_hours,
       delivery_fee: parseInt(formData.delivery_fee) || 0,
@@ -362,13 +381,23 @@ const PartnerProfile = () => {
         geocoder.geocode({ location: { lat, lng } }, (results, status) => {
           if (status === 'OK' && results && results[0]) {
             const address = results[0].formatted_address;
-            setFormData(prev => ({ ...prev, address }));
+            setFormData(prev => ({ 
+              ...prev, 
+              address,
+              latitude: lat.toString(),
+              longitude: lng.toString()
+            }));
             setSearchQuery(address);
           } else if (status === 'OVER_QUERY_LIMIT' || status === 'REQUEST_DENIED') {
             // Si la facturation n'est pas activée, utiliser une adresse par défaut
             console.warn('Service de géocodage non disponible:', status);
             const defaultAddress = createFallbackAddress(lat, lng);
-            setFormData(prev => ({ ...prev, address: defaultAddress }));
+            setFormData(prev => ({ 
+              ...prev, 
+              address: defaultAddress,
+              latitude: lat.toString(),
+              longitude: lng.toString()
+            }));
             setSearchQuery(defaultAddress);
             
             toast({
@@ -382,7 +411,12 @@ const PartnerProfile = () => {
         console.error('Erreur lors du géocodage:', error);
         // En cas d'erreur, utiliser les coordonnées
         const fallbackAddress = createFallbackAddress(lat, lng);
-        setFormData(prev => ({ ...prev, address: fallbackAddress }));
+        setFormData(prev => ({ 
+          ...prev, 
+          address: fallbackAddress,
+          latitude: lat.toString(),
+          longitude: lng.toString()
+        }));
         setSearchQuery(fallbackAddress);
       }
     }
@@ -401,6 +435,13 @@ const PartnerProfile = () => {
             map.setCenter(userLocation);
             map.setZoom(16);
             marker.setPosition(userLocation);
+            
+            // Mettre à jour les coordonnées dans le formulaire
+            setFormData(prev => ({
+              ...prev,
+              latitude: latitude.toString(),
+              longitude: longitude.toString()
+            }));
             
             // Obtenir l'adresse correspondante
             reverseGeocode(latitude, longitude);
@@ -891,9 +932,68 @@ const PartnerProfile = () => {
                               <div className="flex-1">
                                 <p className="text-sm font-medium text-blue-900">Adresse sélectionnée :</p>
                                 <p className="text-sm text-blue-700">{formData.address}</p>
+                                {(formData.latitude && formData.longitude) && (
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    Coordonnées: {formData.latitude}, {formData.longitude}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="latitude">Latitude</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="latitude" 
+                          name="latitude" 
+                          type="number"
+                          step="any"
+                          value={formData.latitude} 
+                          onChange={handleInputChange} 
+                          disabled={!isEditing}
+                          placeholder="ex: 9.6412"
+                          className="flex-1"
+                        />
+                        {isEditing && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleGeolocation}
+                            title="Utiliser ma position actuelle"
+                          >
+                            <Navigation className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="longitude">Longitude</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="longitude" 
+                          name="longitude" 
+                          type="number"
+                          step="any"
+                          value={formData.longitude} 
+                          onChange={handleInputChange} 
+                          disabled={!isEditing}
+                          placeholder="ex: -13.5784"
+                          className="flex-1"
+                        />
+                        {isEditing && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleGeolocation}
+                            title="Utiliser ma position actuelle"
+                          >
+                            <Navigation className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </div>

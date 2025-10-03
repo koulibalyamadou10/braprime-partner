@@ -511,66 +511,86 @@ const PartnerUsers = () => {
         {/* Statistiques */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Total équipe</p>
-                {isLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : error ? (
-                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
-                    <span className="text-red-500 text-xs">!</span>
-                  </div>
-                ) : (
-                  <h3 className="text-2xl font-bold">{internalUsers.length}</h3>
-                )}
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <Users className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Total équipe</p>
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : error ? (
+                    <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                      <span className="text-red-500 text-xs">!</span>
+                    </div>
+                  ) : (
+                    <h3 className="text-2xl font-bold">{internalUsers.length}</h3>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Utilisateurs actifs</p>
-                {isLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : error ? (
-                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
-                    <span className="text-red-500 text-xs">!</span>
-                  </div>
-                ) : (
-                  <h3 className="text-2xl font-bold">{internalUsers.filter(u => u.is_active).length}</h3>
-                )}
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-100 p-2 rounded-lg">
+                  <UserCheck className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Utilisateurs actifs</p>
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : error ? (
+                    <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                      <span className="text-red-500 text-xs">!</span>
+                    </div>
+                  ) : (
+                    <h3 className="text-2xl font-bold">{internalUsers.filter(u => u.is_active).length}</h3>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Rôles différents</p>
-                {isLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : error ? (
-                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
-                    <span className="text-red-500 text-xs">!</span>
-                  </div>
-                ) : (
-                  <h3 className="text-2xl font-bold">{new Set(internalUsers.flatMap(u => u.roles)).size}</h3>
-                )}
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-purple-100 p-2 rounded-lg">
+                  <Shield className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Rôles différents</p>
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : error ? (
+                    <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                      <span className="text-red-500 text-xs">!</span>
+                    </div>
+                  ) : (
+                    <h3 className="text-2xl font-bold">{new Set(internalUsers.flatMap(u => u.roles)).size}</h3>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Utilisateurs inactifs</p>
-                {isLoading ? (
-                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : error ? (
-                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
-                    <span className="text-red-500 text-xs">!</span>
-                  </div>
-                ) : (
-                  <h3 className="text-2xl font-bold">{internalUsers.filter(u => !u.is_active).length}</h3>
-                )}
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-100 p-2 rounded-lg">
+                  <UserX className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Utilisateurs inactifs</p>
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : error ? (
+                    <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                      <span className="text-red-500 text-xs">!</span>
+                    </div>
+                  ) : (
+                    <h3 className="text-2xl font-bold">{internalUsers.filter(u => !u.is_active).length}</h3>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -598,8 +618,17 @@ const PartnerUsers = () => {
         )}
 
         {/* Filtres et recherche */}
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-blue-600" />
+              Filtres et Recherche
+            </CardTitle>
+            <CardDescription>
+              Recherchez et filtrez les utilisateurs de votre équipe
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-1 gap-4">
                 <div className="relative flex-1 max-w-md">
@@ -611,46 +640,51 @@ const PartnerUsers = () => {
                     className="pl-10"
                   />
                 </div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tous les statuts</option>
-                  <option value="active">Actifs</option>
-                  <option value="inactive">Inactifs</option>
-                  <option value="suspended">Suspendus</option>
-                </select>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tous les rôles internes</option>
-                  <option value="admin">Administrateur</option>
-                  <option value="commandes">Commandes</option>
-                  <option value="menu">Menu</option>
-                  <option value="reservations">Réservations</option>
-                  <option value="livreurs">Livreurs</option>
-                  <option value="revenu">Revenus</option>
-                  <option value="user">Utilisateurs</option>
-                  <option value="facturation">Facturation</option>
-                </select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    <SelectItem value="active">Actifs</SelectItem>
+                    <SelectItem value="inactive">Inactifs</SelectItem>
+                    <SelectItem value="suspended">Suspendus</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Rôle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les rôles</SelectItem>
+                    <SelectItem value="admin">Administrateur</SelectItem>
+                    <SelectItem value="commandes">Commandes</SelectItem>
+                    <SelectItem value="menu">Menu</SelectItem>
+                    <SelectItem value="reservations">Réservations</SelectItem>
+                    <SelectItem value="livreurs">Livreurs</SelectItem>
+                    <SelectItem value="revenu">Revenus</SelectItem>
+                    <SelectItem value="user">Utilisateurs</SelectItem>
+                    <SelectItem value="facturation">Facturation</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtres Avancés
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Actualiser
               </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Table des utilisateurs internes */}
-        <Card className="border-0 shadow-lg">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Liste de l'Équipe Interne</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  Liste de l'Équipe Interne
+                </CardTitle>
                 <CardDescription>
                   {isLoading ? (
                     <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
@@ -750,111 +784,109 @@ const PartnerUsers = () => {
                 </Button>
               </div>
             ) : (
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Utilisateur</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>Rôle</TableHead>
-                      <TableHead>Dernière Connexion</TableHead>
-                      <TableHead>Créé par</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInternalUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <User className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{user.name}</p>
-                              <p className="text-sm text-gray-500">ID: {user.id}</p>
-                            </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Utilisateur</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Rôle</TableHead>
+                    <TableHead>Dernière Connexion</TableHead>
+                    <TableHead>Créé par</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInternalUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-blue-600" />
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
+                          <div>
+                            <p className="font-medium">{user.name}</p>
+                            <p className="text-sm text-muted-foreground">ID: {user.id}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{user.email}</span>
+                          </div>
+                          {user.phone && (
                             <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-gray-400" />
-                              <span className="text-sm">{user.email}</span>
+                              <Phone className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">{user.phone}</span>
                             </div>
-                            {user.phone && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm">{user.phone}</span>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${getStatusColor(user.is_active ? 'active' : 'inactive')} flex w-fit items-center gap-1`}>
-                            {getStatusIcon(user.is_active ? 'active' : 'inactive')}
-                            <span>{getStatusLabel(user.is_active ? 'active' : 'inactive')}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {user.roles.map((role, index) => (
-                              <Badge key={index} className={`${getInternalRoleColor(role)} flex w-fit items-center gap-1`}>
-                                {getInternalRoleIcon(role)}
-                                <span>{getInternalRoleLabel(role)}</span>
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">
-                              {user.last_login ? formatDate(user.last_login) : 'Jamais connecté'}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{user.created_by}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleToggleUserStatus(user.id, !user.is_active)}
-                              disabled={isUpdating}
-                            >
-                              {user.is_active ? 'Désactiver' : 'Activer'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditDialog(user)}
-                              disabled={isUpdating}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openDeleteDialog(user)}
-                              disabled={isDeleting}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`${getStatusColor(user.is_active ? 'active' : 'inactive')} flex w-fit items-center gap-1`}>
+                          {getStatusIcon(user.is_active ? 'active' : 'inactive')}
+                          <span>{getStatusLabel(user.is_active ? 'active' : 'inactive')}</span>
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.map((role, index) => (
+                            <Badge key={index} className={`${getInternalRoleColor(role)} flex w-fit items-center gap-1`}>
+                              {getInternalRoleIcon(role)}
+                              <span>{getInternalRoleLabel(role)}</span>
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            {user.last_login ? formatDate(user.last_login) : 'Jamais connecté'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{user.created_by}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleToggleUserStatus(user.id, !user.is_active)}
+                            disabled={isUpdating}
+                          >
+                            {user.is_active ? 'Désactiver' : 'Activer'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditDialog(user)}
+                            disabled={isUpdating}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openDeleteDialog(user)}
+                            disabled={isDeleting}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

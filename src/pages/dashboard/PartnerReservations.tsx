@@ -35,7 +35,9 @@ import {
   RefreshCw,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  Send,
+  MessageSquare
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import {
@@ -52,7 +54,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format } from 'date-fns';
-import { useToast } from '@/components/ui/use-toast';
 import { ReservationSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { usePartnerReservations, PartnerReservation } from '@/hooks/use-partner-reservations';
 import { AssignTableDialog } from '@/components/AssignTableDialog';
@@ -63,6 +64,7 @@ import Unauthorized from '@/components/Unauthorized';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { isInternalUser } from '@/hooks/use-internal-users';
+import ReservationEmailService from '@/lib/services/reservation-email-service';
 
 // Helper function to get status color
 const getStatusColor = (status: PartnerReservation['status']) => {
@@ -125,7 +127,6 @@ const PartnerReservations = () => {
   }
 
   const { currentUser } = useAuth();
-  const { toast } = useToast();
   
   // États pour les données utilisateur et business
   const [userData, setUserData] = useState<any>(null);
@@ -303,16 +304,33 @@ const PartnerReservations = () => {
     const result = await updateReservationStatus(reservationId, newStatus);
     
     if (result.success) {
-      toast({
-        title: "Statut mis à jour",
-        description: `La réservation a été ${getStatusLabel(newStatus).toLowerCase()}.`,
-      });
+      // Trouver la réservation mise à jour
+      const updatedReservation = reservationsToUse.find(r => r.id === reservationId);
+      
+      if (updatedReservation && business) {
+        // Envoyer un email de mise à jour de statut
+        try {
+          const emailResult = await ReservationEmailService.sendStatusUpdate(
+            updatedReservation,
+            newStatus,
+            business,
+            userData?.name || 'Équipe'
+          );
+          
+          if (emailResult.success) {
+            toast.success(`Statut mis à jour et email envoyé au client`);
+          } else {
+            toast.warning(`Statut mis à jour mais erreur d'envoi d'email: ${emailResult.error}`);
+          }
+        } catch (error) {
+          console.error('Erreur envoi email:', error);
+          toast.warning(`Statut mis à jour mais erreur d'envoi d'email`);
+        }
+      } else {
+        toast.success(`La réservation a été ${getStatusLabel(newStatus).toLowerCase()}.`);
+      }
     } else {
-      toast({
-        title: "Erreur",
-        description: result.error || "Impossible de mettre à jour le statut",
-        variant: "destructive",
-      });
+      toast.error(result.error || "Impossible de mettre à jour le statut");
     }
   };
 
@@ -321,18 +339,50 @@ const PartnerReservations = () => {
     const result = await assignTable(reservationId, tableNumber);
     
     if (result.success) {
-      toast({
-        title: "Table assignée",
-        description: `La table ${tableNumber} a été assignée à cette réservation.`,
-      });
+      // Trouver la réservation mise à jour
+      const updatedReservation = reservationsToUse.find(r => r.id === reservationId);
+      
+      if (updatedReservation && business) {
+        // Envoyer un email d'assignation de table
+        try {
+          const emailResult = await ReservationEmailService.sendTableAssignment({
+            reservation_id: updatedReservation.id,
+            user_name: updatedReservation.customer_name || 'Client',
+            user_email: updatedReservation.customer_email || '',
+            user_phone: updatedReservation.customer_phone,
+            business_name: business.name || 'Notre établissement',
+            business_email: business.email || '',
+            business_phone: business.phone,
+            business_address: business.address,
+            date: updatedReservation.date,
+            time: updatedReservation.time,
+            guests: updatedReservation.guests || 1,
+            table_number: tableNumber.toString(),
+            table_description: `Table ${tableNumber} - ${business.name}`,
+            assigned_at: new Date().toISOString(),
+            assigned_by: userData?.name || 'Équipe',
+            special_requests: updatedReservation.special_requests,
+            support_email: 'support@bradelivery.com',
+            support_phone: '+224 621 00 00 00'
+          });
+          
+          if (emailResult.success) {
+            toast.success(`Table ${tableNumber} assignée et email envoyé au client`);
+          } else {
+            toast.warning(`Table assignée mais erreur d'envoi d'email: ${emailResult.error}`);
+          }
+        } catch (error) {
+          console.error('Erreur envoi email assignation:', error);
+          toast.warning(`Table assignée mais erreur d'envoi d'email`);
+        }
+      } else {
+        toast.success(`La table ${tableNumber} a été assignée à cette réservation.`);
+      }
+      
       // Rafraîchir les réservations
       fetchPartnerReservations();
     } else {
-      toast({
-        title: "Erreur",
-        description: result.error || "Impossible d'assigner la table",
-        variant: "destructive",
-      });
+      toast.error(result.error || "Impossible d'assigner la table");
     }
   };
 
@@ -346,6 +396,81 @@ const PartnerReservations = () => {
   const handleCloseAssignTable = () => {
     setIsAssignTableOpen(false);
     setReservationForTable(null);
+  };
+
+  // Envoyer un email de confirmation manuellement
+  const handleSendConfirmationEmail = async (reservation: PartnerReservation) => {
+    if (!business) {
+      toast.error('Informations du business manquantes');
+      return;
+    }
+
+    try {
+      const emailResult = await ReservationEmailService.sendReservationConfirmation({
+        reservation_id: reservation.id,
+        user_name: reservation.customer_name || 'Client',
+        user_email: reservation.customer_email || '',
+        user_phone: reservation.customer_phone,
+        business_name: business.name || 'Notre établissement',
+        business_address: business.address,
+        business_phone: business.phone,
+        date: reservation.date,
+        time: reservation.time,
+        guests: reservation.guests || 1,
+        status: reservation.status,
+        special_requests: reservation.special_requests,
+        reservation_created_at: reservation.created_at || new Date().toISOString(),
+        confirmation_code: reservation.confirmation_code,
+        support_email: 'support@bradelivery.com',
+        support_phone: '+224 621 00 00 00'
+      });
+
+      if (emailResult.success) {
+        toast.success('Email de confirmation envoyé au client');
+      } else {
+        toast.error(`Erreur d'envoi: ${emailResult.error}`);
+      }
+    } catch (error) {
+      console.error('Erreur envoi email confirmation:', error);
+      toast.error('Erreur lors de l\'envoi de l\'email');
+    }
+  };
+
+  // Envoyer un email d'annulation manuellement
+  const handleSendCancellationEmail = async (reservation: PartnerReservation) => {
+    if (!business) {
+      toast.error('Informations du business manquantes');
+      return;
+    }
+
+    try {
+      const emailResult = await ReservationEmailService.sendReservationCancellation({
+        reservation_id: reservation.id,
+        user_name: reservation.customer_name || 'Client',
+        user_email: reservation.customer_email || '',
+        user_phone: reservation.customer_phone,
+        business_name: business.name || 'Notre établissement',
+        business_email: business.email || '',
+        business_phone: business.phone,
+        date: reservation.date,
+        time: reservation.time,
+        guests: reservation.guests || 1,
+        cancellation_reason: 'Annulation par l\'établissement',
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: 'business',
+        support_email: 'support@bradelivery.com',
+        support_phone: '+224 621 00 00 00'
+      });
+
+      if (emailResult.success) {
+        toast.success('Email d\'annulation envoyé au client');
+      } else {
+        toast.error(`Erreur d'envoi: ${emailResult.error}`);
+      }
+    } catch (error) {
+      console.error('Erreur envoi email annulation:', error);
+      toast.error('Erreur lors de l\'envoi de l\'email');
+    }
   };
 
   // Charger les données au montage
@@ -1102,6 +1227,25 @@ const PartnerReservations = () => {
                                       Annuler
                                     </DropdownMenuItem>
                                   )}
+                                  
+                                  {/* Actions d'email */}
+                                  <DropdownMenuItem 
+                                    onClick={() => handleSendConfirmationEmail(reservation)}
+                                    disabled={!reservation.customer_email}
+                                  >
+                                    <Send className="mr-2 h-4 w-4" />
+                                    Envoyer confirmation
+                                  </DropdownMenuItem>
+                                  
+                                  {reservation.status === 'cancelled' && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleSendCancellationEmail(reservation)}
+                                      disabled={!reservation.customer_email}
+                                    >
+                                      <MessageSquare className="mr-2 h-4 w-4" />
+                                      Envoyer annulation
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -1170,7 +1314,7 @@ const PartnerReservations = () => {
                     <p className="text-sm text-muted-foreground">{selectedReservation.special_requests}</p>
                   </div>
                 )}
-                <div className="flex gap-2 pt-4">
+                <div className="flex flex-wrap gap-2 pt-4">
                   {selectedReservation.status === 'pending' && (
                     <Button onClick={() => handleUpdateStatus(selectedReservation.id, 'confirmed')}>
                       Confirmer
@@ -1204,6 +1348,27 @@ const PartnerReservations = () => {
                   {selectedReservation.status !== 'cancelled' && selectedReservation.status !== 'completed' && selectedReservation.status !== 'no_show' && (
                     <Button variant="destructive" onClick={() => handleUpdateStatus(selectedReservation.id, 'cancelled')}>
                       Annuler
+                    </Button>
+                  )}
+                  
+                  {/* Actions d'email */}
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleSendConfirmationEmail(selectedReservation)}
+                    disabled={!selectedReservation.customer_email}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    Envoyer confirmation
+                  </Button>
+                  
+                  {selectedReservation.status === 'cancelled' && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleSendCancellationEmail(selectedReservation)}
+                      disabled={!selectedReservation.customer_email}
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Envoyer annulation
                     </Button>
                   )}
                 </div>

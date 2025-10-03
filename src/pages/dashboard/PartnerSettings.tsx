@@ -289,51 +289,33 @@ const PartnerSettings: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout navItems={partnerNavItems}>
-        <div className="space-y-6">
-          <Skeleton className="h-8 w-48" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Si pas de business, afficher un message d'erreur
-  if (!business) {
-    return (
-      <DashboardLayout navItems={partnerNavItems}>
-        <div className="space-y-6">
-          <div className="text-center py-12">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Aucun business trouvé</h2>
-            <p className="text-muted-foreground mb-4">
-              Aucun business n'est associé à votre compte. Veuillez contacter l'administrateur.
-            </p>
-            <Button onClick={() => window.location.reload()}>
-              Actualiser la page
-            </Button>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Gestion d'erreurs granulaire - affichée en haut de page
+  const ErrorCard = () => (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 text-red-500" />
+        <p className="text-sm text-red-700">
+          Aucun business associé à votre compte. Veuillez contacter l'administrateur.
+        </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => window.location.reload()}
+          className="ml-auto"
+        >
+          <Settings className="h-4 w-4 mr-1" />
+          Actualiser
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <DashboardLayout navItems={partnerNavItems}>
       <div className="space-y-6">
+        {/* Affichage des erreurs seulement s'il y en a et que le chargement est terminé */}
+        {!business && !businessLoading && <ErrorCard />}
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Paramètres</h1>
@@ -346,15 +328,15 @@ const PartnerSettings: React.FC = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="general" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 text-blue-600" />
               Général
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
+              <Bell className="h-4 w-4 text-yellow-600" />
               Notifications
             </TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
+              <Shield className="h-4 w-4 text-red-600" />
               Sécurité
             </TabsTrigger>
           </TabsList>
@@ -364,7 +346,7 @@ const PartnerSettings: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
+                  <Building2 className="h-5 w-5 text-blue-600" />
                   Informations de base
                 </CardTitle>
                 <CardDescription>
@@ -447,7 +429,7 @@ const PartnerSettings: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
+                  <Truck className="h-5 w-5 text-green-600" />
                   Paramètres de livraison
                 </CardTitle>
                 <CardDescription>
@@ -503,7 +485,7 @@ const PartnerSettings: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
+                  <Settings className="h-5 w-5 text-purple-600" />
                   Statut du business
                 </CardTitle>
                 <CardDescription>
@@ -541,7 +523,7 @@ const PartnerSettings: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5" />
+                  <Globe className="h-5 w-5 text-orange-600" />
                   Paramètres régionaux
                 </CardTitle>
                 <CardDescription>
@@ -696,7 +678,7 @@ const PartnerSettings: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
+                  <Bell className="h-5 w-5 text-yellow-600" />
                   Paramètres de notification
                 </CardTitle>
                 <CardDescription>
@@ -842,7 +824,7 @@ const PartnerSettings: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
+                  <Shield className="h-5 w-5 text-red-600" />
                   Sécurité du compte
                 </CardTitle>
                 <CardDescription>
