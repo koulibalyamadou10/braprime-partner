@@ -50,7 +50,9 @@ import {
   Clock,
   Truck,
   Loader2,
-  X
+  X,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -507,63 +509,93 @@ const PartnerUsers = () => {
         </div>
 
         {/* Statistiques */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Card>
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Total Équipe</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {internalUsers.length}
-                  </p>
-                </div>
-                <Users className="h-8 w-8 text-gray-600" />
+                <p className="text-sm text-gray-500">Total équipe</p>
+                {isLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : error ? (
+                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                    <span className="text-red-500 text-xs">!</span>
+                  </div>
+                ) : (
+                  <h3 className="text-2xl font-bold">{internalUsers.length}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
+          <Card>
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Utilisateurs Actifs</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {internalUsers.filter(u => u.is_active).length}
-                  </p>
-                </div>
-                <UserCheck className="h-8 w-8 text-gray-600" />
+                <p className="text-sm text-gray-500">Utilisateurs actifs</p>
+                {isLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : error ? (
+                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                    <span className="text-red-500 text-xs">!</span>
+                  </div>
+                ) : (
+                  <h3 className="text-2xl font-bold">{internalUsers.filter(u => u.is_active).length}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
+          <Card>
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Rôles Différents</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {new Set(internalUsers.flatMap(u => u.roles)).size}
-                  </p>
-                </div>
-                <Shield className="h-8 w-8 text-gray-600" />
+                <p className="text-sm text-gray-500">Rôles différents</p>
+                {isLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : error ? (
+                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                    <span className="text-red-500 text-xs">!</span>
+                  </div>
+                ) : (
+                  <h3 className="text-2xl font-bold">{new Set(internalUsers.flatMap(u => u.roles)).size}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="border-0 shadow-lg">
-            <CardContent className="p-6">
+          <Card>
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Dernière Connexion</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {internalUsers.length > 0 ? 'Aujourd\'hui' : 'Aucune'}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-gray-600" />
+                <p className="text-sm text-gray-500">Utilisateurs inactifs</p>
+                {isLoading ? (
+                  <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+                ) : error ? (
+                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                    <span className="text-red-500 text-xs">!</span>
+                  </div>
+                ) : (
+                  <h3 className="text-2xl font-bold">{internalUsers.filter(u => !u.is_active).length}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Message d'erreur discret pour les données dynamiques */}
+        {error && !isLoading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+              <p className="text-sm text-red-700">
+                Erreur lors du chargement des utilisateurs: {error}
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefetchClick}
+                className="ml-auto"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Réessayer
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Filtres et recherche */}
         <Card className="border-0 shadow-lg">
@@ -616,16 +648,99 @@ const PartnerUsers = () => {
         {/* Table des utilisateurs internes */}
         <Card className="border-0 shadow-lg">
           <CardHeader>
-            <CardTitle>Liste de l'Équipe Interne</CardTitle>
-            <CardDescription>
-              {filteredInternalUsers.length} membre(s) de l'équipe trouvé(s)
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Liste de l'Équipe Interne</CardTitle>
+                <CardDescription>
+                  {isLoading ? (
+                    <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+                  ) : (
+                    <>
+                      {filteredInternalUsers.length} membre(s) de l'équipe trouvé(s)
+                      {filteredInternalUsers.length !== internalUsers.length && (
+                        <span className="text-blue-600 ml-1">
+                          (sur {internalUsers.length} total)
+                        </span>
+                      )}
+                    </>
+                  )}
+                </CardDescription>
+              </div>
+              
+              {/* Bouton de rechargement discret */}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleRefetchClick}
+                disabled={isLoading}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-500 mt-2">Chargement des utilisateurs internes...</p>
+              // Skeleton loader pour le tableau des utilisateurs
+              <div className="space-y-4">
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Utilisateur</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead>Rôle</TableHead>
+                        <TableHead>Dernière Connexion</TableHead>
+                        <TableHead>Créé par</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[1, 2, 3, 4, 5].map((_, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                              <div className="space-y-2">
+                                <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                                <div className="h-3 w-16 bg-gray-200 rounded animate-pulse"></div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-2">
+                              <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+                              <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <div className="h-6 w-20 bg-gray-200 rounded animate-pulse"></div>
+                              <div className="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <div className="h-8 w-20 bg-gray-200 rounded animate-pulse"></div>
+                              <div className="h-8 w-8 bg-gray-200 rounded animate-pulse"></div>
+                              <div className="h-8 w-8 bg-gray-200 rounded animate-pulse"></div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             ) : error ? (
               <div className="text-center py-12">

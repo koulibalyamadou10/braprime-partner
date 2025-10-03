@@ -16,16 +16,21 @@ import {
     Clock,
     Eye,
     Filter,
+    Loader2,
     MapPin,
     MoreHorizontal,
     Package,
     Phone,
     RefreshCw,
     Search,
+    ShoppingBag,
     Timer,
     Truck,
     User,
-    XCircle
+    Users,
+    XCircle,
+    Wifi,
+    WifiOff
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -84,6 +89,47 @@ const PartnerOrders = () => {
   const [filterDeliveryType, setFilterDeliveryType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [zoneFilter, setZoneFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("recent");
+  const [dateRange, setDateRange] = useState<string>("all");
+  const [amountRange, setAmountRange] = useState<string>("all");
+  const [paymentMethod, setPaymentMethod] = useState<string>("all");
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+
+  // Fonction pour jouer le son de notification
+  const playNotificationSound = () => {
+    try {
+      console.log('🔊 Tentative de lecture du son de notification');
+      const audio = new Audio('/son.wav');
+      audio.volume = 0.7; // Volume à 70%
+      
+      // Gérer les événements audio
+      audio.addEventListener('canplaythrough', () => {
+        console.log('🔊 Son prêt à être joué');
+      });
+      
+      audio.addEventListener('error', (e) => {
+        console.error('🔊 Erreur audio:', e);
+      });
+      
+      audio.play().then(() => {
+        console.log('🔊 Son joué avec succès');
+      }).catch(error => {
+        console.warn('🔊 Impossible de jouer le son de notification:', error);
+        // Essayer avec un son de fallback
+        try {
+          const fallbackAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBS13yO/eizEIHWq+8+OWT');
+          fallbackAudio.volume = 0.3;
+          fallbackAudio.play().catch(() => {
+            console.warn('🔊 Impossible de jouer le son de fallback');
+          });
+        } catch (fallbackError) {
+          console.warn('🔊 Erreur avec le son de fallback:', fallbackError);
+        }
+      });
+    } catch (error) {
+      console.warn('🔊 Erreur lors de la lecture du son:', error);
+    }
+  };
 
   // État pour la sélection multiple de commandes prêtes
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -109,7 +155,9 @@ const PartnerOrders = () => {
         
         await loadOrders(businessIdOrigin);
       } else {
-        setError('Aucun business associé à votre compte partenaire');
+        // Ne pas définir d'erreur ici, laisser la condition !business gérer l'affichage
+        setUserData(null);
+        setBusiness(null);
       }
     } catch (err) {
       console.error('Erreur lors du chargement des données utilisateur:', err);
@@ -221,8 +269,13 @@ const PartnerOrders = () => {
           return acc;
         }, []);
 
-        setOrders(uniqueOrders);
-        setFilteredOrders(uniqueOrders);
+        // Trier par défaut par date de création (plus récentes en premier)
+        const sortedOrders = uniqueOrders.sort((a, b) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+
+        setOrders(sortedOrders);
+        setFilteredOrders(sortedOrders);
       }
     } catch (err) {
       console.error('Erreur lors du chargement des commandes:', err);
@@ -235,7 +288,149 @@ const PartnerOrders = () => {
     loadUserData();
   }, []);
 
-  // Filtrer les commandes
+  // Écouter les mises à jour en temps réel des commandes
+  useEffect(() => {
+    if (!business?.id) return;
+
+    console.log('🔄 [PartnerOrders] Configuration de l\'écoute temps réel pour les commandes du business:', business.id);
+
+    // S'abonner aux mises à jour des commandes du business
+    const ordersSubscription = supabase
+      .channel('partner-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `business_id=eq.${business.id}`
+        },
+        (payload) => {
+          console.log('🔄 [PartnerOrders] Nouvelle commande reçue:', payload);
+          
+          const newOrder = payload.new as any;
+          
+          // Ajouter la nouvelle commande en haut de la liste
+          setOrders(prev => {
+            const exists = prev.find(order => order.id === newOrder.id);
+            if (exists) return prev;
+            
+            // Transformer la nouvelle commande pour correspondre à l'interface DashboardOrder
+            const transformedOrder: DashboardOrder = {
+              ...newOrder,
+              business_id: business.id,
+              customer_name: 'Nouveau client', // Sera mis à jour lors du rechargement
+              customer_phone: 'Téléphone inconnu',
+              driver_name: null,
+              driver_phone: null,
+              driver_vehicle_type: null,
+              driver_vehicle_plate: null,
+              items: []
+            };
+            
+            return [transformedOrder, ...prev];
+          });
+          
+          toast.success('Nouvelle commande reçue !');
+          
+          // Jouer le son de notification
+          playNotificationSound();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `business_id=eq.${business.id}`
+        },
+        (payload) => {
+          console.log('🔄 [PartnerOrders] Commande mise à jour:', payload);
+          
+          const updatedOrder = payload.new as any;
+          const oldOrder = payload.old as any;
+          
+          // Mettre à jour la commande dans la liste
+          setOrders(prev => 
+            prev.map(order => 
+              order.id === updatedOrder.id 
+                ? { ...order, ...updatedOrder }
+                : order
+            )
+          );
+          
+          // Log du changement de statut
+          if (oldOrder.status !== updatedOrder.status) {
+            console.log(`📦 [PartnerOrders] Statut de commande changé: ${oldOrder.status} → ${updatedOrder.status}`);
+            
+            // Afficher une notification pour les changements de statut importants
+            const statusLabels = {
+              'pending': 'En attente',
+              'confirmed': 'Confirmée',
+              'preparing': 'En préparation',
+              'ready': 'Prête',
+              'out_for_delivery': 'En livraison',
+              'delivered': 'Livrée',
+              'cancelled': 'Annulée'
+            };
+            
+            const oldLabel = statusLabels[oldOrder.status as keyof typeof statusLabels] || oldOrder.status || 'Inconnu';
+            const newLabel = statusLabels[updatedOrder.status as keyof typeof statusLabels] || updatedOrder.status || 'Inconnu';
+            
+            console.log('📦 Changement de statut:', { oldStatus: oldOrder.status, newStatus: updatedOrder.status, oldLabel, newLabel });
+            
+            toast.info(`Commande #${updatedOrder.id.slice(-8)}: ${oldLabel} → ${newLabel}`);
+            
+            // Jouer le son pour les changements de statut importants
+            if (['ready', 'out_for_delivery', 'delivered'].includes(updatedOrder.status)) {
+              playNotificationSound();
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'orders',
+          filter: `business_id=eq.${business.id}`
+        },
+        (payload) => {
+          console.log('🔄 [PartnerOrders] Commande supprimée:', payload);
+          
+          const deletedOrder = payload.old as any;
+          
+          // Retirer la commande de la liste
+          setOrders(prev => 
+            prev.filter(order => order.id !== deletedOrder.id)
+          );
+          
+          toast.warning(`Commande #${deletedOrder.id.slice(-8)} supprimée`);
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔄 [PartnerOrders] Statut de l\'abonnement aux commandes:', status);
+        
+        // Mettre à jour le statut de connexion temps réel
+        if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('connected');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setRealtimeStatus('disconnected');
+        } else {
+          setRealtimeStatus('connecting');
+        }
+      });
+
+    // Nettoyer l'abonnement au démontage
+    return () => {
+      console.log('🔄 [PartnerOrders] Nettoyage de l\'abonnement temps réel aux commandes');
+      supabase.removeChannel(ordersSubscription);
+    };
+  }, [business?.id]);
+
+  // Filtrer et trier les commandes
   useEffect(() => {
     let filtered = orders;
 
@@ -265,6 +460,78 @@ const PartnerOrders = () => {
       );
     }
 
+    // Filtrer par plage de dates
+    if (dateRange !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.created_at);
+        
+        switch (dateRange) {
+          case "today":
+            return orderDate >= today;
+          case "yesterday":
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            return orderDate >= yesterday && orderDate < today;
+          case "week":
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            return orderDate >= weekAgo;
+          case "month":
+            const monthAgo = new Date(today);
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            return orderDate >= monthAgo;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filtrer par plage de montant
+    if (amountRange !== "all") {
+      filtered = filtered.filter(order => {
+        const total = order.grand_total;
+        
+        switch (amountRange) {
+          case "low":
+            return total < 50000; // Moins de 50k GNF
+          case "medium":
+            return total >= 50000 && total < 200000; // 50k à 200k GNF
+          case "high":
+            return total >= 200000; // Plus de 200k GNF
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filtrer par méthode de paiement
+    if (paymentMethod !== "all") {
+      filtered = filtered.filter(order => order.payment_method === paymentMethod);
+    }
+
+    // Trier les résultats
+    filtered = filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "recent":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case "oldest":
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case "amount_high":
+          return b.grand_total - a.grand_total;
+        case "amount_low":
+          return a.grand_total - b.grand_total;
+        case "customer_name":
+          return a.customer_name.localeCompare(b.customer_name);
+        case "status":
+          return a.status.localeCompare(b.status);
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+
     // Dédupliquer une dernière fois par sécurité
     const uniqueFiltered = filtered.reduce((acc: DashboardOrder[], order) => {
       const existingOrder = acc.find(o => o.id === order.id);
@@ -275,7 +542,7 @@ const PartnerOrders = () => {
     }, []);
 
     setFilteredOrders(uniqueFiltered);
-  }, [orders, filterStatus, filterDeliveryType, searchQuery, zoneFilter]);
+  }, [orders, filterStatus, filterDeliveryType, searchQuery, zoneFilter, sortBy, dateRange, amountRange, paymentMethod]);
 
   // Charger les livreurs disponibles pour l'assignation multiple - DÉSACTIVÉ
   // const loadAvailableDrivers = async () => {
@@ -741,72 +1008,75 @@ const PartnerOrders = () => {
     }
   }
 
-  // Vérifier si l'utilisateur est authentifié et si le business est chargé
-     if (!business && isLoading) {
-     return (
-       <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
-        <PartnerOrdersSkeleton />
-      </DashboardLayout>
-    );
-  }
+  // Gestion d'erreurs granulaire - affichée en haut de page
+  const ErrorCard = () => (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 text-red-500" />
+        <p className="text-sm text-red-700">
+          Erreur lors du chargement des données: {error}
+        </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={loadUserData}
+          className="ml-auto"
+        >
+          <RefreshCw className="h-4 w-4 mr-1" />
+          Réessayer
+        </Button>
+      </div>
+    </div>
+  );
 
-     if (!business) {
-     return (
-       <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Aucun Business Trouvé</h3>
-            <p className="text-muted-foreground mb-4">
-              Aucun business n'est associé à votre compte partenaire.
-            </p>
-            <Button onClick={loadUserData}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Actualiser
-            </Button>
+  // Si en cours de chargement et pas de business, afficher un skeleton
+  if (!business && isLoading) {
+    return (
+      <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
+        <div className="space-y-6">
+          {/* Header STATIQUE - toujours visible */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes Payées</h2>
+              <p className="text-gray-500">
+                Chargement des données...
+              </p>
+            </div>
+          </div>
+          
+          {/* Skeleton pour les statistiques */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white border rounded-lg p-4 animate-pulse">
+                <div className="flex items-center justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  <div className="h-8 bg-gray-200 rounded w-8"></div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </DashboardLayout>
     );
   }
 
-     // Afficher le chargement progressif une fois que le business est chargé
-   if (business && isLoading) {
-     return (
-       <DashboardLayout navItems={navItems} title="Gestion des Commandes Payées" businessTypeId={businessTypeId}>
-        <PartnerOrdersProgressiveSkeleton
-          business={business}
-          isBusinessLoading={false}
-          isOrdersLoading={isLoading}
-        />
-      </DashboardLayout>
-    );
-  }
-
-     if (error) {
-     return (
-       <DashboardLayout navItems={navItems} title="Gestion des Commandes Payées" businessTypeId={businessTypeId}>
+  // Si pas de business ET chargement terminé, afficher un message d'erreur mais garder la structure
+  if (!business && !isLoading) {
+    return (
+      <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
         <div className="space-y-6">
+          {/* Affichage des erreurs seulement s'il y en a */}
+          {error && <ErrorCard />}
+          
+          {/* Header STATIQUE - toujours visible */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes</h2>
-              <p className="text-gray-500">Erreur lors du chargement des commandes.</p>
+              <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes Payées</h2>
+              <p className="text-gray-500">
+                Aucun business associé à votre compte partenaire
+              </p>
             </div>
           </div>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-red-500 mb-4">{error}</p>
-              <div className="flex gap-2">
-                {/* <Button onClick={preloadData} variant="outline">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Précharger
-                </Button>
-                <Button onClick={() => business && loadOrders(business.id)}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Réessayer
-                </Button> */}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </DashboardLayout>
     );
@@ -815,13 +1085,20 @@ const PartnerOrders = () => {
      return (
      <DashboardLayout navItems={navItems} title="Gestion des Commandes Payées" businessTypeId={businessTypeId}>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Affichage des erreurs seulement s'il y en a et que le chargement est terminé */}
+        {error && !isLoading && <ErrorCard />}
+
+        {/* Header STATIQUE - toujours visible */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-                         <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes Payées</h2>
-             <p className="text-gray-500">
-               Gérez les commandes payées de {business.name}
-             </p>
+            <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes Payées</h2>
+            <p className="text-gray-500">
+              Gérez les commandes payées de {business.name} - {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400 inline ml-1" />
+              ) : (
+                `${orders.length} commandes au total`
+              )}
+            </p>
             {stats.duplicates > 0 && (
               <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
                 <p className="text-sm text-yellow-700">
@@ -840,42 +1117,65 @@ const PartnerOrders = () => {
         </div>
 
         {/* Filtres et recherche */}
-        <div className="flex flex-col gap-4 md:flex-row">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input 
-                type="search" 
-                placeholder="Rechercher par client ou ID commande..." 
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+        <div className="space-y-4">
+          {/* Première ligne - Recherche et tri */}
+          <div className="flex flex-col gap-4 md:flex-row">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input 
+                  type="search" 
+                  placeholder="Rechercher par client ou ID commande..." 
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="relative">
+                <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input 
+                  type="search" 
+                  placeholder="Filtrer par zone..." 
+                  className="pl-8"
+                  value={zoneFilter}
+                  onChange={(e) => setZoneFilter(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              <Select 
+                value={sortBy} 
+                onValueChange={setSortBy}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Trier par" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Plus récentes</SelectItem>
+                  <SelectItem value="oldest">Plus anciennes</SelectItem>
+                  <SelectItem value="amount_high">Montant élevé</SelectItem>
+                  <SelectItem value="amount_low">Montant faible</SelectItem>
+                  <SelectItem value="customer_name">Nom client</SelectItem>
+                  <SelectItem value="status">Statut</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <div className="flex-1">
-            <div className="relative">
-              <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input 
-                type="search" 
-                placeholder="Filtrer par zone..." 
-                className="pl-8"
-                value={zoneFilter}
-                onChange={(e) => setZoneFilter(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
+
+          {/* Deuxième ligne - Filtres avancés */}
+          <div className="flex flex-col gap-4 md:flex-row">
             <Select 
               value={filterStatus} 
               onValueChange={setFilterStatus}
             >
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrer par statut" />
+                <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes les commandes</SelectItem>
+                <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="pending">En attente</SelectItem>
                 <SelectItem value="confirmed">Confirmée</SelectItem>
                 <SelectItem value="preparing">En préparation</SelectItem>
@@ -899,6 +1199,85 @@ const PartnerOrders = () => {
                 <SelectItem value="scheduled">Programmée</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select 
+              value={dateRange} 
+              onValueChange={setDateRange}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Période" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les périodes</SelectItem>
+                <SelectItem value="today">Aujourd'hui</SelectItem>
+                <SelectItem value="yesterday">Hier</SelectItem>
+                <SelectItem value="week">7 derniers jours</SelectItem>
+                <SelectItem value="month">30 derniers jours</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select 
+              value={amountRange} 
+              onValueChange={setAmountRange}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Montant" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les montants</SelectItem>
+                <SelectItem value="low">Moins de 50k GNF</SelectItem>
+                <SelectItem value="medium">50k - 200k GNF</SelectItem>
+                <SelectItem value="high">Plus de 200k GNF</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select 
+              value={paymentMethod} 
+              onValueChange={setPaymentMethod}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Paiement" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les méthodes</SelectItem>
+                <SelectItem value="cash">Espèces</SelectItem>
+                <SelectItem value="card">Carte</SelectItem>
+                <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                <SelectItem value="bank_transfer">Virement</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                setFilterStatus("all");
+                setFilterDeliveryType("all");
+                setSearchQuery("");
+                setZoneFilter("");
+                setSortBy("recent");
+                setDateRange("all");
+                setAmountRange("all");
+                setPaymentMethod("all");
+              }}
+              className="w-[120px]"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Réinitialiser
+            </Button>
+
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                console.log('🔊 Test du son et du toast');
+                playNotificationSound();
+                toast.success('Test du son et du toast !');
+              }}
+              className="w-[120px]"
+            >
+              🔊 Test Son
+            </Button>
           </div>
         </div>
 
@@ -907,10 +1286,21 @@ const PartnerOrders = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Total commandes payées</p>
-                <h3 className="text-2xl font-bold">{stats.total}</h3>
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 text-blue-600" />
+                  <p className="text-sm text-gray-500">Total commandes payées</p>
+                </div>
+                {isLoading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                ) : error ? (
+                  <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                    <span className="text-red-500 text-xs">!</span>
+                  </div>
+                ) : (
+                  <h3 className="text-2xl font-bold">{stats.total}</h3>
+                )}
               </div>
-              {stats.duplicates > 0 && (
+              {!isLoading && !error && stats.duplicates > 0 && (
                 <p className="text-xs text-yellow-600 mt-1">
                   {stats.duplicates} doublon(s)
                 </p>
@@ -920,44 +1310,80 @@ const PartnerOrders = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Nouvelles commandes</p>
-                <h3 className="text-2xl font-bold">{stats.pending}</h3>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-yellow-600" />
+                  <p className="text-sm text-gray-500">Nouvelles commandes</p>
+                </div>
+                {isLoading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                ) : (
+                  <h3 className="text-2xl font-bold">{stats.pending}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">En préparation</p>
-                <h3 className="text-2xl font-bold">{stats.preparing}</h3>
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-orange-600" />
+                  <p className="text-sm text-gray-500">En préparation</p>
+                </div>
+                {isLoading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                ) : (
+                  <h3 className="text-2xl font-bold">{stats.preparing}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Prêtes</p>
-                <h3 className="text-2xl font-bold">{stats.ready}</h3>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <p className="text-sm text-gray-500">Prêtes</p>
+                </div>
+                {isLoading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                ) : (
+                  <h3 className="text-2xl font-bold">{stats.ready}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">En livraison</p>
-                <h3 className="text-2xl font-bold">{stats.delivering}</h3>
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-purple-600" />
+                  <p className="text-sm text-gray-500">En livraison</p>
+                </div>
+                {isLoading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                ) : (
+                  <h3 className="text-2xl font-bold">{stats.delivering}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Commandes groupées</p>
-                <h3 className="text-2xl font-bold">{stats.grouped}</h3>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-indigo-600" />
+                  <p className="text-sm text-gray-500">Commandes groupées</p>
+                </div>
+                {isLoading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                ) : (
+                  <h3 className="text-2xl font-bold">{stats.grouped}</h3>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
+
 
         {/* Bouton d'action selon le type */}
         {selectedOrderIds.length >= 1 && (
@@ -977,14 +1403,134 @@ const PartnerOrders = () => {
 
         {/* Liste des commandes */}
         <Card>
-                     <CardHeader>
-             <CardTitle>Commandes payées récentes</CardTitle>
-             <CardDescription>
-               Gérez les commandes payées de vos clients et mettez à jour leur statut.
-             </CardDescription>
-           </CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Commandes payées récentes</CardTitle>
+                <CardDescription>
+                  Gérez les commandes payées de vos clients et mettez à jour leur statut.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-500">
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                      <span>Chargement des commandes...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {filteredOrders.length} commande{filteredOrders.length > 1 ? 's' : ''} affichée{filteredOrders.length > 1 ? 's' : ''}
+                      {filteredOrders.length !== orders.length && (
+                        <span className="text-blue-600 ml-1">
+                          (sur {orders.length} total)
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                {/* Bouton de rechargement discret */}
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => business && loadOrders(business.id)}
+                  disabled={isLoading}
+                  className="h-8 w-8 p-0"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+                
+                {/* Indicateur de connexion temps réel */}
+                <div className="flex items-center gap-2">
+                  {realtimeStatus === 'connected' && (
+                    <div className="flex items-center gap-1 text-green-600">
+                      <Wifi className="h-4 w-4" />
+                      <span className="text-xs">Temps réel</span>
+                    </div>
+                  )}
+                  {realtimeStatus === 'connecting' && (
+                    <div className="flex items-center gap-1 text-yellow-600">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span className="text-xs">Connexion...</span>
+                    </div>
+                  )}
+                  {realtimeStatus === 'disconnected' && (
+                    <div className="flex items-center gap-1 text-red-600">
+                      <WifiOff className="h-4 w-4" />
+                      <span className="text-xs">Hors ligne</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardHeader>
           <CardContent>
-            {filteredOrders.length > 0 ? (
+            {isLoading ? (
+              // Skeleton loader granulaire pour le tableau des commandes
+              <div className="space-y-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
+                      </TableHead>
+                      <TableHead>Numéro</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Adresse</TableHead>
+                      <TableHead>Livraison</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Zone</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...Array(5)].map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                            <div className="h-3 w-20 bg-gray-200 rounded animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-28 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-32 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-6 w-20 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <div className="h-8 w-8 bg-gray-200 rounded animate-pulse"></div>
+                            <div className="h-8 w-8 bg-gray-200 rounded animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : filteredOrders.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>

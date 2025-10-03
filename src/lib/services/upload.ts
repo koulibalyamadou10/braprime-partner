@@ -10,10 +10,23 @@ export const UploadService = {
   // Upload une image vers Supabase Storage
   uploadImage: async (file: File, folder: string = 'menu-items'): Promise<UploadResult> => {
     try {
+      // Récupérer l'utilisateur authentifié
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        console.error('❌ Erreur d\'authentification:', authError);
+        return { url: '', path: '', error: 'Utilisateur non authentifié' };
+      }
+
       // Générer un nom de fichier unique
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${folder}/${fileName}`;
+      
+      // ✅ Construire le chemin avec user_id pour respecter les politiques RLS
+      // Format : business-images/{user_id}/{filename}
+      const filePath = `business-images/${user.id}/${fileName}`;
+
+      console.log('📤 Upload image vers:', filePath);
 
       // Upload vers Supabase Storage
       const { data, error } = await supabase.storage

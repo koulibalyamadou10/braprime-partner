@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import DashboardLayout, { partnerNavItems } from '../../components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
@@ -15,6 +15,8 @@ import { usePartnerProfile } from '../../hooks/use-partner-profile';
 import { Skeleton } from '../../components/ui/skeleton';
 import Unauthorized from '@/components/Unauthorized';
 import { useCurrencyRole } from '@/contexts/UseRoleContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { MAPS_CONFIG, getGoogleMapsApiUrl, handleGoogleMapsError, createFallbackAddress } from '@/lib/config/maps';
 
 // Types pour Google Maps
 declare global {
@@ -95,7 +97,7 @@ const PartnerProfile = () => {
       setApiLoadError(null);
 
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDIp_O6TQg33J4Z2M44Uj3SEJZfTq1EqZU&libraries=places&v=weekly`;
+      script.src = getGoogleMapsApiUrl();
       script.async = true;
       script.defer = true;
       
@@ -169,27 +171,23 @@ const PartnerProfile = () => {
         }
       }
 
-      const defaultLocation = { lat: 9.5370, lng: -13.6785 }; // Conakry, Guinée
+      const defaultLocation = MAPS_CONFIG.DEFAULT_LOCATION;
       
       // Configuration optimisée de la carte
       const mapOptions = {
         center: defaultLocation,
-        zoom: 13,
+        zoom: MAPS_CONFIG.MAP_OPTIONS.zoom,
         mapTypeId: window.google.maps.MapTypeId.ROADMAP,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-        // Optimisations de performance
-        disableDefaultUI: false,
-        gestureHandling: 'cooperative',
-        // Désactiver les fonctionnalités non essentielles pour améliorer les performances
-        tilt: 0,
-        heading: 0,
-        // Optimiser le rendu
-        backgroundColor: '#f5f5f5',
-        // Réduire la qualité initiale pour un chargement plus rapide
-        maxZoom: 18,
-        minZoom: 8
+        mapTypeControl: MAPS_CONFIG.MAP_OPTIONS.mapTypeControl,
+        streetViewControl: MAPS_CONFIG.MAP_OPTIONS.streetViewControl,
+        fullscreenControl: MAPS_CONFIG.MAP_OPTIONS.fullscreenControl,
+        disableDefaultUI: MAPS_CONFIG.MAP_OPTIONS.disableDefaultUI,
+        gestureHandling: MAPS_CONFIG.MAP_OPTIONS.gestureHandling,
+        tilt: MAPS_CONFIG.MAP_OPTIONS.tilt,
+        heading: MAPS_CONFIG.MAP_OPTIONS.heading,
+        backgroundColor: MAPS_CONFIG.MAP_OPTIONS.backgroundColor,
+        maxZoom: MAPS_CONFIG.MAP_OPTIONS.maxZoom,
+        minZoom: MAPS_CONFIG.MAP_OPTIONS.minZoom
       };
 
       const mapInstance = new window.google.maps.Map(mapRef.current, mapOptions);
@@ -198,11 +196,10 @@ const PartnerProfile = () => {
       const markerInstance = new window.google.maps.Marker({
         position: defaultLocation,
         map: mapInstance,
-        draggable: true,
-        title: "Votre restaurant",
-        // Optimiser le marqueur
-        optimized: true,
-        zIndex: 1000
+        draggable: MAPS_CONFIG.MARKER_OPTIONS.draggable,
+        title: MAPS_CONFIG.MARKER_OPTIONS.title,
+        optimized: MAPS_CONFIG.MARKER_OPTIONS.optimized,
+        zIndex: MAPS_CONFIG.MARKER_OPTIONS.zIndex
       });
 
       // Gérer le déplacement du marqueur avec debounce
@@ -236,17 +233,26 @@ const PartnerProfile = () => {
 
           // Gérer les résultats de recherche
           searchBoxInstance.addListener('places_changed', () => {
-            const places = searchBoxInstance.getPlaces();
-            if (places && places.length > 0) {
-              const place = places[0];
-              if (place.geometry && place.geometry.location) {
-                const position = place.geometry.location;
-                mapInstance.setCenter(position);
-                mapInstance.setZoom(16);
-                markerInstance.setPosition(position);
-                setFormData(prev => ({ ...prev, address: place.formatted_address || "" }));
-                setSearchQuery(place.formatted_address || "");
+            try {
+              const places = searchBoxInstance.getPlaces();
+              if (places && places.length > 0) {
+                const place = places[0];
+                if (place.geometry && place.geometry.location) {
+                  const position = place.geometry.location;
+                  mapInstance.setCenter(position);
+                  mapInstance.setZoom(16);
+                  markerInstance.setPosition(position);
+                  setFormData(prev => ({ ...prev, address: place.formatted_address || "" }));
+                  setSearchQuery(place.formatted_address || "");
+                }
               }
+            } catch (error) {
+              console.error('Erreur lors de la recherche de lieu:', error);
+              toast({
+                title: "Erreur de recherche",
+                description: "Impossible de rechercher le lieu. Saisissez l'adresse manuellement.",
+                variant: "destructive"
+              });
             }
           });
         }
@@ -316,17 +322,17 @@ const PartnerProfile = () => {
         searchBox.trigger('places_changed');
       }
     }
-  }, [profile, map, searchBox]);
+  }, [profile?.id, map, searchBox]); // Utiliser profile.id pour éviter les re-renders inutiles
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value
     }));
-  };
+  }, []);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     const updateData = {
       name: formData.name,
       email: formData.email,
@@ -341,26 +347,49 @@ const PartnerProfile = () => {
 
     const success = await updateProfile(updateData);
     if (success) {
-      setIsEditing(false);
+      // Attendre un peu avant de changer l'état pour éviter les conflits de DOM
+      setTimeout(() => {
+        setIsEditing(false);
+      }, 100);
     }
-  };
+  }, [formData, updateProfile]);
 
-  // Fonction pour obtenir l'adresse à partir des coordonnées
-  const reverseGeocode = (lat: number, lng: number) => {
+  // Fonction pour obtenir l'adresse à partir des coordonnées (mémorisée)
+  const reverseGeocode = useCallback((lat: number, lng: number) => {
     if (window.google && window.google.maps) {
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const address = results[0].formatted_address;
-          setFormData(prev => ({ ...prev, address }));
-          setSearchQuery(address);
-        }
-      });
+      try {
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+          if (status === 'OK' && results && results[0]) {
+            const address = results[0].formatted_address;
+            setFormData(prev => ({ ...prev, address }));
+            setSearchQuery(address);
+          } else if (status === 'OVER_QUERY_LIMIT' || status === 'REQUEST_DENIED') {
+            // Si la facturation n'est pas activée, utiliser une adresse par défaut
+            console.warn('Service de géocodage non disponible:', status);
+            const defaultAddress = createFallbackAddress(lat, lng);
+            setFormData(prev => ({ ...prev, address: defaultAddress }));
+            setSearchQuery(defaultAddress);
+            
+            toast({
+              title: "Géocodage limité",
+              description: handleGoogleMapsError(status),
+              variant: "default"
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Erreur lors du géocodage:', error);
+        // En cas d'erreur, utiliser les coordonnées
+        const fallbackAddress = createFallbackAddress(lat, lng);
+        setFormData(prev => ({ ...prev, address: fallbackAddress }));
+        setSearchQuery(fallbackAddress);
+      }
     }
-  };
+  }, [toast]);
 
-  // Fonction pour géolocaliser l'utilisateur
-  const handleGeolocation = () => {
+  // Fonction pour géolocaliser l'utilisateur (mémorisée)
+  const handleGeolocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -398,32 +427,45 @@ const PartnerProfile = () => {
         variant: "destructive"
       });
     }
-  };
+  }, [map, marker, reverseGeocode, toast]);
 
-  // Gérer la recherche d'adresse
-  const handleAddressSearch = (query: string) => {
+  // Gérer la recherche d'adresse (mémorisée)
+  const handleAddressSearch = useCallback((query: string) => {
     setSearchQuery(query);
     setShowSuggestions(query.length > 2);
     
     if (query.length > 2 && window.google && window.google.maps) {
-      const service = new window.google.maps.places.AutocompleteService();
-      service.getPlacePredictions(
-        { input: query, componentRestrictions: { country: 'gn' } }, // Restreindre à la Guinée
-        (predictions, status) => {
-          if (status === 'OK' && predictions) {
-            setSuggestions(predictions.map(p => p.description));
-          } else {
-            setSuggestions([]);
+      try {
+        const service = new window.google.maps.places.AutocompleteService();
+        service.getPlacePredictions(
+          { input: query, componentRestrictions: { country: 'gn' } }, // Restreindre à la Guinée
+          (predictions, status) => {
+            if (status === 'OK' && predictions) {
+              setSuggestions(predictions.map(p => p.description));
+            } else if (status === 'OVER_QUERY_LIMIT' || status === 'REQUEST_DENIED') {
+              console.warn('Service de recherche d\'adresse non disponible:', status);
+              setSuggestions([]);
+              toast({
+                title: "Recherche limitée",
+                description: handleGoogleMapsError(status),
+                variant: "default"
+              });
+            } else {
+              setSuggestions([]);
+            }
           }
-        }
-      );
+        );
+      } catch (error) {
+        console.error('Erreur lors de la recherche d\'adresse:', error);
+        setSuggestions([]);
+      }
     } else {
       setSuggestions([]);
     }
-  };
+  }, [toast]);
 
-  // Sélectionner une suggestion
-  const selectSuggestion = (suggestion: string) => {
+  // Sélectionner une suggestion (mémorisée)
+  const selectSuggestion = useCallback((suggestion: string) => {
     setSearchQuery(suggestion);
     setFormData(prev => ({ ...prev, address: suggestion }));
     setShowSuggestions(false);
@@ -433,21 +475,39 @@ const PartnerProfile = () => {
       searchBox.set('query', suggestion);
       searchBox.trigger('places_changed');
     }
-  };
+  }, [searchBox]);
 
-  const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileImageChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      await uploadImage(file, 'logo');
+      try {
+        await uploadImage(file, 'logo');
+      } catch (error) {
+        console.error('Erreur lors de l\'upload de l\'image:', error);
+        toast({
+          title: "Erreur d'upload",
+          description: "Impossible d'uploader l'image. Veuillez réessayer.",
+          variant: "destructive"
+        });
+      }
     }
-  };
+  }, [uploadImage, toast]);
 
-  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverImageChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      await uploadImage(file, 'cover_image');
+      try {
+        await uploadImage(file, 'cover_image');
+      } catch (error) {
+        console.error('Erreur lors de l\'upload de l\'image:', error);
+        toast({
+          title: "Erreur d'upload",
+          description: "Impossible d'uploader l'image. Veuillez réessayer.",
+          variant: "destructive"
+        });
+      }
     }
-  };
+  }, [uploadImage, toast]);
 
   if (isLoading) {
     return (
@@ -480,9 +540,30 @@ const PartnerProfile = () => {
     );
   }
 
+  // Protection contre les erreurs si le profil n'est pas chargé
+  if (!profile) {
+    return (
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profil du restaurant</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Aucun profil trouvé</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
-    <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
-      <div className="space-y-6">
+    <ErrorBoundary>
+      <DashboardLayout navItems={partnerNavItems} title="Tableau de bord partenaire">
+        <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold tracking-tight">Profil Restaurant</h2>
           {!isEditing ? (
@@ -492,7 +573,16 @@ const PartnerProfile = () => {
             </Button>
           ) : (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isUpdating}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  // Attendre un peu avant de changer l'état pour éviter les conflits de DOM
+                  setTimeout(() => {
+                    setIsEditing(false);
+                  }, 100);
+                }} 
+                disabled={isUpdating}
+              >
                 <X className="mr-2 h-4 w-4" />
                 Annuler
               </Button>
@@ -863,6 +953,7 @@ const PartnerProfile = () => {
         </div>
       </div>
     </DashboardLayout>
+    </ErrorBoundary>
   );
 };
 

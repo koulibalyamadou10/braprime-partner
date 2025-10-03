@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout, { partnerNavItems } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -31,7 +31,11 @@ import {
   Users,
   Phone,
   Mail,
-  Filter
+  Filter,
+  RefreshCw,
+  AlertCircle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import {
@@ -56,6 +60,9 @@ import { fr } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useCurrencyRole } from '@/contexts/UseRoleContext';
 import Unauthorized from '@/components/Unauthorized';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import { isInternalUser } from '@/hooks/use-internal-users';
 
 // Helper function to get status color
 const getStatusColor = (status: PartnerReservation['status']) => {
@@ -120,6 +127,15 @@ const PartnerReservations = () => {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
+  // États pour les données utilisateur et business
+  const [userData, setUserData] = useState<any>(null);
+  const [business, setBusiness] = useState<any>(null);
+  const [isLoadingBusiness, setIsLoadingBusiness] = useState(true);
+  
+  // État local pour les réservations (pour les mises à jour temps réel)
+  const [localReservations, setLocalReservations] = useState<PartnerReservation[]>([]);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  
   // Utiliser le hook personnalisé
   const {
     reservations,
@@ -145,8 +161,75 @@ const PartnerReservations = () => {
   const [isAssignTableOpen, setIsAssignTableOpen] = useState(false);
   const [reservationForTable, setReservationForTable] = useState<PartnerReservation | null>(null);
   
-  // Filtrer les réservations
-  const filteredReservations = reservations.filter((reservation) => {
+  // State pour le temps réel
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [realtimeRetryCount, setRealtimeRetryCount] = useState(0);
+  
+  // Charger les données utilisateur et business
+  const loadUserData = async () => {
+    try {
+      setIsLoadingBusiness(true);
+      
+      const {
+        isInternal, 
+        data, 
+        user : userOrigin, 
+        businessId: businessIdOrigin,
+        businessData: businessDataOrigin
+      } = await isInternalUser()    
+      
+      if (businessIdOrigin !== null) {
+        setUserData(userOrigin);
+        setBusiness(businessDataOrigin);
+      } else {
+        console.error('Aucun business associé à votre compte partenaire');
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des données utilisateur:', err);
+    } finally {
+      setIsLoadingBusiness(false);
+    }
+  };
+  
+  // Fonction pour jouer le son de notification
+  const playNotificationSound = () => {
+    try {
+      console.log('🔊 Tentative de lecture du son de notification');
+      const audio = new Audio('/son.wav');
+      audio.volume = 0.7; // Volume à 70%
+      
+      // Gérer les événements audio
+      audio.addEventListener('canplaythrough', () => {
+        console.log('🔊 Son prêt à être joué');
+      });
+      
+      audio.addEventListener('error', (e) => {
+        console.error('🔊 Erreur audio:', e);
+      });
+      
+      audio.play().then(() => {
+        console.log('🔊 Son joué avec succès');
+      }).catch(error => {
+        console.warn('🔊 Impossible de jouer le son de notification:', error);
+        // Essayer avec un son de fallback
+        try {
+          const fallbackAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBS13yO/eizEIHWq+8+OWT');
+          fallbackAudio.volume = 0.3;
+          fallbackAudio.play().catch(() => {
+            console.warn('🔊 Impossible de jouer le son de fallback');
+          });
+        } catch (fallbackError) {
+          console.warn('🔊 Erreur avec le son de fallback:', fallbackError);
+        }
+      });
+    } catch (error) {
+      console.warn('🔊 Erreur lors de la lecture du son:', error);
+    }
+  };
+  
+  // Filtrer les réservations (utiliser localReservations pour les mises à jour temps réel)
+  const reservationsToUse = localReservations.length > 0 ? localReservations : reservations;
+  const filteredReservations = reservationsToUse.filter((reservation) => {
     // Filtre par date
     if (dateFilterType === 'today') {
       const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -265,42 +348,267 @@ const PartnerReservations = () => {
     setReservationForTable(null);
   };
 
-  // Afficher l'état de chargement
-  if (loading) {
+  // Charger les données au montage
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  // Synchroniser l'état local avec les données du hook
+  useEffect(() => {
+    if (reservations && reservations.length > 0) {
+      setLocalReservations(reservations);
+    }
+  }, [reservations]);
+
+  // Écouter les mises à jour en temps réel des réservations
+  useEffect(() => {
+    if (!currentUser?.id || !business?.id) {
+      console.log('🔄 [PartnerReservations] Pas de business trouvé pour le partenaire');
+      setRealtimeStatus('disconnected');
+      return;
+    }
+
+    // Délai pour éviter les reconnexions trop rapides
+    const connectionDelay = realtimeRetryCount > 0 ? Math.min(1000 * Math.pow(2, realtimeRetryCount), 10000) : 0;
+    
+    const setupRealtimeConnection = () => {
+      console.log('🔄 [PartnerReservations] Configuration de l\'écoute temps réel pour les réservations du business:', business.id);
+      console.log('🔄 [PartnerReservations] Filtre utilisé:', `business_id=eq.${business.id}`);
+      console.log('🔄 [PartnerReservations] Tentative de connexion:', realtimeRetryCount + 1);
+
+      setRealtimeStatus('connecting');
+
+    // S'abonner aux mises à jour des réservations du business
+    const reservationsSubscription = supabase
+      .channel(`partner-reservations-${business.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reservations',
+          filter: `business_id=eq.${business.id}`
+        },
+        (payload) => {
+          console.log('🔄 [PartnerReservations] Nouvelle réservation reçue:', payload);
+          console.log('🔄 [PartnerReservations] Détails de la nouvelle réservation:', payload.new);
+          
+          const newReservation = payload.new as any;
+          
+          // Transformer la nouvelle réservation pour correspondre à l'interface PartnerReservation
+          const transformedReservation: PartnerReservation = {
+            ...newReservation,
+            customer_name: 'Nouveau client', // Sera mis à jour lors du rechargement
+            customer_phone: 'Téléphone inconnu',
+            customer_email: 'Email inconnu'
+          };
+          
+          // Mettre à jour l'état local immédiatement
+          setLocalReservations(prev => {
+            const exists = prev.find(res => res.id === newReservation.id);
+            if (exists) return prev;
+            return [transformedReservation, ...prev];
+          });
+          
+          // Enregistrer le temps de la dernière mise à jour
+          setLastUpdateTime(new Date());
+          
+          toast.success('Nouvelle réservation reçue !');
+          
+          // Jouer le son de notification
+          playNotificationSound();
+          
+          // Recharger les réservations pour avoir les données complètes
+          setTimeout(() => {
+            fetchPartnerReservations();
+          }, 1000);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'reservations',
+          filter: `business_id=eq.${business.id}`
+        },
+        (payload) => {
+          console.log('🔄 [PartnerReservations] Réservation mise à jour:', payload);
+          
+          const updatedReservation = payload.new as any;
+          const oldReservation = payload.old as any;
+          
+          // Mettre à jour l'état local immédiatement
+          setLocalReservations(prev => 
+            prev.map(res => 
+              res.id === updatedReservation.id 
+                ? { ...res, ...updatedReservation }
+                : res
+            )
+          );
+          
+          // Enregistrer le temps de la dernière mise à jour
+          setLastUpdateTime(new Date());
+          
+          // Log du changement de statut
+          if (oldReservation.status !== updatedReservation.status) {
+            console.log(`📅 [PartnerReservations] Statut de réservation changé: ${oldReservation.status} → ${updatedReservation.status}`);
+            
+            // Afficher une notification pour les changements de statut importants
+            const statusLabels = {
+              'pending': 'En attente',
+              'confirmed': 'Confirmée',
+              'cancelled': 'Annulée',
+              'completed': 'Terminée',
+              'no_show': 'Absent'
+            };
+            
+            const oldLabel = statusLabels[oldReservation.status as keyof typeof statusLabels] || oldReservation.status || 'Inconnu';
+            const newLabel = statusLabels[updatedReservation.status as keyof typeof statusLabels] || updatedReservation.status || 'Inconnu';
+            
+            console.log('📅 Changement de statut:', { oldStatus: oldReservation.status, newStatus: updatedReservation.status, oldLabel, newLabel });
+            
+            toast.info(`Réservation #${updatedReservation.id.slice(-8)}: ${oldLabel} → ${newLabel}`);
+            
+            // Jouer le son pour les changements de statut importants
+            if (['confirmed', 'completed', 'cancelled'].includes(updatedReservation.status)) {
+              playNotificationSound();
+            }
+          }
+          
+          // Recharger les réservations pour avoir les données complètes
+          setTimeout(() => {
+            fetchPartnerReservations();
+          }, 1000);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'reservations',
+          filter: `business_id=eq.${business.id}`
+        },
+        (payload) => {
+          console.log('🔄 [PartnerReservations] Réservation supprimée:', payload);
+          
+          const deletedReservation = payload.old as any;
+          
+          // Mettre à jour l'état local immédiatement
+          setLocalReservations(prev => 
+            prev.filter(res => res.id !== deletedReservation.id)
+          );
+          
+          // Enregistrer le temps de la dernière mise à jour
+          setLastUpdateTime(new Date());
+          
+          toast.warning(`Réservation #${deletedReservation.id.slice(-8)} supprimée`);
+          
+          // Recharger les réservations pour synchroniser
+          setTimeout(() => {
+            fetchPartnerReservations();
+          }, 1000);
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔄 [PartnerReservations] Statut de l\'abonnement aux réservations:', status);
+        console.log('🔄 [PartnerReservations] Canal:', `partner-reservations-${business.id}`);
+        
+        // Mettre à jour le statut de connexion temps réel
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ [PartnerReservations] Connexion temps réel établie avec succès');
+          setRealtimeStatus('connected');
+          setRealtimeRetryCount(0); // Reset du compteur en cas de succès
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.log('❌ [PartnerReservations] Erreur de connexion temps réel:', status);
+          setRealtimeStatus('disconnected');
+          
+          // Tentative de reconnexion avec backoff exponentiel
+          if (realtimeRetryCount < 5) {
+            console.log(`🔄 [PartnerReservations] Tentative de reconnexion dans ${connectionDelay}ms (tentative ${realtimeRetryCount + 1}/5)`);
+            setTimeout(() => {
+              setRealtimeRetryCount(prev => prev + 1);
+            }, connectionDelay);
+          } else {
+            console.log('❌ [PartnerReservations] Nombre maximum de tentatives de reconnexion atteint');
+          }
+        } else {
+          console.log('🔄 [PartnerReservations] Connexion en cours:', status);
+          setRealtimeStatus('connecting');
+        }
+      });
+
+      // Nettoyer l'abonnement au démontage
+      return () => {
+        console.log('🔄 [PartnerReservations] Nettoyage de l\'abonnement temps réel aux réservations');
+        try {
+          supabase.removeChannel(reservationsSubscription);
+        } catch (error) {
+          console.warn('⚠️ [PartnerReservations] Erreur lors du nettoyage du canal:', error);
+        }
+      };
+    };
+
+    // Démarrer la connexion avec délai si nécessaire
+    if (connectionDelay > 0) {
+      const timeoutId = setTimeout(setupRealtimeConnection, connectionDelay);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setupRealtimeConnection();
+    }
+  }, [currentUser?.id, business?.id, realtimeRetryCount]); // Ajouter realtimeRetryCount aux dépendances
+
+  // Gestion d'erreurs granulaire - affichée en haut de page
+  const ErrorCard = () => (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 text-red-500" />
+        <p className="text-sm text-red-700">
+          Erreur lors du chargement des données: {error}
+        </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={fetchPartnerReservations}
+          className="ml-auto"
+        >
+          <RefreshCw className="h-4 w-4 mr-1" />
+          Réessayer
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Si en cours de chargement et pas de business, afficher un skeleton
+  if (isLoadingBusiness && !business) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Réservations">
         <div className="space-y-6">
+          {/* Header STATIQUE - toujours visible */}
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
-            <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
+            <p className="text-muted-foreground">Chargement des données...</p>
           </div>
-          <ReservationSkeleton />
+          
+          {/* Skeleton pour les statistiques */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white border rounded-lg p-4 animate-pulse">
+                <div className="flex items-center justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  <div className="h-4 w-4 bg-gray-200 rounded"></div>
+                </div>
+                <div className="h-8 bg-gray-200 rounded w-8 mt-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-16 mt-1"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
-  // Afficher l'erreur
-  if (error) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Réservations">
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
-            <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
-          </div>
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-red-500 mb-4">{error}</p>
-              <Button onClick={fetchPartnerReservations}>
-                Réessayer
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   const stats = getReservationStats();
 
@@ -320,17 +628,104 @@ const PartnerReservations = () => {
   return (
     <DashboardLayout navItems={partnerNavItems} title="Réservations">
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
-          <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
-          {hasActiveFilters && (
-            <div className="mt-2">
+        {/* Affichage des erreurs seulement s'il y en a et que le chargement est terminé */}
+        {error && !loading && !isLoadingBusiness && <ErrorCard />}
+
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Gestion des Réservations</h2>
+            <p className="text-muted-foreground">Gérez les réservations de votre établissement.</p>
+            {hasActiveFilters && (
+              <div className="mt-2">
               <Badge variant="secondary" className="text-xs">
-                Filtres actifs: {filteredReservations.length} sur {reservations.length} réservations
+                Filtres actifs: {filteredReservations.length} sur {reservationsToUse.length} réservations
               </Badge>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {/* Bouton de rechargement discret */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={fetchPartnerReservations}
+              disabled={loading || isLoadingBusiness}
+              className="h-8 w-8 p-0"
+              title="Recharger les réservations"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading || isLoadingBusiness ? 'animate-spin' : ''}`} />
+            </Button>
+            
+            {/* Bouton de test pour la connexion temps réel */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                console.log('🔍 [PartnerReservations] Test de connexion temps réel');
+                console.log('🔍 Business ID:', business?.id);
+                console.log('🔍 Statut temps réel:', realtimeStatus);
+                console.log('🔍 Réservations actuelles:', reservationsToUse.length);
+                console.log('🔍 Nombre de tentatives:', realtimeRetryCount);
+                toast.info(`Statut: ${realtimeStatus}, Business: ${business?.id}, Réservations: ${reservationsToUse.length}, Tentatives: ${realtimeRetryCount}`);
+              }}
+              className="h-8 w-8 p-0"
+              title="Tester la connexion temps réel"
+            >
+              <Wifi className="h-4 w-4" />
+            </Button>
+            
+            {/* Bouton de reconnexion manuelle */}
+            {realtimeStatus === 'disconnected' && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  console.log('🔄 [PartnerReservations] Reconnexion manuelle demandée');
+                  setRealtimeRetryCount(0);
+                  setRealtimeStatus('connecting');
+                }}
+                className="h-8 w-8 p-0"
+                title="Reconnecter manuellement"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+            
+            {/* Indicateur de connexion temps réel */}
+            <div className="flex items-center gap-2">
+              {realtimeStatus === 'connected' && (
+                <div className="flex items-center gap-1 text-green-600">
+                  <Wifi className="h-4 w-4" />
+                  <span className="text-xs">Temps réel</span>
+                </div>
+              )}
+              {realtimeStatus === 'connecting' && (
+                <div className="flex items-center gap-1 text-yellow-600">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="text-xs">Connexion...</span>
+                </div>
+              )}
+              {realtimeStatus === 'disconnected' && (
+                <div className="flex items-center gap-1 text-red-600">
+                  <WifiOff className="h-4 w-4" />
+                  <span className="text-xs">Hors ligne</span>
+                </div>
+              )}
+              
+              {/* Indicateur de dernière mise à jour */}
+              {lastUpdateTime && realtimeStatus === 'connected' && (
+                <div className="flex items-center gap-1 text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs">
+                    Mis à jour {lastUpdateTime.toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
+
 
         {/* Statistiques */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -339,10 +734,18 @@ const PartnerReservations = () => {
               <CardTitle className="text-sm font-medium">
                 {hasActiveFilters ? 'Filtrées' : 'Total'}
               </CardTitle>
-              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              <ClipboardList className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredStats.total}</div>
+              {loading || isLoadingBusiness ? (
+                <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+              ) : error ? (
+                <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                  <span className="text-red-500 text-xs">!</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{filteredStats.total}</div>
+              )}
               <p className="text-xs text-muted-foreground">
                 {hasActiveFilters ? 'Réservations filtrées' : 'Réservations'}
               </p>
@@ -351,40 +754,72 @@ const PartnerReservations = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">En attente</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredStats.pending}</div>
+              {loading || isLoadingBusiness ? (
+                <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+              ) : error ? (
+                <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                  <span className="text-red-500 text-xs">!</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{filteredStats.pending}</div>
+              )}
               <p className="text-xs text-muted-foreground">À confirmer</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Confirmées</CardTitle>
-              <Check className="h-4 w-4 text-muted-foreground" />
+              <Check className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredStats.confirmed}</div>
+              {loading || isLoadingBusiness ? (
+                <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+              ) : error ? (
+                <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                  <span className="text-red-500 text-xs">!</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{filteredStats.confirmed}</div>
+              )}
               <p className="text-xs text-muted-foreground">Validées</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Terminées</CardTitle>
-              <Check className="h-4 w-4 text-muted-foreground" />
+              <Check className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredStats.completed}</div>
+              {loading || isLoadingBusiness ? (
+                <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+              ) : error ? (
+                <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                  <span className="text-red-500 text-xs">!</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{filteredStats.completed}</div>
+              )}
               <p className="text-xs text-muted-foreground">Aujourd'hui</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Absents</CardTitle>
-              <XCircle className="h-4 w-4 text-muted-foreground" />
+              <XCircle className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{filteredStats.no_show}</div>
+              {loading || isLoadingBusiness ? (
+                <div className="h-8 w-12 bg-gray-200 rounded animate-pulse"></div>
+              ) : error ? (
+                <div className="h-8 w-12 bg-red-100 rounded flex items-center justify-center">
+                  <span className="text-red-500 text-xs">!</span>
+                </div>
+              ) : (
+                <div className="text-2xl font-bold">{filteredStats.no_show}</div>
+              )}
               <p className="text-xs text-muted-foreground">No-show</p>
             </CardContent>
           </Card>

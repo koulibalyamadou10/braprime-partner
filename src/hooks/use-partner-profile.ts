@@ -102,6 +102,7 @@ export const usePartnerProfile = () => {
   // Upload d'image
   const uploadImage = async (file: File, type: 'logo' | 'cover_image') => {
     if (!currentUser || currentUser.role !== 'partner') {
+      console.error('❌ [usePartnerProfile] Utilisateur non autorisé:', currentUser);
       toast({
         title: "Erreur",
         description: "Utilisateur non autorisé",
@@ -109,6 +110,14 @@ export const usePartnerProfile = () => {
       });
       return false;
     }
+
+    console.log('🔍 [usePartnerProfile] Début upload image:', {
+      userId: currentUser.id,
+      type,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type
+    });
 
     setIsUploading(true);
     setError(null);
@@ -121,29 +130,38 @@ export const usePartnerProfile = () => {
       );
 
       if (uploadError) {
+        console.error('❌ [usePartnerProfile] Erreur upload:', uploadError);
         setError(uploadError);
         toast({
-          title: "Erreur",
+          title: "Erreur d'upload",
           description: uploadError,
           variant: "destructive",
         });
         return false;
       } else if (url) {
+        console.log('✅ [usePartnerProfile] Upload réussi, mise à jour du profil:', url);
+        
         // Mettre à jour le profil avec la nouvelle URL d'image
         const updateData = type === 'logo' ? { logo: url } : { cover_image: url };
         const success = await updateProfile(updateData);
         
         if (success) {
+          console.log('✅ [usePartnerProfile] Profil mis à jour avec succès');
           toast({
             title: "Succès",
             description: "Image uploadée avec succès",
           });
+        } else {
+          console.error('❌ [usePartnerProfile] Échec de la mise à jour du profil');
         }
         return success;
       }
+      
+      console.error('❌ [usePartnerProfile] Aucune URL retournée');
       return false;
     } catch (err) {
-      const errorMessage = 'Erreur lors de l\'upload de l\'image';
+      console.error('❌ [usePartnerProfile] Erreur lors de l\'upload:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de l\'upload de l\'image';
       setError(errorMessage);
       toast({
         title: "Erreur",

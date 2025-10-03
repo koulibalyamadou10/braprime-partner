@@ -263,21 +263,56 @@ const PartnerBilling: React.FC = () => {
     return `${amount} GNF`;
   };
 
-  if (businessLoading) {
+  // Gestion d'erreurs granulaire - affichée en haut de page
+  const ErrorCard = () => (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 text-red-500" />
+        <p className="text-sm text-red-700">
+          Erreur lors du chargement des données de facturation
+        </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => window.location.reload()}
+          className="ml-auto"
+        >
+          <Settings className="h-4 w-4 mr-1" />
+          Actualiser
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Si en cours de chargement et pas de business, afficher un skeleton
+  if (businessLoading && !business) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Revenus & Ventes">
         <div className="space-y-6">
-          <Skeleton className="h-8 w-48" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-4 w-32" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
+          {/* Header STATIQUE - toujours visible */}
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Revenus & Ventes</h2>
+            <p className="text-muted-foreground">Chargement des données...</p>
+          </div>
+          
+          {/* Skeleton pour les graphiques */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="bg-white border rounded-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-200 rounded w-48 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-32 mb-6"></div>
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, j) => (
+                    <div key={j} className="space-y-2">
+                      <div className="flex justify-between">
+                        <div className="h-4 bg-gray-200 rounded w-20"></div>
+                        <div className="h-4 bg-gray-200 rounded w-16"></div>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -285,19 +320,18 @@ const PartnerBilling: React.FC = () => {
     );
   }
 
-  if (!business) {
+  // Si pas de business ET chargement terminé, afficher un message d'erreur mais garder la structure
+  if (!business && !businessLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Revenus & Ventes">
         <div className="space-y-6">
-          <div className="text-center py-12">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Aucun business trouvé</h2>
-            <p className="text-muted-foreground mb-4">
-              Aucun business n'est associé à votre compte. Veuillez contacter l'administrateur.
-            </p>
-            <Button onClick={() => window.location.reload()}>
-              Actualiser la page
-            </Button>
+          {/* Affichage des erreurs seulement s'il y en a */}
+          <ErrorCard />
+          
+          {/* Header STATIQUE - toujours visible */}
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Revenus & Ventes</h2>
+            <p className="text-muted-foreground">Aucun business associé à votre compte.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -307,13 +341,18 @@ const PartnerBilling: React.FC = () => {
   return (
     <DashboardLayout navItems={partnerNavItems} title="Revenus & Ventes">
       <div className="space-y-6">
+        {/* Affichage des erreurs seulement s'il y en a et que le chargement est terminé */}
+        {!business && !businessLoading && <ErrorCard />}
 
         {/* Graphiques et analyses */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Vue d'ensemble des revenus */}
           <Card className="bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">Vue d'ensemble des revenus</CardTitle>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                Vue d'ensemble des revenus
+              </CardTitle>
               <CardDescription>Revenus de cette période par semaine</CardDescription>
               <div className="flex gap-2 mt-2">
                 {(['week', 'month', 'year'] as const).map((p) => (
@@ -368,7 +407,10 @@ const PartnerBilling: React.FC = () => {
           {/* Articles de menu les plus vendus */}
           <Card className="bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">Articles de menu les plus vendus</CardTitle>
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-blue-600" />
+                Articles de menu les plus vendus
+              </CardTitle>
               <CardDescription>Meilleurs vendeurs par revenus</CardDescription>
             </CardHeader>
             <CardContent>
@@ -412,7 +454,7 @@ const PartnerBilling: React.FC = () => {
         <Card className="bg-white shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
+              <CreditCard className="h-5 w-5 text-purple-600" />
               Gestion de l'abonnement
             </CardTitle>
             <CardDescription>

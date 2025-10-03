@@ -282,51 +282,86 @@ const PartnerMenu = () => {
     }
   };
 
-  // Afficher un message si le profil partenaire n'est pas chargé
-  if (profileLoading) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
-        <PartnerMenuSkeleton />
-      </DashboardLayout>
-    );
-  }
+  // Gestion d'erreurs granulaire - affichée en haut de page
+  const ErrorCard = () => (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 text-red-500" />
+        <p className="text-sm text-red-700">
+          Erreur lors du chargement des données: {error}
+        </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => refetch()}
+          className="ml-auto"
+        >
+          <Loader2 className="h-4 w-4 mr-1" />
+          Réessayer
+        </Button>
+      </div>
+    </div>
+  );
 
-  // Afficher un message si le business ID n'est pas trouvé
-  if (!businessId) {
+  // Si en cours de chargement du profil et pas de business ID, afficher un skeleton
+  if (!businessId && profileLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
         <div className="space-y-6">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Erreur: Impossible de récupérer les informations de votre business. 
-              Veuillez vérifier votre profil partenaire.
-            </AlertDescription>
-          </Alert>
+          {/* Header STATIQUE - toujours visible */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Menu</h2>
+              <p className="text-gray-500">Chargement des données...</p>
+            </div>
+          </div>
+          
+          {/* Skeleton pour les statistiques */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white border rounded-lg p-4 animate-pulse">
+                <div className="flex items-center space-x-2">
+                  <div className="h-4 w-4 bg-gray-200 rounded"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    <div className="h-8 bg-gray-200 rounded w-8"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
-  if (error) {
+  // Si pas de business ID ET chargement terminé, afficher un message d'erreur mais garder la structure
+  if (!businessId && !profileLoading) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
-        <div className="text-center py-8">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Erreur</h2>
-          <p className="text-gray-600 mb-4">
-            Une erreur est survenue lors du chargement du menu.
-          </p>
-          <Button onClick={() => refetch()}>
-            Réessayer
-          </Button>
+        <div className="space-y-6">
+          {/* Affichage des erreurs seulement s'il y en a */}
+          {error && <ErrorCard />}
+          
+          {/* Header STATIQUE - toujours visible */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Menu</h2>
+              <p className="text-gray-500">Impossible de récupérer les informations de votre business.</p>
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
+
 
   return (
     <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
       <div className="space-y-6">
+        {/* Affichage des erreurs seulement s'il y en a et que le chargement est terminé */}
+        {error && !isLoading && <ErrorCard />}
+
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Menu</h2>
@@ -345,7 +380,11 @@ const PartnerMenu = () => {
                 <Store className="h-4 w-4 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Articles</p>
-                  <p className="text-2xl font-bold">{totalItems}</p>
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : (
+                    <p className="text-2xl font-bold">{totalItems}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -356,7 +395,11 @@ const PartnerMenu = () => {
                 <Check className="h-4 w-4 text-green-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Disponibles</p>
-                  <p className="text-2xl font-bold">{availableItems}</p>
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : (
+                    <p className="text-2xl font-bold">{availableItems}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -367,7 +410,11 @@ const PartnerMenu = () => {
                 <Star className="h-4 w-4 text-orange-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Populaires</p>
-                  <p className="text-2xl font-bold">{popularItems}</p>
+                  {isLoading ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  ) : (
+                    <p className="text-2xl font-bold">{popularItems}</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -406,13 +453,15 @@ const PartnerMenu = () => {
               onValueChange={handleCategoryChange}
             >
               <TabsList className="flex flex-wrap h-auto">
-                <TabsTrigger value="all">Tous les Articles ({totalItems})</TabsTrigger>
+                <TabsTrigger value="all">
+                  Tous les Articles ({isLoading ? '...' : totalItems})
+                </TabsTrigger>
                 {categories
                   .filter(cat => cat.is_active)
                   .sort((a, b) => a.sort_order - b.sort_order)
                   .map(category => (
                     <TabsTrigger key={category.id} value={category.id.toString()}>
-                      {category.name} ({getCategoryItemCount(category.id)})
+                      {category.name} ({isLoading ? '...' : getCategoryItemCount(category.id)})
                     </TabsTrigger>
                   ))}
               </TabsList>

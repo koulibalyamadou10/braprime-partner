@@ -399,14 +399,24 @@ export class BusinessService {
   ): Promise<{ url: string | null; error: string | null }> {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/${type}_${Date.now()}.${fileExt}`;
-      const filePath = `business-images/${fileName}`;
+      const fileName = `${type}_${Date.now()}.${fileExt}`;
+      // Corriger le chemin pour correspondre aux politiques RLS
+      const filePath = `business-images/${userId}/${fileName}`;
+
+      console.log('🔍 [BusinessService] Upload image:', {
+        userId,
+        type,
+        filePath,
+        fileName: file.name,
+        fileSize: file.size
+      });
 
       const { error: uploadError } = await supabase.storage
         .from('business-images')
         .upload(filePath, file);
 
       if (uploadError) {
+        console.error('❌ [BusinessService] Erreur upload:', uploadError);
         return { url: null, error: uploadError.message };
       }
 
@@ -414,9 +424,10 @@ export class BusinessService {
         .from('business-images')
         .getPublicUrl(filePath);
 
+      console.log('✅ [BusinessService] Upload réussi:', publicUrl);
       return { url: publicUrl, error: null };
     } catch (error) {
-      console.error('Erreur lors de l\'upload de l\'image:', error);
+      console.error('❌ [BusinessService] Erreur lors de l\'upload de l\'image:', error);
       return { url: null, error: 'Erreur lors de l\'upload' };
     }
   }
@@ -486,7 +497,7 @@ export class BusinessService {
         return { data: null, error: 'Erreur lors de la vérification du profil' }
       }
 
-      if (profile.user_roles?.name !== 'partner' && profile.role_id !== 2) {
+      if (profile.user_roles?.[0]?.name !== 'partner' && profile.role_id !== 2) {
         console.error('❌ [BusinessService] Utilisateur non autorisé à créer un business')
         return { data: null, error: 'Seuls les partenaires peuvent créer des businesses' }
       }
