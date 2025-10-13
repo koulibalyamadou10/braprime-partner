@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { isInternalUser } from '@/hooks/use-internal-users';
 
 export interface Business {
   id: number;
@@ -340,22 +339,31 @@ export class BusinessService {
     }
   }
 
-  // Récupérer le profil partenaire par user_id
+  // Récupérer le profil partenaire par user_id (OPTIMISÉ)
   static async getPartnerProfile(userId: string): Promise<{ data: Business | null; error: string | null }> {
-    // recuperer le businessId avec isInternalUser²
-    const { isInternal, businessId } = await isInternalUser();
-
     try {
+      console.log('🚀 [getPartnerProfile] Chargement optimisé pour userId:', userId);
+
+      // OPTIMISATION: Récupérer directement le business avec business_type en jointure
+      // Au lieu d'appeler isInternalUser() qui fait 1-2 requêtes supplémentaires
       const { data, error } = await supabase
         .from('businesses')
-        .select('*')
-        .eq('id', businessId)
-        // .eq('owner_id', userId)
+        .select(`
+          *,
+          business_types(id, name)
+        `)
+        .eq('owner_id', userId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
       if (error) {
+        console.error('❌ [getPartnerProfile] Erreur:', error);
         return { data: null, error: error.message };
       }
+
+      console.log('✅ [getPartnerProfile] Profil chargé:', data?.name);
 
       return { data, error: null };
     } catch (error) {

@@ -151,10 +151,13 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
     }
 
     if( data && data.length > 0 ) {
-      // recuperer le businesses dans la table businesses
+      // OPTIMISATION: Récupérer le business ET le business_type en UNE SEULE requête avec jointure
       const {data: businesses, error: businessesError} = await supabase
       .from('businesses')
-      .select('*')
+      .select(`
+        *,
+        business_types!inner(*)
+      `)
       .eq('owner_id', data[0].created_by)
       .limit(1);
 
@@ -163,21 +166,14 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
         throw new Error(businessesError.message);
       }
 
-      const {data: businessType, error: businessTypeError} = await supabase
-      .from('business_types')
-      .select('*')
-      .eq('id', businesses[0].business_type_id)
-      .limit(1);
-
       if( businesses && businesses.length > 0 ) {
-
         return {
           isInternal: true, 
           data: data[0], 
           user: user, 
           businessId: businesses[0].id,
           businessData: businesses[0],
-          businessType: businessType[0]
+          businessType: businesses[0].business_types || null
         }
       }
     
@@ -187,27 +183,27 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
         user: user, 
         businessId: data[0].business_id,
         businessData: data[0].business,
-        businessType: businessType[0] || null
+        businessType: null
       }
     }
 
-    // recuperer le businesses dans la table businesses
+    // OPTIMISATION: Récupérer le business ET le business_type en UNE SEULE requête avec jointure
+    console.log('🔍 Recherche business pour owner_id:', user.id);
     const {data: businesses, error: businessesError} = await supabase
       .from('businesses')
-      .select('*')
+      .select(`
+        *,
+        business_types!inner(*)
+      `)
       .eq('owner_id', user.id)
       .limit(1);
 
     if( businessesError ) {
-      console.error('Erreur dans isInternalUser:', businessesError);
+      console.error('❌ Erreur dans isInternalUser (businesses):', businessesError);
       throw new Error(businessesError.message);
     }
 
-    const {data: businessType, error: businessTypeError} = await supabase
-    .from('business_types')
-    .select('*')
-    .eq('id', businesses[0].business_type_id)
-    .limit(1);
+    console.log('📊 Businesses trouvés:', businesses?.length || 0, businesses);
 
     if( businesses && businesses.length > 0 ) {
       return {
@@ -216,7 +212,7 @@ export async function isInternalUser(): Promise<{isInternal: boolean, data: Inte
         user: user, 
         businessId: businesses[0].id,
         businessData: businesses[0],
-        businessType: businessType[0]
+        businessType: businesses[0].business_types || null
       }
     }
 

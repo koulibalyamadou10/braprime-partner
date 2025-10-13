@@ -77,11 +77,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('deliveryMethod', JSON.stringify(deliveryMethod));
   }, [deliveryMethod]);
 
-  // Load user orders when user is authenticated
+  // Load user orders when user is authenticated (OPTIMISÉ - lazy loading)
   useEffect(() => {
-    if (currentUser) {
-      loadUserOrders();
-      refreshCart();
+    // NE charger les commandes QUE pour les customers
+    // Les partenaires et drivers ont leurs propres pages de commandes
+    if (currentUser && currentUser.role === 'customer') {
+      // Charger après un délai pour ne pas bloquer le rendu initial
+      const timer = setTimeout(() => {
+        loadUserOrders();
+        refreshCart();
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [currentUser]);
 

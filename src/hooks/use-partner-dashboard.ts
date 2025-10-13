@@ -11,31 +11,58 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-business', currentUser?.id],
     queryFn: () => PartnerDashboardService.getPartnerBusiness(),
     enabled: !!currentUser?.id && currentUser.role === 'partner' && isAuthenticated,
-    staleTime: 5 * 60 * 1000, // Réduit de 10 à 5 minutes
-    gcTime: 15 * 60 * 1000, // Réduit de 30 à 15 minutes
+    staleTime: 10 * 60 * 1000, // Augmenté à 10 minutes (le business change rarement)
+    gcTime: 30 * 60 * 1000, // Augmenté à 30 minutes
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 2 // Réduit de 3 à 2 tentatives
+      return failureCount < 2
     }
   })
 
   const business = businessQuery.data?.business
   const businessError = businessQuery.data?.error
 
+  // OPTIMISATION: Précharger les données dès que le business est disponible
+  // Cela lance les requêtes en parallèle AVANT que les hooks ne s'activent
+  if (business?.id && !businessQuery.isLoading) {
+    // Précharger les stats
+    queryClient.prefetchQuery({
+      queryKey: ['partner-stats', business.id],
+      queryFn: () => PartnerDashboardService.getPartnerStats(business.id),
+      staleTime: 2 * 60 * 1000,
+    })
+    
+    // Précharger les commandes récentes
+    queryClient.prefetchQuery({
+      queryKey: ['partner-recent-orders', business.id],
+      queryFn: () => PartnerDashboardService.getPartnerOrders(business.id, 5),
+      staleTime: 30 * 1000,
+    })
+
+    // Précharger les données hebdomadaires
+    queryClient.prefetchQuery({
+      queryKey: ['partner-weekly-data', business.id],
+      queryFn: () => PartnerDashboardService.getWeeklyData(business.id),
+      staleTime: 5 * 60 * 1000,
+    })
+  }
+
   // Récupérer les statistiques du partenaire
   const statsQuery = useQuery({
     queryKey: ['partner-stats', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerStats(business!.id),
     enabled: !!business?.id,
-    staleTime: 1 * 60 * 1000, // Réduit de 2 à 1 minute
-    refetchInterval: 3 * 60 * 1000, // Réduit de 5 à 3 minutes
+    staleTime: 3 * 60 * 1000, // Augmenté à 3 minutes
+    gcTime: 10 * 60 * 1000, // Cache de 10 minutes
+    refetchInterval: false,
+    placeholderData: (previousData) => previousData, // Garde les données précédentes pendant le refetch
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 2
+      return failureCount < 1 // Réduit à 1 seule tentative
     }
   })
 
@@ -44,41 +71,51 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-recent-orders', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerOrders(business!.id, 5),
     enabled: !!business?.id,
-    staleTime: 15 * 1000, // Réduit de 30 à 15 secondes
-    refetchInterval: 1 * 60 * 1000, // Réduit de 2 à 1 minute
+    staleTime: 1 * 60 * 1000, // Augmenté à 1 minute
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: false,
+    placeholderData: (previousData) => previousData, // Garde les données précédentes
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 2
+      return failureCount < 1
     }
   })
 
-  // Récupérer le menu
+  // OPTIMISATION: Récupérer le menu et les drivers en LAZY LOADING
+  // Ces données ne sont PAS critiques pour l'affichage initial du dashboard
+  // On les charge seulement après un délai pour ne pas bloquer les données importantes
   const menuQuery = useQuery({
     queryKey: ['partner-menu', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerMenu(business!.id, 50),
-    enabled: !!business?.id,
-    staleTime: 3 * 60 * 1000, // Réduit de 5 à 3 minutes
+    enabled: false, // DÉSACTIVÉ - Sera chargé manuellement ou quand nécessaire
+    staleTime: 15 * 60 * 1000, // 15 minutes (le menu change très rarement)
+    gcTime: 60 * 60 * 1000, // 1 heure
+    refetchInterval: false,
+    placeholderData: (previousData) => previousData,
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 2
+      return failureCount < 1
     }
   })
 
-  // Récupérer les livreurs
+  // Récupérer les livreurs en LAZY LOADING
   const driversQuery = useQuery({
     queryKey: ['partner-drivers', business?.id],
     queryFn: () => PartnerDashboardService.getPartnerDrivers(business!.id, 20),
-    enabled: !!business?.id,
-    staleTime: 1 * 60 * 1000, // Réduit de 2 à 1 minute
+    enabled: false, // DÉSACTIVÉ - Sera chargé manuellement ou quand nécessaire
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000,
+    refetchInterval: false,
+    placeholderData: (previousData) => previousData,
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 2
+      return failureCount < 1
     }
   })
 
@@ -87,13 +124,15 @@ export const usePartnerDashboard = () => {
     queryKey: ['partner-weekly-data', business?.id],
     queryFn: () => PartnerDashboardService.getWeeklyData(business!.id),
     enabled: !!business?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchInterval: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000, // Augmenté à 10 minutes
+    gcTime: 30 * 60 * 1000,
+    refetchInterval: false,
+    placeholderData: (previousData) => previousData,
     retry: (failureCount, error: any) => {
       if (error?.code === 'PGRST116' || error?.status === 401) {
         return false
       }
-      return failureCount < 2
+      return failureCount < 1
     }
   })
 
@@ -288,14 +327,14 @@ export const usePartnerDashboard = () => {
   const isDriversLoading = driversQuery.isLoading
   const isWeeklyDataLoading = weeklyDataQuery.isLoading
 
-  // Chargement principal - seulement si le business n'est pas encore chargé
-  const isLoading = isBusinessLoading && !business
+  // Chargement principal - SEULEMENT le business, pas les données secondaires
+  const isLoading = isBusinessLoading
   
   // Chargement des données secondaires - seulement si le business est chargé mais pas les autres données
   const isSecondaryDataLoading = business && (isStatsLoading || isOrdersLoading || isMenuLoading || isDriversLoading || isWeeklyDataLoading)
   
-  // Chargement global - pour l'état initial
-  const isInitialLoading = isBusinessLoading || (business && isSecondaryDataLoading)
+  // Chargement global - pour l'état initial (NE PAS utiliser ça pour masquer le skeleton)
+  const isInitialLoading = isBusinessLoading
 
   // Erreurs
   const error = businessError || statsQuery.data?.error || recentOrdersQuery.data?.error || menuQuery.data?.error || driversQuery.data?.error || weeklyDataQuery.data?.error
@@ -348,6 +387,10 @@ export const usePartnerDashboard = () => {
     addDriver,
     updateDriver,
     deleteDriver,
+    
+    // NOUVELLES Actions pour le lazy loading
+    loadMenu: () => menuQuery.refetch(),
+    loadDrivers: () => driversQuery.refetch(),
     
     // Mutations directes (pour les cas avancés)
     updateOrderStatusMutation,

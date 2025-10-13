@@ -1,7 +1,7 @@
 import Unauthorized from '@/components/Unauthorized';
 import { ColisRestrictionNotice } from '@/components/dashboard/ColisRestrictionNotice';
 import { useCurrencyRole } from '@/contexts/UseRoleContext';
-import { isInternalUser } from '@/hooks/use-internal-users';
+import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import { Colis, ColisStatus, CreateColisData, usePartnerColis } from '@/hooks/use-partner-colis';
 import { UserWithBusiness } from '@/lib/kservices/k-helpers';
 import {
@@ -57,11 +57,14 @@ const PartnerColis = () => {
 
   const { toast } = useToast();
   
-  // États pour les données utilisateur et business
-  const [userData, setUserData] = useState<UserWithBusiness | null>(null);
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [userError, setUserError] = useState<string | null>(null);
+  // OPTIMISATION: Utiliser usePartnerProfile avec React Query
+  const { profile: partnerProfile, isLoading: isLoadingProfile } = usePartnerProfile();
+  const business = partnerProfile;
+  const businessId = partnerProfile?.id;
+  
+  // État de chargement compatible
+  const isLoadingUser = isLoadingProfile;
+  const userError = null;
 
   // États pour les colis
   const [searchTerm, setSearchTerm] = useState('');
@@ -110,38 +113,7 @@ const PartnerColis = () => {
     loadColis
   } = usePartnerColis(business?.id || null);
 
-  // Charger les données utilisateur et business
-  const loadUserData = async () => {
-    try {
-      setIsLoadingUser(true);
-      setUserError(null);
-      
-      const {
-        isInternal, 
-        data, 
-        user : userOrigin, 
-        businessId: businessIdOrigin,
-        businessData: businessDataOrigin
-      } = await isInternalUser()    
-      
-      if (businessIdOrigin !== null) {
-        setUserData(userOrigin as UserWithBusiness);
-        setBusiness(businessDataOrigin as Business);
-      } else {
-        setUserError('Aucun business associé à votre compte partenaire');
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des données utilisateur:', err);
-      setUserError('Erreur lors du chargement des données utilisateur');
-    } finally {
-      setIsLoadingUser(false);
-    }
-  };
-
-  // Charger les données au montage
-  useEffect(() => {
-    loadUserData();
-  }, []);
+  // Plus besoin de loadUserData - le business est chargé par usePartnerProfile automatiquement
 
   // Vérifier si le business est de type "package" pour accéder aux colis
   const isPackageBusiness = business?.business_type_id === 64; // ID du type "packages" dans la base

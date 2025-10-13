@@ -1,22 +1,32 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HomepageService } from '@/lib/services/homepage';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Gestionnaire de préchargement pour optimiser les performances
 const PreloadManager = () => {
   const queryClient = useQueryClient();
+  const { currentUser, isLoading: authLoading } = useAuth();
 
   useEffect(() => {
-    // Précharger les données essentielles en arrière-plan
+    // NE RIEN précharger si l'auth est en cours ou si l'utilisateur est un partenaire/driver
+    if (authLoading) return;
+    
+    // Désactiver le préchargement pour les partenaires et drivers
+    if (currentUser?.role === 'partner' || currentUser?.role === 'driver') {
+      console.log('⚠️ Préchargement désactivé pour les partenaires/drivers');
+      return;
+    }
+
+    // Précharger SEULEMENT pour les clients (customers)
+    if (currentUser?.role !== 'customer') {
+      return;
+    }
+
+    // Précharger les données essentielles en arrière-plan (SEULEMENT pour customers)
     const preloadEssentialData = async () => {
       try {
-        // Précharger les statistiques
-        await queryClient.prefetchQuery({
-          queryKey: ['homepage-stats'],
-          queryFn: () => HomepageService.getHomepageStats(),
-          staleTime: 10 * 60 * 1000,
-        });
-
+        const { HomepageService } = await import('@/lib/services/homepage');
+        
         // Précharger les catégories
         await queryClient.prefetchQuery({
           queryKey: ['categories-with-counts'],
@@ -34,7 +44,9 @@ const PreloadManager = () => {
     const preloadSecondaryData = async () => {
       try {
         // Attendre un peu avant de précharger les données secondaires
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const { HomepageService } = await import('@/lib/services/homepage');
 
         // Précharger les restaurants populaires
         await queryClient.prefetchQuery({
@@ -43,20 +55,13 @@ const PreloadManager = () => {
           staleTime: 10 * 60 * 1000,
         });
 
-        // Précharger les articles en vedette
-        await queryClient.prefetchQuery({
-          queryKey: ['featured-items', 8],
-          queryFn: () => HomepageService.getFeaturedProducts(8),
-          staleTime: 5 * 60 * 1000,
-        });
-
         console.log('✅ Données secondaires préchargées avec succès');
       } catch (error) {
         console.warn('⚠️ Erreur lors du préchargement secondaire:', error);
       }
     };
 
-    // Lancer le préchargement
+    // Lancer le préchargement SEULEMENT pour les customers
     preloadEssentialData();
     preloadSecondaryData();
 

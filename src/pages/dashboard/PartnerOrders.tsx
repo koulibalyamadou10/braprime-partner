@@ -4,8 +4,8 @@ import { DeliveryInfoBadge } from '@/components/DeliveryInfoBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import Unauthorized from '@/components/Unauthorized';
 import { useCurrencyRole } from '@/contexts/UseRoleContext';
-import { isInternalUser } from '@/hooks/use-internal-users';
 import { usePartnerNavigation } from '@/hooks/use-partner-navigation';
+import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import { UserWithBusiness } from '@/lib/kservices/k-helpers';
 import { DriverNotificationService } from '@/lib/services/driver-notifications';
 import { PartnerOrder } from '@/lib/services/partner-dashboard';
@@ -67,18 +67,25 @@ interface Business {
 }
 
 const PartnerOrders = () => {
-  const { currencyRole, roles, businessId } = useCurrencyRole();
+  const { currencyRole, roles, businessId: currencyBusinessId } = useCurrencyRole();
   const { navItems, businessTypeId } = usePartnerNavigation();
 
   if ( !roles.includes("commandes") && !roles.includes("admin")) {
     return <Unauthorized />;
   }
 
-  // États pour les données utilisateur et business
-  const [userData, setUserData] = useState<UserWithBusiness | null>(null);
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // OPTIMISATION: Utiliser usePartnerProfile avec React Query au lieu de isInternalUser
+  const { profile: partnerProfile, isLoading: isLoadingProfile } = usePartnerProfile();
+  const business = partnerProfile;
+  const businessId = partnerProfile?.id;
+
+  // États pour les données
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // État de chargement global (pour compatibilité)
+  const isLoading = isLoadingProfile || isLoadingOrders;
+  const isLoadingBusiness = isLoadingProfile;
   
   // États pour les commandes
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
@@ -135,35 +142,24 @@ const PartnerOrders = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
 
-  // Charger les données utilisateur et business
-  const loadUserData = async () => {
+  // Charger les commandes quand le business est disponible
+  const loadUserOrders = async () => {
+    if (!businessId) {
+      console.log('⚠️ Pas de businessId disponible');
+      return;
+    }
+
     try {
-      setIsLoading(true);
+      setIsLoadingOrders(true);
       setError(null);
       
-      const {
-        isInternal, 
-        data, 
-        user : userOrigin, 
-        businessId: businessIdOrigin,
-        businessData: businessDataOrigin
-      } = await isInternalUser()    
-      
-      if (businessIdOrigin !== null) {
-        setUserData(userOrigin as UserWithBusiness);
-        setBusiness(businessDataOrigin as Business);
-        
-        await loadOrders(businessIdOrigin);
-      } else {
-        // Ne pas définir d'erreur ici, laisser la condition !business gérer l'affichage
-        setUserData(null);
-        setBusiness(null);
-      }
+      console.log('📦 Chargement des commandes pour businessId:', businessId);
+      await loadOrders(businessId);
     } catch (err) {
-      console.error('Erreur lors du chargement des données utilisateur:', err);
-      setError('Erreur lors du chargement des données utilisateur');
+      console.error('Erreur lors du chargement des commandes:', err);
+      setError('Erreur lors du chargement des commandes');
     } finally {
-      setIsLoading(false);
+      setIsLoadingOrders(false);
     }
   };
 
@@ -283,10 +279,12 @@ const PartnerOrders = () => {
     }
   };
 
-  // Charger les données au montage
+  // Charger les commandes quand le business est chargé
   useEffect(() => {
-    loadUserData();
-  }, []);
+    if (businessId && !isLoadingProfile) {
+      loadUserOrders();
+    }
+  }, [businessId, isLoadingProfile]);
 
   // Écouter les mises à jour en temps réel des commandes
   useEffect(() => {
@@ -979,7 +977,7 @@ const PartnerOrders = () => {
   const preloadData = async () => {
     try {
       toast.info('🔄 Préchargement des données...')
-      await loadUserData()
+      await loadUserOrders()
       toast.success('✅ Données préchargées avec succès!')
     } catch (error) {
       toast.error('❌ Erreur lors du préchargement')
@@ -1019,7 +1017,7 @@ const PartnerOrders = () => {
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={loadUserData}
+          onClick={loadUserOrders}
           className="ml-auto"
         >
           <RefreshCw className="h-4 w-4 mr-1" />
@@ -1029,39 +1027,11 @@ const PartnerOrders = () => {
     </div>
   );
 
-  // Si en cours de chargement et pas de business, afficher un skeleton
-  if (!business && isLoading) {
-    return (
-      <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
-        <div className="space-y-6">
-          {/* Header STATIQUE - toujours visible */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes Payées</h2>
-              <p className="text-gray-500">
-                Chargement des données...
-              </p>
-            </div>
-          </div>
-          
-          {/* Skeleton pour les statistiques */}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white border rounded-lg p-4 animate-pulse">
-                <div className="flex items-center justify-between">
-                  <div className="h-4 bg-gray-200 rounded w-20"></div>
-                  <div className="h-8 bg-gray-200 rounded w-8"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  // Pas de skeleton global - afficher directement la page
+  // Les cards individuelles ont leurs propres skeletons
 
   // Si pas de business ET chargement terminé, afficher un message d'erreur mais garder la structure
-  if (!business && !isLoading) {
+  if (!business && !isLoadingBusiness) {
     return (
       <DashboardLayout navItems={navItems} title="Gestion des Commandes" businessTypeId={businessTypeId}>
         <div className="space-y-6">
@@ -1093,10 +1063,24 @@ const PartnerOrders = () => {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Gestion des Commandes Payées</h2>
             <p className="text-gray-500">
-              Gérez les commandes payées de {business.name} - {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-gray-400 inline ml-1" />
+              {isLoadingBusiness ? (
+                <>
+                  Chargement du business
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400 inline ml-1" />
+                </>
+              ) : business ? (
+                <>
+                  Gérez les commandes payées de {business.name} - {isLoadingOrders ? (
+                    <>
+                      Chargement
+                      <Loader2 className="h-4 w-4 animate-spin text-gray-400 inline ml-1" />
+                    </>
+                  ) : (
+                    `${orders.length} commandes au total`
+                  )}
+                </>
               ) : (
-                `${orders.length} commandes au total`
+                "Aucun business"
               )}
             </p>
             {stats.duplicates > 0 && (

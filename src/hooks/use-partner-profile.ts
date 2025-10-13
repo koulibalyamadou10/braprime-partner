@@ -1,52 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { BusinessService, Business } from '@/lib/services/business';
 import { useToast } from '@/components/ui/use-toast';
 
 export const usePartnerProfile = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<Business | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Récupérer le profil partenaire
-  const fetchProfile = async () => {
-    if (!currentUser || currentUser.role !== 'partner') {
-      setError('Utilisateur non autorisé');
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  // OPTIMISATION: Utiliser React Query avec cache au lieu de useState + useEffect
+  const profileQuery = useQuery({
+    queryKey: ['partner-profile', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser || currentUser.role !== 'partner') {
+        throw new Error('Utilisateur non autorisé');
+      }
+      
       const { data, error: fetchError } = await BusinessService.getPartnerProfile(currentUser.id);
       
       if (fetchError) {
-        setError(fetchError);
-        toast({
-          title: "Erreur",
-          description: fetchError,
-          variant: "destructive",
-        });
-      } else {
-        setProfile(data);
+        throw new Error(fetchError);
       }
-    } catch (err) {
-      const errorMessage = 'Erreur lors de la récupération du profil';
-      setError(errorMessage);
+      
+      return data;
+    },
+    enabled: !!currentUser?.id && currentUser.role === 'partner' && isAuthenticated,
+    staleTime: 10 * 60 * 1000, // Cache de 10 minutes (le profil change rarement)
+    gcTime: 30 * 60 * 1000,
+    retry: (failureCount, error: any) => {
+      if (error?.message === 'Utilisateur non autorisé') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: errorMessage,
+        description: error.message || 'Erreur lors de la récupération du profil',
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
+  });
+
+  // Fonction de refetch manuelle (pour compatibilité)
+  const fetchProfile = () => {
+    return profileQuery.refetch();
   };
 
   // Mettre à jour le profil
@@ -174,19 +175,17 @@ export const usePartnerProfile = () => {
     }
   };
 
-  // Charger le profil au montage du composant
-  useEffect(() => {
-    fetchProfile();
-  }, [currentUser]);
-
   return {
-    profile,
-    isLoading,
+    profile: profileQuery.data || null,
+    isLoading: profileQuery.isLoading,
     isUpdating,
     isUploading,
-    error,
+    error: profileQuery.error ? String(profileQuery.error) : null,
     fetchProfile,
     updateProfile,
     uploadImage,
+    // Nouveaux champs pour React Query
+    refetch: profileQuery.refetch,
+    isFetching: profileQuery.isFetching,
   };
 }; 

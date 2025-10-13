@@ -54,6 +54,17 @@ interface MenuCategory {
   is_active: boolean;
 }
 
+interface MenuItemVariant {
+  id?: number;
+  variant_type: string;  // "taille", "couleur", "capacité"
+  variant_value: string; // "S", "M", "L", "Rouge", "128GB"
+  price_adjustment: number;
+  stock_quantity?: number;
+  is_available: boolean;
+  sku?: string;
+  sort_order: number;
+}
+
 interface MenuItem {
   id: number;
   name: string;
@@ -68,6 +79,12 @@ interface MenuItem {
   allergens?: string[];
   nutritional_info?: any;
   preparation_time?: number;
+  // Nouveaux champs pour gestion stock
+  stock_quantity?: number | null;
+  low_stock_alert?: number;
+  track_stock?: boolean;
+  sku?: string;
+  // Champs existants
   dosage?: string;
   forme?: string;
   quantite?: string;
@@ -77,6 +94,13 @@ interface MenuItem {
   couleur?: string;
   taille?: string;
   matiere?: string;
+  // Champs supermarché
+  poids?: string;
+  format?: string;
+  // Champs cadeaux
+  materiau?: string;
+  // Variantes
+  variants?: MenuItemVariant[];
 }
 
 // Schema de validation générique
@@ -90,6 +114,11 @@ const createMenuItemSchema = (businessType: string) => {
     is_popular: z.boolean(),
     sort_order: z.number().min(0, 'L\'ordre doit être positif'),
     image: z.string().optional(),
+    // Nouveaux champs pour gestion stock et variantes
+    track_stock: z.boolean().default(false),
+    stock_quantity: z.number().min(0).optional().nullable(),
+    low_stock_alert: z.number().min(0).default(5),
+    sku: z.string().optional(),
   };
 
   // Champs spécifiques selon le type de business
@@ -133,6 +162,23 @@ const createMenuItemSchema = (businessType: string) => {
       couleur: z.string().optional(),
       taille: z.string().optional(),
       matiere: z.string().optional(),
+    },
+    clothing: {
+      marque: z.string().optional(),
+      couleur: z.string().optional(),
+      taille: z.string().optional(),
+      matiere: z.string().optional(),
+    },
+    supermarket: {
+      marque: z.string().optional(),
+      poids: z.string().optional(),
+      format: z.string().optional(),
+      allergens: z.array(z.string()).default([]),
+    },
+    gifts: {
+      marque: z.string().optional(),
+      couleur: z.string().optional(),
+      materiau: z.string().optional(),
     },
     hairdressing: {
       duree: z.number().min(1, 'La durée doit être positive').optional(),
@@ -217,6 +263,37 @@ const businessTypeConfig = {
     },
     allergens: [],
   },
+  clothing: {
+    icon: ShoppingCart,
+    name: 'Vêtements',
+    fields: {
+      marque: { label: 'Marque', required: false },
+      couleur: { label: 'Couleur', required: false },
+      taille: { label: 'Taille', required: false },
+      matiere: { label: 'Matériau', required: false },
+    },
+    allergens: [],
+  },
+  supermarket: {
+    icon: Store,
+    name: 'Supermarché',
+    fields: {
+      marque: { label: 'Marque', required: false },
+      poids: { label: 'Poids', required: false },
+      format: { label: 'Format', required: false },
+    },
+    allergens: ['Gluten', 'Lactose', 'Œufs', 'Arachides', 'Noix', 'Soja', 'Poisson', 'Crustacés'],
+  },
+  gifts: {
+    icon: Heart,
+    name: 'Cadeaux',
+    fields: {
+      marque: { label: 'Marque', required: false },
+      couleur: { label: 'Couleur', required: false },
+      materiau: { label: 'Matériau', required: false },
+    },
+    allergens: [],
+  },
   hairdressing: {
     icon: Scissors,
     name: 'Coiffure',
@@ -283,10 +360,15 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
   isLoading = false,
 }) => {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [variants, setVariants] = useState<MenuItemVariant[]>([]);
+  const [showVariants, setShowVariants] = useState(false);
   const { toast } = useToast();
 
   const config = businessTypeConfig[businessType as keyof typeof businessTypeConfig] || businessTypeConfig.restaurant;
   const IconComponent = config.icon;
+  
+  // Déterminer si ce type de business peut avoir des variantes
+  const canHaveVariants = ['cafe', 'clothing', 'electronics', 'beauty', 'supermarket'].includes(businessType);
 
   // Créer le schema dynamiquement
   const schema = createMenuItemSchema(businessType);
@@ -303,6 +385,11 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
       is_popular: false,
       sort_order: 0,
       image: '',
+      // Nouveaux champs stock
+      track_stock: false,
+      stock_quantity: null,
+      low_stock_alert: 5,
+      sku: '',
       ...(businessType === 'restaurant' || businessType === 'cafe' ? {
         preparation_time: 15,
         allergens: [],
@@ -320,6 +407,23 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
         quantite: '',
         allergens: [],
       } : {}),
+      ...(businessType === 'clothing' ? {
+        marque: '',
+        couleur: '',
+        taille: '',
+        matiere: '',
+      } : {}),
+      ...(businessType === 'supermarket' ? {
+        marque: '',
+        poids: '',
+        format: '',
+        allergens: [],
+      } : {}),
+      ...(businessType === 'gifts' ? {
+        marque: '',
+        couleur: '',
+        materiau: '',
+      } : {}),
     },
   });
 
@@ -335,6 +439,11 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
         is_popular: currentItem.is_popular,
         sort_order: currentItem.sort_order,
         image: currentItem.image || '',
+        // Champs stock
+        track_stock: currentItem.track_stock || false,
+        stock_quantity: currentItem.stock_quantity,
+        low_stock_alert: currentItem.low_stock_alert || 5,
+        sku: currentItem.sku || '',
         ...(businessType === 'restaurant' || businessType === 'cafe' ? {
           preparation_time: currentItem.preparation_time || 15,
           allergens: currentItem.allergens || [],
@@ -346,7 +455,32 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
           quantite: currentItem.quantite || '',
           allergens: currentItem.allergens || [],
         } : {}),
+        ...(businessType === 'clothing' ? {
+          marque: currentItem.marque || '',
+          couleur: currentItem.couleur || '',
+          taille: currentItem.taille || '',
+          matiere: currentItem.matiere || '',
+        } : {}),
+        ...(businessType === 'supermarket' ? {
+          marque: currentItem.marque || '',
+          poids: currentItem.poids || '',
+          format: currentItem.format || '',
+          allergens: currentItem.allergens || [],
+        } : {}),
+        ...(businessType === 'gifts' ? {
+          marque: currentItem.marque || '',
+          couleur: currentItem.couleur || '',
+          materiau: currentItem.materiau || '',
+        } : {}),
       });
+      // Charger les variantes existantes
+      if (currentItem.variants && currentItem.variants.length > 0) {
+        setVariants(currentItem.variants);
+        setShowVariants(true);
+      } else {
+        setVariants([]);
+        setShowVariants(false);
+      }
     } else if (mode === 'add') {
       form.reset({
         name: '',
@@ -357,6 +491,11 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
         is_popular: false,
         sort_order: 0,
         image: '',
+        // Champs stock
+        track_stock: false,
+        stock_quantity: null,
+        low_stock_alert: 5,
+        sku: '',
         ...(businessType === 'restaurant' || businessType === 'cafe' ? {
           preparation_time: 15,
           allergens: [],
@@ -368,7 +507,27 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
           quantite: '',
           allergens: [],
         } : {}),
+        ...(businessType === 'clothing' ? {
+          marque: '',
+          couleur: '',
+          taille: '',
+          matiere: '',
+        } : {}),
+        ...(businessType === 'supermarket' ? {
+          marque: '',
+          poids: '',
+          format: '',
+          allergens: [],
+        } : {}),
+        ...(businessType === 'gifts' ? {
+          marque: '',
+          couleur: '',
+          materiau: '',
+        } : {}),
       });
+      // Réinitialiser les variantes
+      setVariants([]);
+      setShowVariants(false);
     }
   }, [currentItem, mode, categories, businessType, form]);
 
@@ -395,10 +554,40 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
 
   const handleSubmit = async (data: FormValues) => {
     try {
-      await onSubmit({
+      console.log('🎨 AddMenuItemDialog - État avant soumission:', {
+        showVariants,
+        variantsCount: variants.length,
+        variants: variants,
+        willSendVariants: showVariants && variants.length > 0
+      });
+
+      // Valider les variantes si elles sont activées
+      if (showVariants && variants.length > 0) {
+        const invalidVariants = variants.filter(v => !v.variant_value.trim());
+        if (invalidVariants.length > 0) {
+          toast({
+            title: "Erreur",
+            description: "Toutes les variantes doivent avoir une valeur",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      const dataToSend = {
         ...data,
         business_id: businessId,
-      });
+        // Ajouter les variantes seulement si elles sont activées et configurées
+        variants: showVariants && variants.length > 0 ? variants : [],
+      };
+
+      console.log('📤 Envoi des données:', dataToSend);
+
+      await onSubmit(dataToSend);
+      
+      // Réinitialiser les variantes
+      setVariants([]);
+      setShowVariants(false);
       onOpenChange(false);
     } catch (error) {
       console.error('Erreur lors de la soumission:', error);
@@ -546,6 +735,106 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
                     </FormItem>
                   )}
                 />
+
+                {/* Champs de gestion de stock (pour produits physiques) */}
+                {(businessType === 'pharmacy' || businessType === 'electronics' || 
+                  businessType === 'supermarket' || businessType === 'clothing' || 
+                  businessType === 'hardware') && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="track_stock"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Gérer le stock</FormLabel>
+                            <FormDescription>
+                              Activer la gestion automatique des quantités en stock
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    {form.watch('track_stock') && (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name="stock_quantity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Quantité en stock</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Store className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                                  <Input 
+                                    type="number" 
+                                    className="pl-9" 
+                                    min="0"
+                                    {...field} 
+                                    onChange={e => field.onChange(e.target.valueAsNumber || 0)}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Nombre d'unités disponibles
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="low_stock_alert"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Seuil d'alerte stock faible</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="0"
+                                  {...field} 
+                                  onChange={e => field.onChange(e.target.valueAsNumber || 5)}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Alerter quand le stock passe sous ce seuil
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="sku"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Code SKU/Référence</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Ex: PROD-12345"
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Code unique pour identifier le produit
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
               </div>
               
               <FormField
@@ -619,6 +908,179 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
                         <FormLabel>Quantité</FormLabel>
                         <FormControl>
                           <Input placeholder="Ex: 20 comprimés" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Champs pour vêtements */}
+            {businessType === 'clothing' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">Informations produit</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="marque"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Marque</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Nike, Adidas..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="matiere"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Matière</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Coton 100%" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="couleur"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Couleur principale</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Noir, Blanc, Bleu..." {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Utilisez les variantes pour gérer plusieurs couleurs
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="taille"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Taille principale</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: M, L..." {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Utilisez les variantes pour gérer plusieurs tailles
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Champs pour supermarché */}
+            {businessType === 'supermarket' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">Informations produit</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="marque"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Marque</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Coca-Cola, Nestlé..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="poids"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Poids/Volume</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: 1kg, 500ml..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="format"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Format</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Pack de 6, Sachet..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Champs pour cadeaux */}
+            {businessType === 'gifts' && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">Informations produit</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="marque"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Marque</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Artisan local..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="couleur"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Couleur</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Rouge, Doré..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="materiau"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Matériau</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: Bois, Métal, Verre..." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -808,6 +1270,177 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
                 />
               </div>
             </div>
+
+            {/* Section Variantes (pour certains types de business) */}
+            {canHaveVariants && (
+              <div className="space-y-4 border-t pt-6 mt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium">Variantes du produit</h3>
+                    <p className="text-sm text-gray-500">
+                      Gérez les différentes options (taille, couleur, capacité, etc.)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={showVariants}
+                    onCheckedChange={setShowVariants}
+                  />
+                </div>
+
+                {showVariants && (
+                  <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">
+                        {variants.length} variante(s) configurée(s)
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setVariants([...variants, {
+                            variant_type: businessType === 'cafe' ? 'taille' : 
+                                         businessType === 'clothing' ? 'taille' :
+                                         businessType === 'electronics' ? 'capacité' : 'option',
+                            variant_value: '',
+                            price_adjustment: 0,
+                            stock_quantity: 0,
+                            is_available: true,
+                            sort_order: variants.length
+                          }]);
+                        }}
+                      >
+                        + Ajouter une variante
+                      </Button>
+                    </div>
+
+                    {variants.map((variant, index) => (
+                      <div key={index} className="bg-white p-4 rounded border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Variante #{index + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setVariants(variants.filter((_, i) => i !== index))}
+                          >
+                            Supprimer
+                          </Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label>Type</Label>
+                            <Select
+                              value={variant.variant_type}
+                              onValueChange={(value) => {
+                                const newVariants = [...variants];
+                                newVariants[index].variant_type = value;
+                                setVariants(newVariants);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {businessType === 'cafe' && (
+                                  <>
+                                    <SelectItem value="taille">Taille</SelectItem>
+                                    <SelectItem value="température">Température</SelectItem>
+                                    <SelectItem value="lait">Type de lait</SelectItem>
+                                  </>
+                                )}
+                                {businessType === 'clothing' && (
+                                  <>
+                                    <SelectItem value="taille">Taille</SelectItem>
+                                    <SelectItem value="couleur">Couleur</SelectItem>
+                                  </>
+                                )}
+                                {businessType === 'electronics' && (
+                                  <>
+                                    <SelectItem value="capacité">Capacité</SelectItem>
+                                    <SelectItem value="couleur">Couleur</SelectItem>
+                                    <SelectItem value="version">Version</SelectItem>
+                                  </>
+                                )}
+                                {businessType === 'beauty' && (
+                                  <>
+                                    <SelectItem value="volume">Volume</SelectItem>
+                                    <SelectItem value="teinte">Teinte</SelectItem>
+                                  </>
+                                )}
+                                {businessType === 'supermarket' && (
+                                  <>
+                                    <SelectItem value="poids">Poids</SelectItem>
+                                    <SelectItem value="format">Format</SelectItem>
+                                  </>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div>
+                            <Label>Valeur</Label>
+                            <Input
+                              placeholder="Ex: S, M, L"
+                              value={variant.variant_value}
+                              onChange={(e) => {
+                                const newVariants = [...variants];
+                                newVariants[index].variant_value = e.target.value;
+                                setVariants(newVariants);
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label>Ajustement prix (GNF)</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              value={variant.price_adjustment}
+                              onChange={(e) => {
+                                const newVariants = [...variants];
+                                newVariants[index].price_adjustment = parseInt(e.target.value) || 0;
+                                setVariants(newVariants);
+                              }}
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Prix final: {(form.watch('price') + variant.price_adjustment).toLocaleString()} GNF
+                            </p>
+                          </div>
+
+                          {form.watch('track_stock') && (
+                            <div>
+                              <Label>Stock</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                value={variant.stock_quantity || 0}
+                                onChange={(e) => {
+                                  const newVariants = [...variants];
+                                  newVariants[index].stock_quantity = parseInt(e.target.value) || 0;
+                                  setVariants(newVariants);
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {variants.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p className="text-sm">Aucune variante configurée</p>
+                        <p className="text-xs mt-1">Cliquez sur "Ajouter une variante" pour commencer</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             
             <div className="pt-4 space-x-2 flex justify-end">
               <Button 

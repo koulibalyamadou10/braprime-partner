@@ -1,4 +1,3 @@
-import { isInternalUser } from '@/hooks/use-internal-users'
 import { supabase } from '@/lib/supabase'
 
 export interface PartnerBusiness {
@@ -121,19 +120,19 @@ export interface WeeklyData {
 }
 
 export class PartnerDashboardService {
-  // Récupérer le business du partenaire connecté (optimisé)
+  // Récupérer le business du partenaire connecté (ULTRA-OPTIMISÉ - 1 seule requête)
   static async getPartnerBusiness(): Promise<{ business: PartnerBusiness | null; error: string | null }> {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       
       if (authError || !user) {
         return { business: null, error: 'Utilisateur non authentifié' }
-      }  
+      }
 
-      // recuperer les informations de l'utilisateur qui est connecté
-      const {isInternal, businessId} = await isInternalUser();  
+      console.log('🚀 [getPartnerBusiness] Chargement optimisé pour user:', user.id)
 
-      // Requête optimisée avec jointure et sélection ciblée
+      // OPTIMISATION MAJEURE: 1 seule requête au lieu de 3+
+      // On récupère le business directement avec le business_type en jointure
       const { data: businesses, error } = await supabase
         .from('businesses')
         .select(`
@@ -157,10 +156,10 @@ export class PartnerDashboardService {
           updated_at,
           business_types(name)
         `)
-        .eq('id', businessId)
-        // .eq('owner_id', user.id)
+        .eq('owner_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
+        .limit(1)
 
       if (error) {
         console.error('Erreur récupération business:', error)
@@ -203,20 +202,60 @@ export class PartnerDashboardService {
     }
   }
 
-  // Récupérer les statistiques du partenaire (utilise directement le fallback)
+  // Récupérer les statistiques du partenaire (utilise la fonction RPC optimisée)
   static async getPartnerStats(businessId: number): Promise<{ stats: PartnerStats | null; error: string | null }> {
     try {
-      console.log('🔍 [getPartnerStats] Utilisation du fallback pour businessId:', businessId)
-      // Utiliser directement le fallback car la fonction RPC n'existe pas
-      return await this.getPartnerStatsFallback(businessId)
+      console.log('🔍 [getPartnerStats] Utilisation de la fonction RPC pour businessId:', businessId)
+      
+      // Appeler la fonction RPC PostgreSQL optimisée
+      const { data, error } = await supabase.rpc('get_partner_stats', {
+        p_business_id: businessId
+      })
+
+      if (error) {
+        console.error('❌ [getPartnerStats] Erreur RPC:', error)
+        // Fallback si la fonction RPC n'existe pas encore
+        console.log('⚠️ [getPartnerStats] Utilisation du fallback')
+        return await this.getPartnerStatsFallback(businessId)
+      }
+
+      console.log('✅ [getPartnerStats] Statistiques récupérées via RPC')
+      return { stats: data as PartnerStats, error: null }
     } catch (error) {
-      console.error('Erreur lors de la récupération des statistiques:', error)
-      return { stats: null, error: 'Erreur lors de la récupération des statistiques' }
+      console.error('❌ [getPartnerStats] Erreur:', error)
+      // Fallback en cas d'erreur
+      return await this.getPartnerStatsFallback(businessId)
     }
   }
 
-  // Récupérer les données hebdomadaires pour le graphique
+  // Récupérer les données hebdomadaires pour le graphique (utilise la fonction RPC optimisée)
   static async getWeeklyData(businessId: number): Promise<{ data: WeeklyData[] | null; error: string | null }> {
+    try {
+      console.log('🔍 [getWeeklyData] Utilisation de la fonction RPC pour businessId:', businessId)
+      
+      // Appeler la fonction RPC PostgreSQL optimisée
+      const { data, error } = await supabase.rpc('get_weekly_data', {
+        p_business_id: businessId
+      })
+
+      if (error) {
+        console.error('❌ [getWeeklyData] Erreur RPC:', error)
+        // Fallback si la fonction RPC n'existe pas encore
+        console.log('⚠️ [getWeeklyData] Utilisation du fallback')
+        return await this.getWeeklyDataFallback(businessId)
+      }
+
+      console.log('✅ [getWeeklyData] Données hebdomadaires récupérées via RPC')
+      return { data: data as WeeklyData[], error: null }
+    } catch (error) {
+      console.error('❌ [getWeeklyData] Erreur:', error)
+      // Fallback en cas d'erreur
+      return await this.getWeeklyDataFallback(businessId)
+    }
+  }
+
+  // Fallback pour getWeeklyData (ancienne méthode)
+  private static async getWeeklyDataFallback(businessId: number): Promise<{ data: WeeklyData[] | null; error: string | null }> {
     try {
       // Calculer le début de la semaine (lundi)
       const now = new Date()
@@ -371,7 +410,7 @@ export class PartnerDashboardService {
     }
   }
 
-  // Récupérer les commandes récentes du partenaire (optimisé avec jointure)
+  // Récupérer les commandes récentes du partenaire (ULTRA-OPTIMISÉ avec jointures natives)
   static async getPartnerOrders(
     businessId: number, 
     limit: number = 10, 
@@ -379,7 +418,10 @@ export class PartnerDashboardService {
     status?: string
   ): Promise<{ orders: PartnerOrder[] | null; error: string | null; total: number }> {
     try {
-      // Construire la requête avec filtres optionnels
+      console.log('🚀 [getPartnerOrders] Chargement optimisé avec jointures natives')
+
+      // OPTIMISATION MAJEURE: Utiliser les jointures natives de Supabase
+      // 1 seule requête au lieu de 4 (orders, profiles, drivers, items)
       let query = supabase
         .from('orders')
         .select(`
@@ -395,25 +437,26 @@ export class PartnerDashboardService {
           delivery_instructions,
           payment_method,
           payment_status,
-          estimated_delivery,
-          actual_delivery,
-          driver_id,
-          customer_rating,
-          customer_review,
-          pickup_coordinates,
-          delivery_coordinates,
           created_at,
           updated_at,
-          preferred_delivery_time,
           delivery_type,
-          available_for_drivers,
+          preferred_delivery_time,
           scheduled_delivery_window_start,
           scheduled_delivery_window_end,
           landmark,
           service_fee,
           verification_code,
-          assigned_at
-        `)
+          assigned_at,
+          available_for_drivers,
+          estimated_delivery,
+          actual_delivery,
+          driver_id,
+          customer_rating,
+          customer_review,
+          user_profiles!orders_user_id_fkey(name, phone_number),
+          driver_profiles!orders_driver_id_fkey(name, phone_number, vehicle_type, vehicle_plate),
+          order_items(order_id, name, price, quantity, image, special_instructions)
+        `, { count: 'exact' })
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1)
@@ -426,131 +469,48 @@ export class PartnerDashboardService {
       const { data: orders, error, count } = await query
 
       if (error) {
-        console.error('Erreur récupération commandes:', error)
+        console.error('❌ [getPartnerOrders] Erreur:', error)
         return { orders: null, error: error.message, total: 0 }
       }
 
-      // Récupérer les profils utilisateur séparément
-      const userIds = orders?.map(order => order.user_id).filter(Boolean) || []
-      let userProfiles: any[] = []
+      console.log('✅ [getPartnerOrders] Commandes chargées:', orders?.length || 0)
 
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('user_profiles')
-          .select('id, name, phone_number')
-          .in('id', userIds)
-
-        if (profilesError) {
-          console.error('Erreur récupération profils:', profilesError)
-        } else {
-          userProfiles = profiles || []
-        }
-      }
-
-      // Récupérer les informations des livreurs si des commandes ont des livreurs assignés
-      const driverIds = orders?.map(order => order.driver_id).filter(Boolean) || []
-      let driverProfiles: any[] = []
-
-      if (driverIds.length > 0) {
-        const { data: drivers, error: driversError } = await supabase
-          .from('driver_profiles')
-          .select(`
-            id,
-            name,
-            phone_number,
-            vehicle_type,
-            vehicle_plate
-          `)
-          .in('id', driverIds)
-
-        if (driversError) {
-          console.error('Erreur récupération livreurs:', driversError)
-        } else {
-          driverProfiles = drivers || []
-        }
-      }
-
-      // Récupérer les items de chaque commande
-      const orderIds = orders?.map(order => order.id) || []
-      let orderItems: any[] = []
-
-      if (orderIds.length > 0) {
-        const { data: items, error: itemsError } = await supabase
-          .from('order_items')
-          .select(`
-            order_id,
-            name,
-            price,
-            quantity,
-            image,
-            special_instructions
-          `)
-          .in('order_id', orderIds)
-
-        if (itemsError) {
-          console.error('Erreur récupération items:', itemsError)
-        } else {
-          orderItems = items || []
-        }
-      }
-
-      // Créer des maps pour accéder rapidement aux données
-      const profilesMap = new Map(userProfiles.map(profile => [profile.id, profile]))
-      const driversMap = new Map(driverProfiles.map(driver => [driver.id, driver]))
-      const itemsMap = new Map()
-      
-      // Grouper les items par commande
-      orderItems.forEach(item => {
-        if (!itemsMap.has(item.order_id)) {
-          itemsMap.set(item.order_id, [])
-        }
-        itemsMap.get(item.order_id).push(item)
-      })
-
-      const partnerOrders: PartnerOrder[] = (orders || []).map(order => {
-        const profile = profilesMap.get(order.user_id)
-        const driver = order.driver_id ? driversMap.get(order.driver_id) : null
-        const items = itemsMap.get(order.id) || []
-
-        return {
-          id: order.id,
-          order_number: order.order_number,
-          user_id: order.user_id,
-          customer_name: profile?.name || 'Client',
-          customer_phone: profile?.phone_number || '',
-          items: items, // Maintenant on a les vrais items
-          status: order.status,
-          total: order.total,
-          delivery_fee: order.delivery_fee,
-          grand_total: order.grand_total,
-          delivery_address: order.delivery_address,
-          delivery_instructions: order.delivery_instructions,
-          landmark: order.landmark, // Point de repère
-          payment_method: order.payment_method,
-          payment_status: order.payment_status,
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-          estimated_delivery: order.estimated_delivery,
-          driver_name: driver?.name || '',
-          driver_phone: driver?.phone_number || '',
-          // Nouveaux champs pour la gestion des livraisons ASAP/Scheduled
-          delivery_type: order.delivery_type || 'asap',
-          preferred_delivery_time: order.preferred_delivery_time,
-          scheduled_delivery_window_start: order.scheduled_delivery_window_start,
-          scheduled_delivery_window_end: order.scheduled_delivery_window_end,
-          available_for_drivers: order.available_for_drivers || false,
-          estimated_delivery_time: order.estimated_delivery, // Utiliser estimated_delivery
-          actual_delivery_time: order.actual_delivery, // Utiliser actual_delivery
-          // Champs pour les informations du livreur
-          driver_id: order.driver_id,
-          driver_vehicle_type: driver?.vehicle_type,
-          driver_vehicle_plate: driver?.vehicle_plate,
-          // Champs pour les frais et la vérification
-          service_fee: order.service_fee,
-          verification_code: order.verification_code,
-          assigned_at: order.assigned_at
-        }
-      })
+      // Mapper les résultats sans requêtes supplémentaires
+      const partnerOrders: PartnerOrder[] = (orders || []).map((order: any) => ({
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        customer_name: order.user_profiles?.name || 'Client',
+        customer_phone: order.user_profiles?.phone_number || '',
+        items: order.order_items || [],
+        status: order.status,
+        total: order.total,
+        delivery_fee: order.delivery_fee,
+        grand_total: order.grand_total,
+        delivery_address: order.delivery_address,
+        delivery_instructions: order.delivery_instructions,
+        landmark: order.landmark,
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        estimated_delivery: order.estimated_delivery,
+        driver_name: order.driver_profiles?.name || '',
+        driver_phone: order.driver_profiles?.phone_number || '',
+        delivery_type: order.delivery_type || 'asap',
+        preferred_delivery_time: order.preferred_delivery_time,
+        scheduled_delivery_window_start: order.scheduled_delivery_window_start,
+        scheduled_delivery_window_end: order.scheduled_delivery_window_end,
+        available_for_drivers: order.available_for_drivers || false,
+        estimated_delivery_time: order.estimated_delivery,
+        actual_delivery_time: order.actual_delivery,
+        driver_id: order.driver_id,
+        driver_vehicle_type: order.driver_profiles?.vehicle_type,
+        driver_vehicle_plate: order.driver_profiles?.vehicle_plate,
+        service_fee: order.service_fee,
+        verification_code: order.verification_code,
+        assigned_at: order.assigned_at
+      }))
 
       return { 
         orders: partnerOrders, 
@@ -558,7 +518,7 @@ export class PartnerDashboardService {
         total: count || partnerOrders.length 
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des commandes:', error)
+      console.error('❌ [getPartnerOrders] Exception:', error)
       return { orders: null, error: 'Erreur lors de la récupération des commandes', total: 0 }
     }
   }

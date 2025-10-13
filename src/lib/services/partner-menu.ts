@@ -1,5 +1,17 @@
 import { supabase } from '@/lib/supabase';
 
+export interface MenuItemVariant {
+  id?: number;
+  menu_item_id?: number;
+  variant_type: string;
+  variant_value: string;
+  price_adjustment: number;
+  stock_quantity?: number;
+  is_available: boolean;
+  sku?: string;
+  sort_order: number;
+}
+
 export interface PartnerMenuItem {
   id: number;
   name: string;
@@ -22,6 +34,12 @@ export interface PartnerMenuItem {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  // Nouveaux champs pour stock et variantes
+  track_stock?: boolean;
+  stock_quantity?: number | null;
+  low_stock_alert?: number;
+  sku?: string;
+  variants?: MenuItemVariant[];
 }
 
 export interface PartnerMenuCategory {
@@ -108,10 +126,13 @@ export const PartnerMenuService = {
         console.error('Erreur lors de la récupération des catégories:', categoriesError);
       }
 
-      // Récupérer les articles
+      // Récupérer les articles avec leurs variantes
       const { data: items, error: itemsError } = await supabase
         .from('menu_items')
-        .select('*')
+        .select(`
+          *,
+          variants:menu_item_variants(*)
+        `)
         .eq('business_id', businessId)
         .order('name', { ascending: true });
 
@@ -133,13 +154,70 @@ export const PartnerMenuService = {
   // Créer un nouvel article
   createMenuItem: async (item: MenuItemCreate): Promise<{ data: PartnerMenuItem | null; error: string | null }> => {
     try {
-      const { data, error } = await supabase
+      // Extraire les variantes des données
+      const { variants, ...itemData } = item as any;
+      
+      console.log('📝 Création article - Données reçues:', {
+        hasVariants: !!variants,
+        variantsCount: variants?.length || 0,
+        variants: variants
+      });
+      
+      // Créer l'article
+      const { data: menuItem, error: itemError } = await supabase
         .from('menu_items')
-        .insert(item)
+        .insert(itemData)
         .select()
         .single();
       
-      return { data, error: error?.message || null };
+      if (itemError || !menuItem) {
+        console.error('❌ Erreur création article:', itemError);
+        return { data: null, error: itemError?.message || 'Erreur lors de la création' };
+      }
+
+      console.log('✅ Article créé avec ID:', menuItem.id);
+
+      // Si des variantes sont fournies, les créer
+      if (variants && Array.isArray(variants) && variants.length > 0) {
+        const variantsToInsert = variants.map((v: MenuItemVariant) => ({
+          menu_item_id: menuItem.id,
+          variant_type: v.variant_type,
+          variant_value: v.variant_value,
+          price_adjustment: v.price_adjustment,
+          stock_quantity: v.stock_quantity || 0,
+          is_available: v.is_available,
+          sku: v.sku || null,
+          sort_order: v.sort_order
+        }));
+
+        console.log('📦 Insertion de', variantsToInsert.length, 'variantes:', variantsToInsert);
+
+        const { data: insertedVariants, error: variantsError } = await supabase
+          .from('menu_item_variants')
+          .insert(variantsToInsert)
+          .select();
+
+        if (variantsError) {
+          console.error('❌ Erreur lors de la création des variantes:', variantsError);
+          // On ne retourne pas d'erreur car l'article est créé
+        } else {
+          console.log('✅ Variantes créées:', insertedVariants?.length || 0);
+        }
+      } else {
+        console.log('ℹ️ Aucune variante à créer');
+      }
+
+      // Récupérer l'article avec ses variantes
+      const { data: fullItem } = await supabase
+        .from('menu_items')
+        .select(`
+          *,
+          variants:menu_item_variants(*)
+        `)
+        .eq('id', menuItem.id)
+        .single();
+      
+      return { data: fullItem || menuItem, error: null };
     } catch (error) {
       console.error('Erreur lors de la création de l\'article:', error);
       return { data: null, error: 'Erreur de connexion' };
@@ -149,14 +227,87 @@ export const PartnerMenuService = {
   // Mettre à jour un article
   updateMenuItem: async (id: number, item: MenuItemUpdate): Promise<{ data: PartnerMenuItem | null; error: string | null }> => {
     try {
-      const { data, error } = await supabase
+      // Extraire les variantes des données
+      const { variants, ...itemData } = item as any;
+      
+      console.log('🔄 Mise à jour article ID:', id, {
+        hasVariants: variants !== undefined,
+        variantsCount: variants?.length || 0,
+        variants: variants
+      });
+      
+      // Mettre à jour l'article
+      const { data: menuItem, error: itemError } = await supabase
         .from('menu_items')
-        .update({ ...item, updated_at: new Date().toISOString() })
+        .update({ ...itemData, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
         .single();
       
-      return { data, error: error?.message || null };
+      if (itemError || !menuItem) {
+        return { data: null, error: itemError?.message || 'Erreur lors de la mise à jour' };
+      }
+
+      // Gérer les variantes si elles sont fournies
+      if (variants !== undefined) {
+        console.log('🗑️ Suppression des anciennes variantes...');
+        
+        // Supprimer les anciennes variantes
+        const { error: deleteError } = await supabase
+          .from('menu_item_variants')
+          .delete()
+          .eq('menu_item_id', id);
+
+        if (deleteError) {
+          console.error('❌ Erreur suppression variantes:', deleteError);
+        } else {
+          console.log('✅ Anciennes variantes supprimées');
+        }
+
+        // Créer les nouvelles variantes si présentes
+        if (Array.isArray(variants) && variants.length > 0) {
+          console.log('📦 Insertion de', variants.length, 'nouvelles variantes');
+          
+          const variantsToInsert = variants.map((v: MenuItemVariant) => ({
+            menu_item_id: id,
+            variant_type: v.variant_type,
+            variant_value: v.variant_value,
+            price_adjustment: v.price_adjustment,
+            stock_quantity: v.stock_quantity || 0,
+            is_available: v.is_available,
+            sku: v.sku || null,
+            sort_order: v.sort_order
+          }));
+
+          const { data: insertedVariants, error: variantsError } = await supabase
+            .from('menu_item_variants')
+            .insert(variantsToInsert)
+            .select();
+
+          if (variantsError) {
+            console.error('❌ Erreur lors de la mise à jour des variantes:', variantsError);
+            // On ne retourne pas d'erreur car l'article est mis à jour
+          } else {
+            console.log('✅ Variantes mises à jour:', insertedVariants?.length || 0);
+          }
+        } else {
+          console.log('ℹ️ Aucune nouvelle variante à créer');
+        }
+      } else {
+        console.log('ℹ️ Variantes non modifiées');
+      }
+
+      // Récupérer l'article avec ses variantes
+      const { data: fullItem } = await supabase
+        .from('menu_items')
+        .select(`
+          *,
+          variants:menu_item_variants(*)
+        `)
+        .eq('id', id)
+        .single();
+      
+      return { data: fullItem || menuItem, error: null };
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'article:', error);
       return { data: null, error: 'Erreur de connexion' };

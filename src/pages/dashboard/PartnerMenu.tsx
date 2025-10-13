@@ -70,7 +70,6 @@ import MenuCategoryManager from '@/components/dashboard/MenuCategoryManager';
 import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import { AddMenuItemDialog } from '@/components/dashboard/AddMenuItemDialog';
 import { useToast } from '@/hooks/use-toast';
-import { PartnerMenuSkeleton } from '@/components/dashboard/DashboardSkeletons';
 import { useCurrencyRole } from '@/contexts/UseRoleContext';
 import Unauthorized from '@/components/Unauthorized';
 
@@ -92,15 +91,16 @@ const PartnerMenu = () => {
   }
 
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'menu' | 'categories'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'categories' | 'variants'>('menu');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<PartnerMenuItem | null>(null);
   const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
+  
   // Récupérer le profil partenaire pour obtenir le business_id et le type de business
-  const { profile: partnerProfile, isLoading: profileLoading } = usePartnerProfile();
+  const { profile: partnerProfile, isLoading: isLoadingProfile } = usePartnerProfile();
   const businessId = partnerProfile?.id;
   const businessType = partnerProfile?.business_type_id ? 
     (partnerProfile.business_type_id === 1 ? 'restaurant' : 
@@ -113,15 +113,35 @@ const PartnerMenu = () => {
      partnerProfile.business_type_id === 8 ? 'hairdressing' : 
      partnerProfile.business_type_id === 9 ? 'hardware' : 
      partnerProfile.business_type_id === 10 ? 'bookstore' : 
-     partnerProfile.business_type_id === 11 ? 'document_service' : 'restaurant') : 'restaurant';
+     partnerProfile.business_type_id === 11 ? 'document_service' : 
+     // Nouveaux types selon BUSINESS_TYPES_MENU_STRUCTURE.md
+     partnerProfile.business_type_id === 55 ? 'supermarket' :
+     partnerProfile.business_type_id === 56 ? 'electronics' :
+     partnerProfile.business_type_id === 57 ? 'beauty' :
+     partnerProfile.business_type_id === 58 ? 'clothing' :
+     partnerProfile.business_type_id === 60 ? 'gifts' :
+     partnerProfile.business_type_id === 61 ? 'hardware' :
+     partnerProfile.business_type_id === 64 ? 'packages' :
+     // IDs utilisés dans les exemples de données
+     partnerProfile.business_type_id === 81 ? 'supermarket' :
+     partnerProfile.business_type_id === 82 ? 'electronics' :
+     partnerProfile.business_type_id === 83 ? 'beauty' :
+     partnerProfile.business_type_id === 84 ? 'clothing' :
+     partnerProfile.business_type_id === 86 ? 'gifts' :
+     partnerProfile.business_type_id === 87 ? 'hardware' :
+     partnerProfile.business_type_id === 95 ? 'restaurant' :
+     'restaurant') : 'restaurant';
 
   // Hooks pour les données et mutations
-  const { data: menuData, isLoading, error, refetch } = usePartnerMenu(businessId || 0);
+  const { data: menuData, isLoading: isLoadingMenu, error, refetch } = usePartnerMenu(businessId || 0);
   const createMenuItemMutation = useCreateMenuItem();
   const updateMenuItemMutation = useUpdateMenuItem();
   const deleteMenuItemMutation = useDeleteMenuItem();
   const toggleAvailabilityMutation = useToggleMenuItemAvailability();
   const { toast } = useToast();
+  
+  // État de chargement global (pour compatibilité)
+  const isLoading = isLoadingProfile || isLoadingMenu;
 
   // Le formulaire est maintenant géré par le composant AddMenuItemDialog
 
@@ -153,7 +173,11 @@ const PartnerMenu = () => {
 
   const handleAddItem = () => {
     if (!businessId) {
-      alert('Erreur: Business ID non trouvé');
+      toast({
+        title: "Erreur",
+        description: "Business ID non trouvé",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -194,39 +218,62 @@ const PartnerMenu = () => {
       return;
     }
 
+    console.log('🎯 PartnerMenu - onSubmit reçoit:', data);
+
+    // Extraire les variantes et les champs qui n'existent pas dans menu_items
+    const { variants, couleur, taille, marque, matiere, poids, format, materiau, dosage, forme, quantite, sku, ...baseData } = data as any;
+
     if (formMode === 'add') {
+      // Ne garder que les colonnes qui existent dans menu_items + variants
       const newItem: MenuItemCreate = {
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        category_id: data.category_id,
-        preparation_time: data.preparation_time,
-        is_available: data.is_available,
-        is_popular: data.is_popular,
+        name: baseData.name,
+        description: baseData.description,
+        price: baseData.price,
+        category_id: baseData.category_id,
+        is_available: baseData.is_available,
+        is_popular: baseData.is_popular,
         business_id: businessId,
-        image: data.image || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
-        sort_order: data.sort_order,
-        allergens: data.allergens,
-        nutritional_info: data.nutritional_info,
-      };
+        image: baseData.image || 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+        sort_order: baseData.sort_order,
+        allergens: baseData.allergens,
+        nutritional_info: baseData.nutritional_info,
+        preparation_time: baseData.preparation_time,
+        // Nouveaux champs stock
+        track_stock: baseData.track_stock,
+        stock_quantity: baseData.stock_quantity,
+        low_stock_alert: baseData.low_stock_alert,
+        // Variantes (sku est dans les variantes, pas dans menu_items)
+        variants: variants || [],
+      } as any;
+      
+      console.log('✅ Envoi à createMenuItem:', newItem);
       await createMenuItemMutation.mutateAsync(newItem);
     } else if (formMode === 'edit' && currentItem) {
+      // Ne garder que les colonnes qui existent dans menu_items + variants
       const updateData: MenuItemUpdate = {
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        category_id: data.category_id,
-        preparation_time: data.preparation_time,
-        is_available: data.is_available,
-        is_popular: data.is_popular,
-        sort_order: data.sort_order,
-        image: data.image || currentItem.image,
-        allergens: data.allergens,
-        nutritional_info: data.nutritional_info,
-      };
+        name: baseData.name,
+        description: baseData.description,
+        price: baseData.price,
+        category_id: baseData.category_id,
+        is_available: baseData.is_available,
+        is_popular: baseData.is_popular,
+        image: baseData.image || currentItem.image,
+        sort_order: baseData.sort_order,
+        allergens: baseData.allergens,
+        nutritional_info: baseData.nutritional_info,
+        preparation_time: baseData.preparation_time,
+        // Nouveaux champs stock
+        track_stock: baseData.track_stock,
+        stock_quantity: baseData.stock_quantity,
+        low_stock_alert: baseData.low_stock_alert,
+        // Variantes (sku est dans les variantes, pas dans menu_items)
+        variants: variants !== undefined ? variants : currentItem.variants,
+      } as any;
+      
+      console.log('✅ Envoi à updateMenuItem:', updateData);
       await updateMenuItemMutation.mutateAsync({
         id: currentItem.id,
-        item: updateData,
+        updates: updateData,  // ← Changé 'item' en 'updates'
       });
     }
     
@@ -303,40 +350,11 @@ const PartnerMenu = () => {
     </div>
   );
 
-  // Si en cours de chargement du profil et pas de business ID, afficher un skeleton
-  if (!businessId && profileLoading) {
-    return (
-      <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
-        <div className="space-y-6">
-          {/* Header STATIQUE - toujours visible */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Menu</h2>
-              <p className="text-gray-500">Chargement des données...</p>
-            </div>
-          </div>
-          
-          {/* Skeleton pour les statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white border rounded-lg p-4 animate-pulse">
-                <div className="flex items-center space-x-2">
-                  <div className="h-4 w-4 bg-gray-200 rounded"></div>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    <div className="h-8 bg-gray-200 rounded w-8"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Si pas de business ID ET chargement terminé, afficher un message d'erreur mais garder la structure
-  if (!businessId && !profileLoading) {
+  // Pas de skeleton global - afficher directement la page
+  // Les cards ont leurs propres spinners
+  
+  // Si pas de business ID ET chargement terminé, afficher un message d'erreur
+  if (!businessId && !isLoadingProfile) {
     return (
       <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
         <div className="space-y-6">
@@ -355,7 +373,7 @@ const PartnerMenu = () => {
     );
   }
 
-
+  // Afficher le contenu principal avec chargement progressif des données
   return (
     <DashboardLayout navItems={partnerNavItems} title="Gestion du Menu">
       <div className="space-y-6">
@@ -365,9 +383,29 @@ const PartnerMenu = () => {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Menu</h2>
-            <p className="text-gray-500">Gérez le menu de votre restaurant et les catégories.</p>
+            <p className="text-gray-500">
+              {isLoadingProfile ? (
+                <>
+                  Chargement du profil
+                  <Loader2 className="h-3 w-3 animate-spin text-gray-400 inline ml-1" />
+                </>
+              ) : partnerProfile ? (
+                <>
+                  Gérez le menu de {partnerProfile.name} - {isLoadingMenu ? (
+                    <>
+                      Chargement
+                      <Loader2 className="h-3 w-3 animate-spin text-gray-400 inline ml-1" />
+                    </>
+                  ) : (
+                    `${totalItems} articles au total`
+                  )}
+                </>
+              ) : (
+                "Gérez le menu de votre restaurant"
+              )}
+            </p>
           </div>
-          <Button onClick={handleAddItem} className="flex items-center gap-2" disabled={isLoading}>
+          <Button onClick={handleAddItem} className="flex items-center gap-2" disabled={isLoadingProfile || !businessId}>
             <Plus className="h-4 w-4" /> Ajouter un Article
           </Button>
         </div>
@@ -380,7 +418,7 @@ const PartnerMenu = () => {
                 <Store className="h-4 w-4 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Articles</p>
-                  {isLoading ? (
+                  {isLoadingMenu ? (
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                   ) : (
                     <p className="text-2xl font-bold">{totalItems}</p>
@@ -395,7 +433,7 @@ const PartnerMenu = () => {
                 <Check className="h-4 w-4 text-green-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Disponibles</p>
-                  {isLoading ? (
+                  {isLoadingMenu ? (
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                   ) : (
                     <p className="text-2xl font-bold">{availableItems}</p>
@@ -410,7 +448,7 @@ const PartnerMenu = () => {
                 <Star className="h-4 w-4 text-orange-600" />
                 <div>
                   <p className="text-sm font-medium text-gray-600">Populaires</p>
-                  {isLoading ? (
+                  {isLoadingMenu ? (
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                   ) : (
                     <p className="text-2xl font-bold">{popularItems}</p>
@@ -422,10 +460,11 @@ const PartnerMenu = () => {
         </div>
 
         {/* Onglets principaux */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'menu' | 'categories')}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'menu' | 'categories' | 'variants')}>
           <TabsList>
             <TabsTrigger value="menu">Articles du Menu</TabsTrigger>
             <TabsTrigger value="categories">Catégories</TabsTrigger>
+            <TabsTrigger value="variants">Variantes</TabsTrigger>
           </TabsList>
 
           <TabsContent value="menu" className="space-y-6">
@@ -644,6 +683,200 @@ const PartnerMenu = () => {
               items={items}
               onCategoryUpdate={() => refetch()}
             />
+          </TabsContent>
+
+          <TabsContent value="variants" className="space-y-6">
+            {/* En-tête */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Gestion des Variantes</CardTitle>
+                    <CardDescription>
+                      Gérez les variantes (tailles, couleurs, capacités) pour vos articles
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+
+            {/* Liste des articles avec variantes */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Articles avec Variantes</CardTitle>
+                <CardDescription>
+                  {isLoading ? 'Chargement...' : `${items.filter(item => item.variants && item.variants.length > 0).length} articles avec variantes configurées`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center space-x-4">
+                        <Skeleton className="h-16 w-16 rounded" />
+                        <div className="space-y-2 flex-1">
+                          <Skeleton className="h-4 w-[250px]" />
+                          <Skeleton className="h-4 w-[200px]" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : items.filter(item => item.variants && item.variants.length > 0).length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">Aucune variante configurée</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Ajoutez des variantes à vos articles depuis l'onglet "Articles du Menu"
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {items
+                      .filter(item => item.variants && item.variants.length > 0)
+                      .map((item) => (
+                        <Card key={item.id} className="overflow-hidden">
+                          <div className="flex items-start p-4 space-x-4">
+                            {/* Image de l'article */}
+                            <div className="flex-shrink-0">
+                              {item.image ? (
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="h-20 w-20 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="h-20 w-20 rounded-lg bg-gray-100 flex items-center justify-center">
+                                  <ImageIcon className="h-8 w-8 text-gray-400" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Informations de l'article */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-semibold text-gray-900 truncate">
+                                    {item.name}
+                                  </h3>
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    Prix de base: {formatCurrency(item.price)}
+                                  </p>
+                                  <Badge variant="secondary" className="mt-2">
+                                    {item.variants?.length || 0} variante(s)
+                                  </Badge>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setCurrentItem(item);
+                                    setFormMode('edit');
+                                    setIsAddEditOpen(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Modifier
+                                </Button>
+                              </div>
+
+                              {/* Liste des variantes */}
+                              <div className="mt-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-3">Variantes configurées :</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {item.variants?.map((variant, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="border rounded-lg p-3 bg-gray-50"
+                                    >
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {variant.variant_type}: {variant.variant_value}
+                                          </p>
+                                          <p className="text-sm text-gray-600 mt-1">
+                                            Prix: {formatCurrency(item.price + variant.price_adjustment)}
+                                            {variant.price_adjustment !== 0 && (
+                                              <span className="text-xs text-gray-500 ml-1">
+                                                ({variant.price_adjustment > 0 ? '+' : ''}{formatCurrency(variant.price_adjustment)})
+                                              </span>
+                                            )}
+                                          </p>
+                                          {item.track_stock && variant.stock_quantity !== undefined && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                              Stock: {variant.stock_quantity} unités
+                                            </p>
+                                          )}
+                                        </div>
+                                        <Badge 
+                                          variant={variant.is_available ? "default" : "secondary"}
+                                          className="ml-2"
+                                        >
+                                          {variant.is_available ? (
+                                            <Check className="h-3 w-3" />
+                                          ) : (
+                                            <X className="h-3 w-3" />
+                                          )}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Statistiques des variantes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription>Articles avec variantes</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {isLoading ? '...' : items.filter(item => item.variants && item.variants.length > 0).length}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    Sur {isLoading ? '...' : totalItems} articles au total
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription>Total de variantes</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {isLoading ? '...' : items.reduce((acc, item) => acc + (item.variants?.length || 0), 0)}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    Toutes variantes confondues
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription>Variantes actives</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {isLoading ? '...' : items.reduce((acc, item) => 
+                      acc + (item.variants?.filter(v => v.is_available).length || 0), 0
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    Variantes disponibles à la vente
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

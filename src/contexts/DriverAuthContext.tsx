@@ -41,7 +41,7 @@ export const DriverAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setLoading(true);
       setError(null);
 
-      // Vérifier d'abord si l'utilisateur a le rôle driver
+      // OPTIMISATION: Vérifier d'abord si l'utilisateur existe
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !user) {
@@ -50,14 +50,13 @@ export const DriverAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return;
       }
 
-      // Vérifier le rôle de l'utilisateur
+      // OPTIMISATION: Utiliser une seule requête avec jointure
       const { data: userProfile, error: profileError } = await supabase
         .from('user_profiles')
         .select(`
+          id,
           role_id,
-          user_roles (
-            name
-          )
+          user_roles!inner(name)
         `)
         .eq('id', user.id)
         .single();
@@ -68,27 +67,38 @@ export const DriverAuthProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return;
       }
 
-      // Si l'utilisateur n'a pas le rôle driver, ne pas essayer de récupérer les données de chauffeur
-      if (userProfile.user_roles?.name !== 'driver') {
+      // Si l'utilisateur n'a pas le rôle driver, arrêter immédiatement
+      const roleName = (userProfile.user_roles as any)?.name;
+      if (roleName !== 'driver') {
         setDriver(null);
         setLoading(false);
         return;
       }
 
-      // Seulement si l'utilisateur a le rôle driver, essayer de récupérer les données de chauffeur
-      const { driver: currentDriver, error: driverError } = await DriverAuthService.getCurrentDriver();
+      // OPTIMISATION: Charger les données driver SEULEMENT si nécessaire
+      // et après un délai pour ne pas bloquer le rendu initial
+      setTimeout(async () => {
+        try {
+          const { driver: currentDriver, error: driverError } = await DriverAuthService.getCurrentDriver();
 
-      if (driverError) {
-        setDriver(null);
-        setError(driverError);
-      } else if (currentDriver) {
-        setDriver(currentDriver);
-        setError(null);
-      }
+          if (driverError) {
+            setDriver(null);
+            setError(driverError);
+          } else if (currentDriver) {
+            setDriver(currentDriver);
+            setError(null);
+          }
+        } catch (err) {
+          setDriver(null);
+          setError(err instanceof Error ? err.message : 'Erreur driver');
+        }
+      }, 100);
+      
+      // Marquer comme non chargé immédiatement pour ne pas bloquer l'interface
+      setLoading(false);
     } catch (err) {
       setDriver(null);
       setError(err instanceof Error ? err.message : 'Erreur lors de la vérification de l\'authentification');
-    } finally {
       setLoading(false);
     }
   };

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/contexts/UserRoleContext';
-import { isInternalUser } from '@/hooks/use-internal-users';
 import { usePartnerDashboard } from '@/hooks/use-partner-dashboard';
 import { usePartnerNavigation } from '@/hooks/use-partner-navigation';
 import { usePartnerAccessCheck } from '@/hooks/use-subscription';
@@ -88,7 +87,6 @@ const getStatusLabel = (status: string) => {
 
 
 const PartnerDashboard = () => {
-  isInternalUser();
   const { currentUser } = useAuth();
   const { navItems, businessTypeId } = usePartnerNavigation();
   const [activeTab, setActiveTab] = useState('overview');
@@ -278,17 +276,10 @@ const PartnerDashboard = () => {
     );
   }
 
-  // Utiliser le chargement progressif au lieu du chargement simple
-  if (isBusinessLoading && !business) {
-    return (
-      <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
-        <PartnerDashboardSkeleton />
-      </DashboardLayout>
-    );
-  }
-
-  // Afficher le chargement progressif une fois que le business est chargé
-  if (business && (isStatsLoading || isOrdersLoading || isMenuLoading || isWeeklyDataLoading)) {
+  // Afficher le chargement progressif dès le début
+  // Cela permet d'afficher le business dès qu'il est chargé, 
+  // puis les autres données progressivement avec leurs skeletons individuels
+  if (isBusinessLoading || isStatsLoading || isOrdersLoading || isMenuLoading || isWeeklyDataLoading) {
     return (
       <DashboardLayout navItems={navItems} title="Tableau de bord" businessTypeId={businessTypeId}>
         <PartnerDashboardProgressiveSkeleton
@@ -297,7 +288,7 @@ const PartnerDashboard = () => {
           recentOrders={recentOrders}
           menu={menu}
           weeklyData={weeklyData}
-          isBusinessLoading={false}
+          isBusinessLoading={isBusinessLoading}
           isStatsLoading={isStatsLoading}
           isOrdersLoading={isOrdersLoading}
           isMenuLoading={isMenuLoading}

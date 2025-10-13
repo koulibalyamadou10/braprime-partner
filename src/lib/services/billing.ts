@@ -46,8 +46,32 @@ export interface BillingPayment {
 }
 
 export class BillingService {
-  // Récupérer les statistiques de facturation pour un business
+  // Récupérer les statistiques de facturation pour un business (OPTIMISÉ avec RPC)
   static async getBillingStats(businessId: number, period: 'week' | 'month' | 'year' = 'month'): Promise<BillingStats | null> {
+    try {
+      console.log('🚀 [getBillingStats] Utilisation de la fonction RPC pour businessId:', businessId);
+
+      // Essayer d'utiliser la fonction RPC optimisée
+      const { data, error } = await supabase.rpc('get_billing_stats', {
+        p_business_id: businessId,
+        p_period: period
+      });
+
+      if (error) {
+        console.warn('⚠️ [getBillingStats] Erreur RPC, utilisation du fallback:', error);
+        return await this.getBillingStatsFallback(businessId, period);
+      }
+
+      console.log('✅ [getBillingStats] Statistiques récupérées via RPC');
+      return data as BillingStats;
+    } catch (error) {
+      console.error('❌ [getBillingStats] Exception:', error);
+      return await this.getBillingStatsFallback(businessId, period);
+    }
+  }
+
+  // Fallback pour getBillingStats (ancienne méthode)
+  private static async getBillingStatsFallback(businessId: number, period: 'week' | 'month' | 'year' = 'month'): Promise<BillingStats | null> {
     try {
       // Récupérer les commandes du business
       const { data: orders, error: ordersError } = await supabase

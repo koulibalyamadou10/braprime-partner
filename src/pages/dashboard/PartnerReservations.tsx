@@ -63,7 +63,7 @@ import { useCurrencyRole } from '@/contexts/UseRoleContext';
 import Unauthorized from '@/components/Unauthorized';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { isInternalUser } from '@/hooks/use-internal-users';
+import { usePartnerProfile } from '@/hooks/use-partner-profile';
 import ReservationEmailService from '@/lib/services/reservation-email-service';
 
 // Helper function to get status color
@@ -128,10 +128,10 @@ const PartnerReservations = () => {
 
   const { currentUser } = useAuth();
   
-  // États pour les données utilisateur et business
-  const [userData, setUserData] = useState<any>(null);
-  const [business, setBusiness] = useState<any>(null);
-  const [isLoadingBusiness, setIsLoadingBusiness] = useState(true);
+  // OPTIMISATION: Utiliser usePartnerProfile avec React Query
+  const { profile: partnerProfile, isLoading: isLoadingProfile } = usePartnerProfile();
+  const business = partnerProfile;
+  const businessId = partnerProfile?.id;
   
   // État local pour les réservations (pour les mises à jour temps réel)
   const [localReservations, setLocalReservations] = useState<PartnerReservation[]>([]);
@@ -147,6 +147,9 @@ const PartnerReservations = () => {
     assignTable,
     getReservationStats
   } = usePartnerReservations();
+  
+  // État de chargement compatible
+  const isLoadingBusiness = isLoadingProfile;
   
   // State pour les filtres et la recherche
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -166,31 +169,7 @@ const PartnerReservations = () => {
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [realtimeRetryCount, setRealtimeRetryCount] = useState(0);
   
-  // Charger les données utilisateur et business
-  const loadUserData = async () => {
-    try {
-      setIsLoadingBusiness(true);
-      
-      const {
-        isInternal, 
-        data, 
-        user : userOrigin, 
-        businessId: businessIdOrigin,
-        businessData: businessDataOrigin
-      } = await isInternalUser()    
-      
-      if (businessIdOrigin !== null) {
-        setUserData(userOrigin);
-        setBusiness(businessDataOrigin);
-      } else {
-        console.error('Aucun business associé à votre compte partenaire');
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des données utilisateur:', err);
-    } finally {
-      setIsLoadingBusiness(false);
-    }
-  };
+  // Plus besoin de loadUserData - le business est chargé par usePartnerProfile
   
   // Fonction pour jouer le son de notification
   const playNotificationSound = () => {
@@ -314,7 +293,7 @@ const PartnerReservations = () => {
             updatedReservation,
             newStatus,
             business,
-            userData?.name || 'Équipe'
+            currentUser?.name || 'Équipe'
           );
           
           if (emailResult.success) {
@@ -360,7 +339,7 @@ const PartnerReservations = () => {
             table_number: tableNumber.toString(),
             table_description: `Table ${tableNumber} - ${business.name}`,
             assigned_at: new Date().toISOString(),
-            assigned_by: userData?.name || 'Équipe',
+            assigned_by: currentUser?.name || 'Équipe',
             special_requests: updatedReservation.special_requests,
             support_email: 'support@bradelivery.com',
             support_phone: '+224 621 00 00 00'
@@ -473,10 +452,7 @@ const PartnerReservations = () => {
     }
   };
 
-  // Charger les données au montage
-  useEffect(() => {
-    loadUserData();
-  }, []);
+  // Le business est chargé automatiquement par usePartnerProfile
 
   // Synchroniser l'état local avec les données du hook
   useEffect(() => {
