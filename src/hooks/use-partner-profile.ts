@@ -10,6 +10,7 @@ export const usePartnerProfile = () => {
   const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // OPTIMISATION: Utiliser React Query avec cache au lieu de useState + useEffect
   const profileQuery = useQuery({
@@ -36,13 +37,6 @@ export const usePartnerProfile = () => {
       }
       return failureCount < 2;
     },
-    onError: (error: any) => {
-      toast({
-        title: "Erreur",
-        description: error.message || 'Erreur lors de la récupération du profil',
-        variant: "destructive",
-      });
-    }
   });
 
   // Fonction de refetch manuelle (pour compatibilité)
@@ -79,7 +73,8 @@ export const usePartnerProfile = () => {
         });
         return false;
       } else {
-        setProfile(data);
+        // Invalider le cache pour rafraîchir les données
+        queryClient.invalidateQueries({ queryKey: ['partner-profile', currentUser.id] });
         toast({
           title: "Succès",
           description: "Profil mis à jour avec succès",
@@ -180,7 +175,7 @@ export const usePartnerProfile = () => {
     isLoading: profileQuery.isLoading,
     isUpdating,
     isUploading,
-    error: profileQuery.error ? String(profileQuery.error) : null,
+    error: error || (profileQuery.error ? String(profileQuery.error) : null),
     fetchProfile,
     updateProfile,
     uploadImage,

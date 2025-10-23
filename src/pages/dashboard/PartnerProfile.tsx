@@ -154,6 +154,10 @@ const PartnerProfile = () => {
       if (map) {
         try {
           window.google.maps.event.clearInstanceListeners(map);
+          // Supprimer la carte du DOM si elle existe
+          if (mapRef.current) {
+            mapRef.current.innerHTML = '';
+          }
         } catch (error) {
           console.warn('Erreur lors du nettoyage de la carte existante:', error);
         }
@@ -161,6 +165,7 @@ const PartnerProfile = () => {
       if (marker) {
         try {
           window.google.maps.event.clearInstanceListeners(marker);
+          marker.setMap(null); // Supprimer le marqueur de la carte
         } catch (error) {
           console.warn('Erreur lors du nettoyage du marqueur existant:', error);
         }
@@ -172,6 +177,11 @@ const PartnerProfile = () => {
           console.warn('Erreur lors du nettoyage de la recherche existante:', error);
         }
       }
+
+      // Réinitialiser les états
+      setMap(null);
+      setMarker(null);
+      setSearchBox(null);
 
       const defaultLocation = MAPS_CONFIG.DEFAULT_LOCATION;
       
@@ -299,8 +309,40 @@ const PartnerProfile = () => {
       } catch (error) {
         console.warn('Erreur lors du nettoyage de la recherche:', error);
       }
+
+      // Nettoyer les références pour éviter les fuites mémoire
+      setMap(null);
+      setMarker(null);
+      setSearchBox(null);
+      setSuggestions([]);
+      setShowSuggestions(false);
     };
   }, [isEditing]); // Suppression des dépendances problématiques
+
+  // Nettoyage global lors du démontage du composant
+  useEffect(() => {
+    return () => {
+      // Nettoyage final lors du démontage
+      try {
+        if (map && window.google?.maps?.event) {
+          window.google.maps.event.clearInstanceListeners(map);
+        }
+        if (marker && window.google?.maps?.event) {
+          window.google.maps.event.clearInstanceListeners(marker);
+          marker.setMap(null);
+        }
+        if (searchBox && window.google?.maps?.event) {
+          window.google.maps.event.clearInstanceListeners(searchBox);
+        }
+        // Nettoyer le contenu du DOM
+        if (mapRef.current) {
+          mapRef.current.innerHTML = '';
+        }
+      } catch (error) {
+        console.warn('Erreur lors du nettoyage final:', error);
+      }
+    };
+  }, []); // Seulement au démontage
 
   // Initialiser les données du formulaire quand le profil est chargé
   React.useEffect(() => {
