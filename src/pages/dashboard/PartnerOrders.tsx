@@ -1893,6 +1893,25 @@ const PartnerOrders = () => {
                       )}
                     </div>
                     
+                    {/* Zone de livraison */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="font-medium text-sm text-gray-600">Commune</p>
+                        <p className="text-sm font-medium">{selectedOrder.commune || 'Non définie'}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-gray-600">Quartier</p>
+                        <p className="text-sm font-medium">{selectedOrder.quartier || 'Non défini'}</p>
+                      </div>
+                    </div>
+                    
+                    {selectedOrder.zone && (
+                      <div>
+                        <p className="font-medium text-sm text-gray-600">Zone</p>
+                        <p className="text-sm bg-gray-50 p-2 rounded">{selectedOrder.zone}</p>
+                      </div>
+                    )}
+                    
                     {selectedOrder.delivery_instructions && (
                       <div>
                         <p className="font-medium text-sm text-gray-600">Instructions</p>
