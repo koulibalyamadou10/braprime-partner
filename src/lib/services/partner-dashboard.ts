@@ -79,6 +79,8 @@ export interface PartnerOrder {
   assigned_at?: string
   // Champs pour la zone de livraison
   zone?: string
+  commune?: string
+  quartier?: string
   // Champs pour les commandes groupées
   is_grouped_delivery?: boolean
   delivery_group_id?: string

@@ -545,7 +545,6 @@ const PartnerMenu = () => {
                             <TableHead>Nom</TableHead>
                             <TableHead>Catégorie</TableHead>
                             <TableHead>Prix</TableHead>
-                            <TableHead>Temps de Préparation</TableHead>
                             <TableHead>Ordre</TableHead>
                             <TableHead>Statut</TableHead>
                             <TableHead>Actions</TableHead>
@@ -583,12 +582,7 @@ const PartnerMenu = () => {
                               </TableCell>
                               <TableCell>{getCategoryName(item.category_id)}</TableCell>
                               <TableCell>{formatCurrency(item.price)}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3.5 w-3.5 text-gray-500" />
-                                  <span>{item.preparation_time} min</span>
-                                </div>
-                              </TableCell>
+                              {/* Temps de préparation supprimé */}
                               <TableCell>
                                 <span className="font-mono text-sm text-gray-500">
                                   {item.sort_order}

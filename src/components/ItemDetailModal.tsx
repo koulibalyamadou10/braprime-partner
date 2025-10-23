@@ -174,23 +174,20 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Informations de livraison */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-900 flex items-center">
-                <Clock className="h-4 w-4 mr-2 text-guinea-red" />
-                Livraison
-              </h3>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Temps de préparation :</span> {item.preparation_time || 20} min
-                </p>
-                {item.businesses?.delivery_time && (
+            {/* Informations de livraison - Temps de préparation supprimé */}
+            {item.businesses?.delivery_time && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-900 flex items-center">
+                  <Clock className="h-4 w-4 mr-2 text-guinea-red" />
+                  Livraison
+                </h3>
+                <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Livraison :</span> {item.businesses.delivery_time}
                   </p>
-                )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Informations nutritionnelles */}

@@ -689,30 +689,7 @@ export const AddMenuItemDialog: React.FC<AddMenuItemDialogProps> = ({
                   )}
                 />
                 
-                {/* Champs spécifiques selon le type de business */}
-                {(businessType === 'restaurant' || businessType === 'cafe') && (
-                  <FormField
-                    control={form.control}
-                    name="preparation_time"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Temps de Préparation (min) *</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                            <Input 
-                              type="number" 
-                              className="pl-9" 
-                              {...field} 
-                              onChange={e => field.onChange(e.target.valueAsNumber || 0)}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                {/* Champs spécifiques selon le type de business - Temps de préparation supprimé */}
 
                 <FormField
                   control={form.control}

@@ -95,7 +95,8 @@ const PartnerOrders = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDeliveryType, setFilterDeliveryType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [zoneFilter, setZoneFilter] = useState<string>("");
+  const [communeFilter, setCommuneFilter] = useState<string>("");
+  const [quartierFilter, setQuartierFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("recent");
   const [dateRange, setDateRange] = useState<string>("all");
   const [amountRange, setAmountRange] = useState<string>("all");
@@ -451,10 +452,17 @@ const PartnerOrders = () => {
       );
     }
 
-    // Filtrer par zone
-    if (zoneFilter) {
+    // Filtrer par commune
+    if (communeFilter) {
       filtered = filtered.filter(order => 
-        order.zone && order.zone.toLowerCase().includes(zoneFilter.toLowerCase())
+        order.commune && order.commune.toLowerCase().includes(communeFilter.toLowerCase())
+      );
+    }
+
+    // Filtrer par quartier
+    if (quartierFilter) {
+      filtered = filtered.filter(order => 
+        order.quartier && order.quartier.toLowerCase().includes(quartierFilter.toLowerCase())
       );
     }
 
@@ -540,7 +548,7 @@ const PartnerOrders = () => {
     }, []);
 
     setFilteredOrders(uniqueFiltered);
-  }, [orders, filterStatus, filterDeliveryType, searchQuery, zoneFilter, sortBy, dateRange, amountRange, paymentMethod]);
+  }, [orders, filterStatus, filterDeliveryType, searchQuery, communeFilter, quartierFilter, sortBy, dateRange, amountRange, paymentMethod]);
 
   // Charger les livreurs disponibles pour l'assignation multiple - DÉSACTIVÉ
   // const loadAvailableDrivers = async () => {
@@ -1120,11 +1128,23 @@ const PartnerOrders = () => {
               <div className="relative">
                 <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input 
-                  type="search" 
-                  placeholder="Filtrer par zone..." 
+                  type="search"
+                  placeholder="Filtrer par commune..."
                   className="pl-8"
-                  value={zoneFilter}
-                  onChange={(e) => setZoneFilter(e.target.value)}
+                  value={communeFilter}
+                  onChange={(e) => setCommuneFilter(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="relative">
+                <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input 
+                  type="search"
+                  placeholder="Filtrer par quartier..."
+                  className="pl-8"
+                  value={quartierFilter}
+                  onChange={(e) => setQuartierFilter(e.target.value)}
                 />
               </div>
             </div>
@@ -1238,7 +1258,8 @@ const PartnerOrders = () => {
                 setFilterStatus("all");
                 setFilterDeliveryType("all");
                 setSearchQuery("");
-                setZoneFilter("");
+                setCommuneFilter("");
+                setQuartierFilter("");
                 setSortBy("recent");
                 setDateRange("all");
                 setAmountRange("all");
@@ -1466,7 +1487,8 @@ const PartnerOrders = () => {
                       <TableHead>Livraison</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Statut</TableHead>
-                      <TableHead>Zone</TableHead>
+                      <TableHead>Commune</TableHead>
+                      <TableHead>Quartier</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1545,7 +1567,8 @@ const PartnerOrders = () => {
                     <TableHead>Livraison</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Zone</TableHead>
+                    <TableHead>Commune</TableHead>
+                    <TableHead>Quartier</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                   
@@ -1596,8 +1619,13 @@ const PartnerOrders = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="max-w-[200px]">
-                        <div className="truncate" title={order.zone || 'Zone non définie'}>
-                          {order.zone || 'Zone non définie'}
+                        <div className="truncate" title={order.commune || 'Commune non définie'}>
+                          {order.commune || 'Commune non définie'}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[200px]">
+                        <div className="truncate" title={order.quartier || 'Quartier non défini'}>
+                          {order.quartier || 'Quartier non défini'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1664,12 +1692,15 @@ const PartnerOrders = () => {
                       Effacer la recherche
                     </Button>
                   )}
-                  {zoneFilter && (
+                  {(communeFilter || quartierFilter) && (
                     <Button 
                       variant="outline" 
-                      onClick={() => setZoneFilter("")}
+                      onClick={() => {
+                        setCommuneFilter("");
+                        setQuartierFilter("");
+                      }}
                     >
-                      Effacer le filtre de zone
+                      Effacer les filtres de localisation
                     </Button>
                   )}
                 </div>
@@ -1682,8 +1713,8 @@ const PartnerOrders = () => {
       {/* Dialogue de détails de commande */}
       {selectedOrder && (
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-            <DialogHeader>
+          <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center justify-between">
                 <span>Commande {selectedOrder.order_number || selectedOrder.id.slice(0, 8)}...</span>
                 <Badge className={`${getStatusColor(selectedOrder.status)} flex items-center gap-1`}>
@@ -1693,13 +1724,14 @@ const PartnerOrders = () => {
               </DialogTitle>
             </DialogHeader>
             
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-1">
               {/* Colonne principale - Articles et Actions */}
               <div className="lg:col-span-3 space-y-4">
                 <div>
                   <h3 className="text-lg font-medium mb-3">Articles de la commande</h3>
                   <div className="border rounded-md">
-                    <ScrollArea className="h-80">
+                    <ScrollArea className="max-h-80">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2219,8 +2251,9 @@ const PartnerOrders = () => {
                 </div>
               </div>
             </div>
+            </ScrollArea>
             
-            <DialogFooter className="border-t pt-4">
+            <DialogFooter className="flex-shrink-0 border-t pt-4">
               <div className="flex justify-between items-center w-full">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-500">ID: {selectedOrder.order_number || selectedOrder.id.slice(0, 8)}...</span>
