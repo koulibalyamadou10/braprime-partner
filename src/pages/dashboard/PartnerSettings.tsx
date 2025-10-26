@@ -25,6 +25,7 @@ import {
     DollarSign,
     Globe,
     Phone,
+    QrCode,
     Save,
     Settings,
     Shield,
@@ -34,6 +35,8 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import Unauthorized from '@/components/Unauthorized';
 import { useCurrencyRole } from '@/contexts/UseRoleContext';
+import QRCodeGenerator from '@/components/QRCodeGenerator';
+import { usePartnerMenu } from '@/hooks/use-partner-menu';
 
 interface BusinessSettings {
   // Informations de base
@@ -100,6 +103,9 @@ const PartnerSettings: React.FC = () => {
   // Utiliser partnerProfile comme business data
   const business = partnerProfile;
   const businessLoading = partnerLoading;
+
+  // Hook pour récupérer les menu items
+  const { data: menuItems, isLoading: menuItemsLoading } = usePartnerMenu();
   
   const [businessSettings, setBusinessSettings] = useState<BusinessSettings>({
     // Informations de base
@@ -326,7 +332,7 @@ const PartnerSettings: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4 text-blue-600" />
               Général
@@ -338,6 +344,10 @@ const PartnerSettings: React.FC = () => {
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-red-600" />
               Sécurité
+            </TabsTrigger>
+            <TabsTrigger value="qrcodes" className="flex items-center gap-2">
+              <QrCode className="h-4 w-4 text-green-600" />
+              QR Codes
             </TabsTrigger>
           </TabsList>
 
@@ -920,6 +930,137 @@ const PartnerSettings: React.FC = () => {
             </div>
           </TabsContent>
 
+          <TabsContent value="qrcodes" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5 text-green-600" />
+                  QR Code du Restaurant
+                </CardTitle>
+                <CardDescription>
+                  Générez le QR code de votre restaurant. Les clients peuvent scanner ce code pour accéder directement à votre page avec tous vos services dans l'application mobile.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {businessLoading ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4">
+                      <Skeleton className="h-16 w-16 rounded" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-[250px]" />
+                        <Skeleton className="h-4 w-[200px]" />
+                      </div>
+                      <Skeleton className="h-8 w-20" />
+                    </div>
+                  </div>
+                ) : business ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-6 border rounded-lg bg-gradient-to-r from-green-50 to-blue-50">
+                      <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
+                          {business.image ? (
+                            <img 
+                              src={business.image} 
+                              alt={business.name} 
+                              className="h-16 w-16 object-cover" 
+                            />
+                          ) : (
+                            <div className="h-16 w-16 bg-gray-200 flex items-center justify-center">
+                              <Building2 className="h-8 w-8 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-semibold">{business.name}</h3>
+                          <p className="text-sm text-gray-600">
+                            {business.description ? business.description.substring(0, 80) + '...' : 'Restaurant'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-sm font-medium text-green-600">
+                              {menuItems?.length || 0} service{(menuItems?.length || 0) > 1 ? 's' : ''}
+                            </span>
+                            {business.is_active ? (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                Actif
+                              </span>
+                            ) : (
+                              <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                                Inactif
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <QRCodeGenerator
+                          businessId={business.id}
+                          businessName={business.name}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune information de restaurant</h3>
+                    <p className="text-gray-500 mb-4">
+                      Configurez votre profil restaurant pour générer un QR code.
+                    </p>
+                    <Button asChild>
+                      <a href="/partner-dashboard/profile">
+                        Configurer le profil
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Instructions d'utilisation */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Comment utiliser les QR codes</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium mb-2">Pour les clients :</h4>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li className="flex items-start gap-2">
+                        <span className="text-green-600 mt-1">1.</span>
+                        <span>Scanner le QR code avec l'appareil photo du téléphone</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-green-600 mt-1">2.</span>
+                        <span>L'application s'ouvre automatiquement</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-green-600 mt-1">3.</span>
+                        <span>Accéder à votre page restaurant avec tous vos services</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-2">Pour vous :</h4>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 mt-1">•</span>
+                        <span>Générez un QR code unique pour votre restaurant</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 mt-1">•</span>
+                        <span>Téléchargez et imprimez le QR code</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 mt-1">•</span>
+                        <span>Placez-le sur vos tables, menus ou vitrine</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
         </Tabs>
       </div>

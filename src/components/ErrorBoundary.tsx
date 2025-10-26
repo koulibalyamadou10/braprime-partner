@@ -29,6 +29,16 @@ class ErrorBoundary extends Component<Props, State> {
     // Log l'erreur pour le debugging
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
+    // Gestion spéciale pour les erreurs removeChild (problèmes DOM)
+    if (error.name === 'NotFoundError' && error.message.includes('removeChild')) {
+      console.warn('Erreur removeChild détectée - tentative de récupération automatique');
+      // Essayer de récupérer automatiquement après un court délai
+      setTimeout(() => {
+        this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+      }, 100);
+      return;
+    }
+    
     this.setState({
       error,
       errorInfo

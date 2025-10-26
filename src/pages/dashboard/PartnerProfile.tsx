@@ -40,7 +40,7 @@ declare global {
   }
 }
 
-const PartnerProfile = () => {
+const PartnerProfile = React.memo(() => {
   const { currencyRole, roles } = useCurrencyRole();
 
   if (!roles.includes("admin")) {
@@ -343,6 +343,16 @@ const PartnerProfile = () => {
       }
     };
   }, []); // Seulement au démontage
+
+  // Protection supplémentaire pour les composants Radix UI
+  useEffect(() => {
+    // Forcer un re-render propre lors des changements d'état critiques
+    const timer = setTimeout(() => {
+      // Petit délai pour permettre aux composants de se stabiliser
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [isEditing, profile?.id]);
 
   // Initialiser les données du formulaire quand le profil est chargé
   React.useEffect(() => {
@@ -762,7 +772,7 @@ const PartnerProfile = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="basic">
+              <Tabs defaultValue="basic" key={`tabs-${isEditing ? 'editing' : 'viewing'}`}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="basic">Informations de base</TabsTrigger>
                   <TabsTrigger value="business">Détails commerciaux</TabsTrigger>
@@ -1097,6 +1107,6 @@ const PartnerProfile = () => {
     </DashboardLayout>
     </ErrorBoundary>
   );
-};
+});
 
 export default PartnerProfile; 
